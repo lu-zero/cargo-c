@@ -36,14 +36,14 @@ impl PkgConfig {
     /// Cflags: -I${includedir}/$name
     /// Libs: -L${libdir} -l$name
     ///
-    pub fn new<A, B, C>(name: A, version: B, description: C) -> Self
-        where A: AsRef<str>,
-              B: AsRef<str>,
-              C: AsRef<str>,
+    pub fn new<A, B>(name: A, version: B) -> Self
+    where
+        A: AsRef<str>,
+        B: AsRef<str>,
     {
         let name = name.as_ref();
         let version = version.as_ref();
-        let description = description.as_ref();
+        let description = "";
         PkgConfig {
             name: name.to_owned(),
             version: version.to_owned(),
@@ -66,40 +66,45 @@ impl PkgConfig {
         }
     }
 
-    pub fn set_libs<S: AsRef<str>>(mut self, lib: S) -> Self {
+    pub fn set_description<S: AsRef<str>>(&mut self, descr: S) -> &mut Self {
+        self.description = descr.as_ref().to_owned();
+        self
+    }
+
+    pub fn set_libs<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
         self.libs.clear();
         self.libs.push(lib);
         self
     }
 
-    pub fn add_lib<S: AsRef<str>>(mut self, lib: S) -> Self {
+    pub fn add_lib<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
         self.libs.push(lib);
         self
     }
 
-    pub fn set_libs_private<S: AsRef<str>>(mut self, lib: S) -> Self {
+    pub fn set_libs_private<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
         self.libs.clear();
         self.libs.push(lib);
         self
     }
 
-    pub fn add_lib_private<S: AsRef<str>>(mut self, lib: S) -> Self {
+    pub fn add_lib_private<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
         self.libs_private.push(lib);
         self
     }
 
-    pub fn set_cflags<S: AsRef<str>>(mut self, flag: S) -> Self {
+    pub fn set_cflags<S: AsRef<str>>(&mut self, flag: S) -> &mut Self {
         let flag = flag.as_ref().to_owned();
         self.libs.clear();
         self.libs.push(flag);
         self
     }
 
-    pub fn add_cflag<S: AsRef<str>>(mut self, flag: S) -> Self {
+    pub fn add_cflag<S: AsRef<str>>(&mut self, flag: S) -> &mut Self {
         let flag = flag.as_ref();
         self.libs.push(flag.to_owned());
         self
@@ -130,9 +135,10 @@ Cflags: {}",
         .to_owned();
 
         if !self.libs_private.is_empty() {
-            base.push_str(&format!("
+            base.push_str(&format!(
+                "
 Libs.private: {}",
-self.libs_private.join(" "),
+                self.libs_private.join(" "),
             ));
         }
 
@@ -164,9 +170,8 @@ mod test {
 
     #[test]
     fn simple() {
-        let pkg = PkgConfig::new("foo", "0.1", "test pc")
-            .add_lib("-lbar")
-            .add_cflag("-DFOO");
+        let mut pkg = PkgConfig::new("foo", "0.1", "test pc");
+        pkg.add_lib("-lbar").add_cflag("-DFOO");
 
         println!("{:?}\n{}", pkg, pkg.render());
     }
