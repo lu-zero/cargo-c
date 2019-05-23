@@ -8,3 +8,6 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
+cargo-project = "0.2"
+structopt = "0.2"
+regex = "1"
