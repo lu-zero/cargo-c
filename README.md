@@ -4,18 +4,18 @@
 
 ``` sh
 # build the library, create the .h header, create the .pc file
-$ cargo c build --prefix=/usr --libdir=/usr/lib64
+$ cargo c build 
 # install all of it
-$ cargo c install --destdir=${D}
+$ cargo c install --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
 
 ## Status
 
-- [ ] cli
-  - [ ] build command
-  - [ ] install command
+- [x] cli
+  - [x] build command
+  - [x] install command
 - [ ] build target
-  - [ ] pkg-config generation
+  - [x] pkg-config generation
   - [ ] header generation (cbindgen integration)
 - [ ] `staticlib` support
 - [ ] `cdylib` support
