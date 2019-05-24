@@ -9,6 +9,5 @@ readme = "README.md"
 
 [dependencies]
 cargo_metadata = "0.7"
-cargo-project = "0.2"
 structopt = "0.2"
 regex = "1"

@@ -1,8 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use cargo_metadata::{Metadata, MetadataCommand, Package};
-use cargo_project::Project;
+use cargo_metadata::{ MetadataCommand, Package };
 use structopt::StructOpt;
 
 mod pkg_config_gen;
@@ -71,7 +70,6 @@ fn main() -> Result<(), std::io::Error> {
     let wd = opts.projectdir.unwrap_or(cwd);
 
     let mut cmd = MetadataCommand::new();
-    let project = Project::query(wd.clone()).unwrap();
 
     cmd.current_dir(wd);
 
@@ -80,7 +78,7 @@ fn main() -> Result<(), std::io::Error> {
     let package = meta
         .packages
         .iter()
-        .find(|p| p.name == project.name())
+        .find(|p| p.id.repr == meta.workspace_members.first().unwrap().repr)
         .unwrap();
 
     // println!("{:?} {:?}", project.name(), package);
