@@ -60,6 +60,8 @@ struct Opt {
 }
 
 fn build(pkg: &Package, target_dir: &PathBuf) -> Result<(), std::io::Error> {
+    std::fs::create_dir_all(target_dir)?;
+
     let mut pc = PkgConfig::new(&pkg.name, &pkg.version.to_string());
     let static_libs = get_static_libs_for_target(None, target_dir)?;
 
@@ -76,6 +78,14 @@ fn build(pkg: &Package, target_dir: &PathBuf) -> Result<(), std::io::Error> {
     let buf = pc.render();
 
     out.write_all(buf.as_ref())?;
+
+    println!("{:?}", pkg.manifest_path.parent());
+
+    let h_path = target_dir.join(&format!("{}.h", pkg.name));
+    let crate_path = pkg.manifest_path.parent().unwrap();
+
+    // TODO: map the errors
+    cbindgen::Builder::new().with_crate(crate_path).generate().unwrap().write_to_file(h_path);
 
     Ok(())
 }
