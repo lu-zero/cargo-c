@@ -11,22 +11,41 @@ use pkg_config_gen::PkgConfig;
 use static_libs::get_static_libs_for_target;
 
 #[derive(Debug, StructOpt)]
+struct Common {
+    /// Build artifacts in release mode, with optimizations
+    #[structopt(long = "release")]
+    release: bool,
+    /// Build for the target triple
+    #[structopt(name = "TRIPLE")]
+    target: Option<String>,
+    /// Directory for all generated artifacts
+    #[structopt(name = "DIRECTORY", long = "target-dir", parse(from_os_str))]
+    targetdir: Option<PathBuf>,
+
+    #[structopt(long = "destdir", parse(from_os_str))]
+    destdir: Option<PathBuf>,
+    #[structopt(long = "prefix", parse(from_os_str))]
+    prefix: Option<PathBuf>,
+    #[structopt(long = "libdir", parse(from_os_str))]
+    libdir: Option<PathBuf>,
+    #[structopt(long = "includedir", parse(from_os_str))]
+    includedir: Option<PathBuf>,
+}
+
+#[derive(Debug, StructOpt)]
 enum Command {
     /// Build C-compatible libraries, headers and pkg-config files
     #[structopt(name = "build")]
-    Build {},
+    Build {
+        #[structopt(flatten)]
+        opts: Common,
+    },
 
     /// Install the C-compatible libraries, headers and pkg-config files
     #[structopt(name = "install")]
     Install {
-        #[structopt(long = "destdir", parse(from_os_str))]
-        destdir: Option<PathBuf>,
-        #[structopt(long = "prefix", parse(from_os_str))]
-        prefix: Option<PathBuf>,
-        #[structopt(long = "libdir", parse(from_os_str))]
-        libdir: Option<PathBuf>,
-        #[structopt(long = "includedir", parse(from_os_str))]
-        includedir: Option<PathBuf>,
+        #[structopt(flatten)]
+        opts: Common,
     },
 }
 
@@ -84,8 +103,12 @@ fn main() -> Result<(), std::io::Error> {
     // println!("{:?} {:?}", project.name(), package);
 
     match opts.cmd {
-        Command::Build {} => {
-            build(package, &meta.target_directory)?;
+        Command::Build { opts } => {
+            let target_directory = opts.targetdir.as_ref().unwrap_or(&meta.target_directory);
+            let profile = if opts.release { "release" } else { "debug" };
+            let target_path = target_directory.join(profile);
+
+            build(package, &target_path)?;
         }
         _ => unimplemented!(),
     }
