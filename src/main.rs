@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use cargo_metadata::{ MetadataCommand, Package };
+use cargo_metadata::{MetadataCommand, Package};
 use structopt::StructOpt;
 
 mod pkg_config_gen;
