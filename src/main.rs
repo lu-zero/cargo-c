@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use cargo_metadata::{MetadataCommand, Package};
+use cargo_metadata::{MetadataCommand, Metadata, Package};
 use structopt::StructOpt;
 
 mod pkg_config_gen;
@@ -59,35 +59,94 @@ struct Opt {
     cmd: Command,
 }
 
-fn build(pkg: &Package, target_dir: &PathBuf) -> Result<(), std::io::Error> {
-    std::fs::create_dir_all(target_dir)?;
 
-    let mut pc = PkgConfig::new(&pkg.name, &pkg.version.to_string());
-    let static_libs = get_static_libs_for_target(None, target_dir)?;
+/// Configuration required by the command
+struct Config {
+    /// Build artifacts in release mode, with optimizations
+    release: bool,
+    /// Build for the target triple or the host system.
+    target: Option<String>,
+    /// Directory for all generated artifacts with the profile appended.
+    targetdir: PathBuf,
 
-    pc.add_lib_private(static_libs);
+    destdir: Option<PathBuf>,
+    prefix: PathBuf,
+    libdir: PathBuf,
+    includedir: PathBuf,
+    pkg: Package,
+}
 
-    if let Some(descr) = pkg.description.as_ref() {
-        pc.set_description(descr);
+impl Config {
+    fn new(opt: Common, meta: &Metadata) -> Self {
+        let pkg = meta
+            .packages
+            .iter()
+            .find(|p| p.id.repr == meta.workspace_members.first().unwrap().repr)
+            .unwrap();
+
+        let target_directory = opt.targetdir.as_ref().unwrap_or(&meta.target_directory);
+        let profile = if opt.release { "release" } else { "debug" };
+        let targetdir = target_directory.join(profile);
+
+        let prefix = opt.prefix.unwrap_or("/usr/local".into());
+        let libdir = opt.libdir.unwrap_or(prefix.join("lib"));
+        let includedir = opt.includedir.unwrap_or(prefix.join("include"));
+
+        Config {
+            release: opt.release,
+            target: opt.target,
+            destdir: opt.destdir,
+
+            targetdir,
+            prefix,
+            libdir,
+            includedir,
+            pkg: pkg.clone(),
+        }
     }
 
-    let pc_path = target_dir.join(&format!("{}.pc", pkg.name));
-    println!("path {:?}", pc_path);
-    let mut out = std::fs::File::create(pc_path)?;
+    /// Build the pkg-config file
+    fn build_pc_file(&self) -> Result<(), std::io::Error> {
+        let pkg = &self.pkg;
+        let target_dir = &self.targetdir;
+        let mut pc = PkgConfig::new(&pkg.name, &pkg.version.to_string());
+        let static_libs = get_static_libs_for_target(None, target_dir)?;
 
-    let buf = pc.render();
+        pc.add_lib_private(static_libs);
 
-    out.write_all(buf.as_ref())?;
+        if let Some(descr) = pkg.description.as_ref() {
+            pc.set_description(descr);
+        }
 
-    println!("{:?}", pkg.manifest_path.parent());
+        let pc_path = target_dir.join(&format!("{}.pc", pkg.name));
+        let mut out = std::fs::File::create(pc_path)?;
 
-    let h_path = target_dir.join(&format!("{}.h", pkg.name));
-    let crate_path = pkg.manifest_path.parent().unwrap();
+        let buf = pc.render();
 
-    // TODO: map the errors
-    cbindgen::Builder::new().with_crate(crate_path).generate().unwrap().write_to_file(h_path);
+        out.write_all(buf.as_ref())?;
 
-    Ok(())
+        Ok(())
+    }
+
+    /// Build the C header
+    fn build_include_file(&self) -> Result<(), std::io::Error> {
+        let h_path = self.targetdir.join(&format!("{}.h", self.pkg.name));
+        let crate_path = self.pkg.manifest_path.parent().unwrap();
+
+        // TODO: map the errors
+        cbindgen::Builder::new().with_crate(crate_path).generate().unwrap().write_to_file(h_path);
+
+        Ok(())
+    }
+
+    fn build(&self) -> Result<(), std::io::Error> {
+        std::fs::create_dir_all(&self.targetdir)?;
+
+        self.build_pc_file()?;
+        self.build_include_file()?;
+
+        Ok(())
+    }
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -104,21 +163,10 @@ fn main() -> Result<(), std::io::Error> {
 
     let meta = cmd.exec().unwrap();
 
-    let package = meta
-        .packages
-        .iter()
-        .find(|p| p.id.repr == meta.workspace_members.first().unwrap().repr)
-        .unwrap();
-
-    // println!("{:?} {:?}", project.name(), package);
-
     match opts.cmd {
         Command::Build { opts } => {
-            let target_directory = opts.targetdir.as_ref().unwrap_or(&meta.target_directory);
-            let profile = if opts.release { "release" } else { "debug" };
-            let target_path = target_directory.join(profile);
-
-            build(package, &target_path)?;
+            let cfg = Config::new(opts, &meta);
+            cfg.build()?;
         }
         _ => unimplemented!(),
     }
