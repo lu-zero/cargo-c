@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command as Cmd;
 
 use cargo_metadata::{MetadataCommand, Metadata, Package};
 use structopt::StructOpt;
@@ -59,15 +60,82 @@ struct Opt {
     cmd: Command,
 }
 
+struct Target {
+    arch: String,
+    vendor: String,
+    os: String,
+    env: String,
+    verbatim: Option<std::ffi::OsString>,
+}
+
+impl Target {
+    fn new<T: AsRef<std::ffi::OsStr>>(target: Option<T>) -> Result<Self, std::io::Error> {
+        let rustc = std::env::var("RUSTC").unwrap_or("rustc".into());
+        let mut cmd = Cmd::new(rustc);
+
+        cmd.arg("--print").arg("cfg");
+
+        if let Some(t) = target.as_ref() {
+            cmd.arg("--target").arg(t);
+        }
+
+        let out = cmd.output()?;
+        if out.status.success() {
+            fn match_re(re: regex::Regex, s: &str) -> String {
+               re
+                .captures(s)
+                .map_or("", |cap| cap.get(1).unwrap().as_str())
+                .to_owned()
+            }
+
+            let arch_re = regex::Regex::new(r#"target_arch="(.+)""#).unwrap();
+            let vendor_re = regex::Regex::new(r#"target_vendor="(.+)""#).unwrap();
+            let os_re = regex::Regex::new(r#"target_os="(.+)""#).unwrap();
+            let env_re = regex::Regex::new(r#"target_env="(.+)""#).unwrap();
+
+            let s = std::str::from_utf8(&out.stdout).unwrap();
+
+            Ok(Target {
+                arch: match_re(arch_re, s),
+                vendor: match_re(vendor_re, s),
+                os: match_re(os_re, s),
+                env: match_re(env_re, s),
+                verbatim: target.map(|v| v.as_ref().to_os_string()),
+            })
+        } else {
+            Err(std::io::ErrorKind::InvalidInput.into())
+        }
+    }
+
+    fn to_string(&self) -> String {
+        let mut s = String::new();
+        s.push_str(&self.arch);
+        if self.vendor != "" {
+            s.push('-');
+            s.push_str(&self.vendor);
+        }
+        if self.os != "" {
+            s.push('-');
+            s.push_str(&self.os);
+        }
+        if self.env != "" {
+            s.push('-');
+            s.push_str(&self.env);
+        }
+        s
+    }
+}
 
 /// Configuration required by the command
 struct Config {
     /// Build artifacts in release mode, with optimizations
     release: bool,
     /// Build for the target triple or the host system.
-    target: Option<String>,
+    target: Target,
     /// Directory for all generated artifacts with the profile appended.
     targetdir: PathBuf,
+    /// Directory for all generated artifacts without the profile appended.
+    target_dir: PathBuf,
 
     destdir: Option<PathBuf>,
     prefix: PathBuf,
@@ -84,9 +152,9 @@ impl Config {
             .find(|p| p.id.repr == meta.workspace_members.first().unwrap().repr)
             .unwrap();
 
-        let target_directory = opt.targetdir.as_ref().unwrap_or(&meta.target_directory);
+        let target_dir = opt.targetdir.as_ref().unwrap_or(&meta.target_directory);
         let profile = if opt.release { "release" } else { "debug" };
-        let targetdir = target_directory.join(profile);
+        let targetdir = target_dir.join(profile);
 
         let prefix = opt.prefix.unwrap_or("/usr/local".into());
         let libdir = opt.libdir.unwrap_or(prefix.join("lib"));
@@ -94,10 +162,11 @@ impl Config {
 
         Config {
             release: opt.release,
-            target: opt.target,
+            target: Target::new(opt.target.as_ref()).unwrap(),
             destdir: opt.destdir,
 
             targetdir,
+            target_dir: target_dir.clone(),
             prefix,
             libdir,
             includedir,
@@ -110,7 +179,7 @@ impl Config {
         let pkg = &self.pkg;
         let target_dir = &self.targetdir;
         let mut pc = PkgConfig::new(&pkg.name, &pkg.version.to_string());
-        let static_libs = get_static_libs_for_target(None, target_dir)?;
+        let static_libs = get_static_libs_for_target(self.target.verbatim.as_ref(), target_dir)?;
 
         pc.add_lib_private(static_libs);
 
@@ -144,6 +213,68 @@ impl Config {
 
         self.build_pc_file()?;
         self.build_include_file()?;
+        self.build_library()?;
+        Ok(())
+    }
+
+    /// Return a list of linker arguments useful to produce a platform-correct dynamic library
+    fn shared_object_link_args(&self) -> Vec<String> {
+        let mut lines = Vec::new();
+        let name = &self.pkg.name;
+
+        let major = self.pkg.version.major;
+        let minor = self.pkg.version.minor;
+        let patch = self.pkg.version.patch;
+
+        let os = &self.target.os;
+        let env = &self.target.env;
+
+        let libdir = &self.libdir;
+        let target_dir = &self.targetdir;
+
+
+        if os == "linux" {
+            lines.push(format!("-Wl,-soname,lib{}.so.{}", name, major));
+        } else if os == "macos" {
+            let line = format!("-Wl,-install_name,{1}/lib{0}.{2}.{3}.{4}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{2}",
+                    name, libdir.display(), major, minor, patch);
+            lines.push(line)
+        } else if os == "windows" && env == "gnu" {
+            // This is only set up to work on GNU toolchain versions of Rust
+            lines.push(format!(
+                "-Wl,--out-implib,{}",
+                target_dir.join(format!("{}.dll.a", name)).display()
+            ));
+            lines.push(format!(
+                "-Wl,--output-def,{}",
+                target_dir.join(format!("{}.def", name)).display()
+            ));
+        }
+
+        lines
+    }
+
+    /// Build the Library
+    fn build_library(&self) -> Result<(), std::io::Error> {
+        use std::io;
+        let cargo = std::env::var("CARGO").unwrap();
+        let mut cmd = std::process::Command::new(cargo);
+
+        cmd.arg("rustc");
+        cmd.arg("--target-dir").arg(&self.target_dir);
+        cmd.arg("--manifest-path").arg(&self.pkg.manifest_path);
+
+        cmd.arg("--");
+
+        for line in self.shared_object_link_args() {
+            cmd.arg("-C").arg(&format!("link-arg={}", line));
+        }
+        println!("{:?}", cmd);
+
+        let out = cmd.output()?;
+
+        io::stdout().write_all(&out.stdout).unwrap();
+        io::stderr().write_all(&out.stderr).unwrap();
 
         Ok(())
     }
@@ -159,7 +290,10 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut cmd = MetadataCommand::new();
 
-    cmd.current_dir(wd);
+
+    println!("{:?}", wd);
+    cmd.current_dir(&wd);
+    cmd.manifest_path(wd.join("Cargo.toml"));
 
     let meta = cmd.exec().unwrap();
 

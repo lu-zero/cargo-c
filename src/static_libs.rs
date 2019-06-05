@@ -6,13 +6,11 @@ use std::{env, str};
 
 use regex::Regex;
 
-// TODO: support windows -> /dev/null vs NUL
-pub fn get_static_libs_for_target(target: Option<&str>, target_dir: &PathBuf) -> Result<String> {
+pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(target: Option<T>, target_dir: &PathBuf) -> Result<String> {
     let rustc = env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
 
     let mut cmd = Command::new(rustc);
-    let cmd = cmd
-        .arg("--color")
+    cmd.arg("--color")
         .arg("never")
         .arg("--crate-type")
         .arg("staticlib")
@@ -22,6 +20,10 @@ pub fn get_static_libs_for_target(target: Option<&str>, target_dir: &PathBuf) ->
         .arg("--out-dir")
         .arg(target_dir)
         .stdin(Stdio::null());
+
+    if let Some(t) = target {
+        cmd.arg("--target").arg(t);
+    }
 
     let out = cmd.output()?;
 
