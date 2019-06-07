@@ -1,8 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::Command as Cmd;
 
-use cargo_metadata::{MetadataCommand, Metadata, Package};
+use cargo_metadata::{Metadata, MetadataCommand, Package};
 use structopt::StructOpt;
 
 mod pkg_config_gen;
@@ -17,7 +16,7 @@ struct Common {
     #[structopt(long = "release")]
     release: bool,
     /// Build for the target triple
-    #[structopt(name = "TRIPLE")]
+    #[structopt(long = "target", name = "TRIPLE")]
     target: Option<String>,
     /// Directory for all generated artifacts
     #[structopt(name = "DIRECTORY", long = "target-dir", parse(from_os_str))]
@@ -60,9 +59,13 @@ struct Opt {
     cmd: Command,
 }
 
+/// Split a target string to its components
+///
+/// Because of https://github.com/rust-lang/rust/issues/61558
+/// It uses internally `rustc` to validate the string.
 struct Target {
-    arch: String,
-    vendor: String,
+    // arch: String,
+    // vendor: String,
     os: String,
     env: String,
     verbatim: Option<std::ffi::OsString>,
@@ -71,7 +74,7 @@ struct Target {
 impl Target {
     fn new<T: AsRef<std::ffi::OsStr>>(target: Option<T>) -> Result<Self, std::io::Error> {
         let rustc = std::env::var("RUSTC").unwrap_or("rustc".into());
-        let mut cmd = Cmd::new(rustc);
+        let mut cmd = std::process::Command::new(rustc);
 
         cmd.arg("--print").arg("cfg");
 
@@ -82,22 +85,21 @@ impl Target {
         let out = cmd.output()?;
         if out.status.success() {
             fn match_re(re: regex::Regex, s: &str) -> String {
-               re
-                .captures(s)
-                .map_or("", |cap| cap.get(1).unwrap().as_str())
-                .to_owned()
+                re.captures(s)
+                    .map_or("", |cap| cap.get(1).unwrap().as_str())
+                    .to_owned()
             }
 
-            let arch_re = regex::Regex::new(r#"target_arch="(.+)""#).unwrap();
-            let vendor_re = regex::Regex::new(r#"target_vendor="(.+)""#).unwrap();
+            // let arch_re = regex::Regex::new(r#"target_arch="(.+)""#).unwrap();
+            // let vendor_re = regex::Regex::new(r#"target_vendor="(.+)""#).unwrap();
             let os_re = regex::Regex::new(r#"target_os="(.+)""#).unwrap();
             let env_re = regex::Regex::new(r#"target_env="(.+)""#).unwrap();
 
             let s = std::str::from_utf8(&out.stdout).unwrap();
 
             Ok(Target {
-                arch: match_re(arch_re, s),
-                vendor: match_re(vendor_re, s),
+                // arch: match_re(arch_re, s),
+                // vendor: match_re(vendor_re, s),
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
                 verbatim: target.map(|v| v.as_ref().to_os_string()),
@@ -106,28 +108,76 @@ impl Target {
             Err(std::io::ErrorKind::InvalidInput.into())
         }
     }
+}
 
-    fn to_string(&self) -> String {
-        let mut s = String::new();
-        s.push_str(&self.arch);
-        if self.vendor != "" {
-            s.push('-');
-            s.push_str(&self.vendor);
+/// Files we are expected to produce
+///
+/// Currently we produce only 1 header, 1 pc file and a variable number of
+/// files for the libraries.
+#[derive(Debug)]
+struct BuildTargets {
+    include: PathBuf,
+    static_lib: PathBuf,
+    shared_lib: PathBuf,
+    impl_lib: Option<PathBuf>,
+    def: Option<PathBuf>,
+    pc: PathBuf,
+}
+
+impl BuildTargets {
+    fn new(cfg: &Config, hash: &str) -> BuildTargets {
+        let name = &cfg.name;
+
+        let pc = cfg.targetdir.join(&format!("{}.pc", name));
+        let include = cfg.targetdir.join(&format!("{}.h", name));
+
+        let os = &cfg.target.os;
+        let env = &cfg.target.env;
+
+        let targetdir = cfg.targetdir.join("deps");
+
+        let static_lib = targetdir.join(&format!("lib{}-{}.a", name, hash));
+        let (shared_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
+            ("linux", _) => {
+                let shared_lib = targetdir.join(&format!("lib{}-{}.so", name, hash));
+                (shared_lib, None, None)
+            }
+            ("macos", _) => {
+                let shared_lib = targetdir.join(&format!("lib{}-{}.dylib", name, hash));
+                (shared_lib, None, None)
+            }
+            ("windows", "gnu") => {
+                let shared_lib = targetdir.join(&format!("lib{}-{}.dll", name, hash));
+                let impl_lib = cfg.targetdir.join(&format!("{}.dll.a", name));
+                let def = cfg.targetdir.join(&format!("{}.def", name));
+                (shared_lib, Some(impl_lib), Some(def))
+            }
+            _ => unimplemented!("The target {}-{} is not supported yet", os, env),
+        };
+
+        BuildTargets {
+            pc,
+            include,
+            static_lib,
+            shared_lib,
+            impl_lib,
+            def,
         }
-        if self.os != "" {
-            s.push('-');
-            s.push_str(&self.os);
-        }
-        if self.env != "" {
-            s.push('-');
-            s.push_str(&self.env);
-        }
-        s
     }
+}
+
+use serde_derive::*;
+
+/// cargo fingerpring of the target crate
+#[derive(Debug, Serialize, Deserialize)]
+struct BuildInfo {
+    hash: String,
 }
 
 /// Configuration required by the command
 struct Config {
+    /// The library name
+    name: String,
     /// Build artifacts in release mode, with optimizations
     release: bool,
     /// Build for the target triple or the host system.
@@ -137,11 +187,24 @@ struct Config {
     /// Directory for all generated artifacts without the profile appended.
     target_dir: PathBuf,
 
-    destdir: Option<PathBuf>,
-    prefix: PathBuf,
+    destdir: PathBuf,
+    // prefix: PathBuf,
     libdir: PathBuf,
     includedir: PathBuf,
     pkg: Package,
+
+}
+
+fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
+    let path = if path.is_absolute() {
+        let mut components = path.components();
+        let _ = components.next();
+        components.as_path()
+    } else {
+        path.as_path()
+    };
+
+    destdir.join(path)
 }
 
 impl Config {
@@ -160,25 +223,55 @@ impl Config {
         let libdir = opt.libdir.unwrap_or(prefix.join("lib"));
         let includedir = opt.includedir.unwrap_or(prefix.join("include"));
 
+
+        let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).unwrap().name.clone();
+
         Config {
+            name,
             release: opt.release,
             target: Target::new(opt.target.as_ref()).unwrap(),
-            destdir: opt.destdir,
+            destdir: opt.destdir.unwrap_or(PathBuf::from("/")),
 
             targetdir,
             target_dir: target_dir.clone(),
-            prefix,
+            // prefix,
             libdir,
             includedir,
             pkg: pkg.clone(),
         }
     }
 
+    fn open_build_info(&self) -> Option<BuildInfo> {
+        let info_path = self.targetdir.join(".cargo-c.toml");
+        let mut f = std::fs::File::open(info_path).ok()?;
+
+        use std::io::Read;
+        let mut s = Vec::new();
+
+        f.read_to_end(&mut s).ok()?;
+
+        println!("bi {}", std::str::from_utf8(&s).unwrap());
+
+        let t = toml::from_slice::<BuildInfo>(&s).unwrap();
+
+        println!("{}", t.hash);
+
+        Some(t)
+    }
+
+    fn save_build_info(&self, info: &BuildInfo) {
+        let info_path = self.targetdir.join(".cargo-c.toml");
+        let mut f = std::fs::File::create(info_path).unwrap();
+        let s = toml::to_vec(info).unwrap();
+
+        f.write_all(&s).unwrap();
+    }
+
     /// Build the pkg-config file
-    fn build_pc_file(&self) -> Result<(), std::io::Error> {
+    fn build_pc_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
         let pkg = &self.pkg;
         let target_dir = &self.targetdir;
-        let mut pc = PkgConfig::new(&pkg.name, &pkg.version.to_string());
+        let mut pc = PkgConfig::new(&self.name, &pkg.version.to_string());
         let static_libs = get_static_libs_for_target(self.target.verbatim.as_ref(), target_dir)?;
 
         pc.add_lib_private(static_libs);
@@ -187,7 +280,7 @@ impl Config {
             pc.set_description(descr);
         }
 
-        let pc_path = target_dir.join(&format!("{}.pc", pkg.name));
+        let pc_path = &build_targets.pc;
         let mut out = std::fs::File::create(pc_path)?;
 
         let buf = pc.render();
@@ -198,29 +291,39 @@ impl Config {
     }
 
     /// Build the C header
-    fn build_include_file(&self) -> Result<(), std::io::Error> {
-        let h_path = self.targetdir.join(&format!("{}.h", self.pkg.name));
+    fn build_include_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
+        let include_path = &build_targets.include;
         let crate_path = self.pkg.manifest_path.parent().unwrap();
 
         // TODO: map the errors
-        cbindgen::Builder::new().with_crate(crate_path).generate().unwrap().write_to_file(h_path);
+        cbindgen::Builder::new()
+            .with_crate(crate_path)
+            .generate()
+            .unwrap()
+            .write_to_file(include_path);
 
         Ok(())
     }
 
-    fn build(&self) -> Result<(), std::io::Error> {
+    fn build(&self) -> Result<BuildInfo, std::io::Error> {
         std::fs::create_dir_all(&self.targetdir)?;
 
-        self.build_pc_file()?;
-        self.build_include_file()?;
-        self.build_library()?;
-        Ok(())
+        let info = self.build_library()?;
+
+        let build_targets = BuildTargets::new(self, &info.hash);
+
+        self.build_pc_file(&build_targets)?;
+        self.build_include_file(&build_targets)?;
+
+        self.save_build_info(&info);
+
+        Ok(info)
     }
 
     /// Return a list of linker arguments useful to produce a platform-correct dynamic library
     fn shared_object_link_args(&self) -> Vec<String> {
         let mut lines = Vec::new();
-        let name = &self.pkg.name;
+        let name = &self.name;
 
         let major = self.pkg.version.major;
         let minor = self.pkg.version.minor;
@@ -231,7 +334,6 @@ impl Config {
 
         let libdir = &self.libdir;
         let target_dir = &self.targetdir;
-
 
         if os == "linux" {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", name, major));
@@ -255,16 +357,30 @@ impl Config {
     }
 
     /// Build the Library
-    fn build_library(&self) -> Result<(), std::io::Error> {
+    fn build_library(&self) -> Result<BuildInfo, std::io::Error> {
         use std::io;
         let cargo = std::env::var("CARGO").unwrap();
         let mut cmd = std::process::Command::new(cargo);
 
         cmd.arg("rustc");
+        cmd.arg("-v");
         cmd.arg("--target-dir").arg(&self.target_dir);
         cmd.arg("--manifest-path").arg(&self.pkg.manifest_path);
 
+        if let Some(t) = self.target.verbatim.as_ref() {
+            cmd.arg("--target").arg(t);
+        }
+
+        if self.release {
+            cmd.arg("--release");
+        }
+
         cmd.arg("--");
+
+        cmd.arg("--crate-type").arg("staticlib");
+        cmd.arg("--crate-type").arg("cdylib");
+
+        cmd.arg("--cfg").arg("cargo_c");
 
         for line in self.shared_object_link_args() {
             cmd.arg("-C").arg(&format!("link-arg={}", line));
@@ -275,6 +391,89 @@ impl Config {
 
         io::stdout().write_all(&out.stdout).unwrap();
         io::stderr().write_all(&out.stderr).unwrap();
+        // TODO: replace this hack with something saner
+        let exp = &format!(".* -C extra-filename=-([^ ]*) .*");
+        // println!("exp : {}", exp);
+        let re = regex::Regex::new(exp).unwrap();
+        let s = std::str::from_utf8(&out.stderr).unwrap();
+
+        let s = s.lines().rfind(|line| line.contains("--cfg cargo_c")).unwrap();
+
+        let hash = re.captures(s)
+                    .map(|cap| cap.get(1).unwrap().as_str()).unwrap()
+                    .to_owned();
+
+        println!("{}", hash);
+
+        Ok(BuildInfo { hash })
+    }
+
+    fn install(&self, build_targets: BuildTargets) -> Result<(), std::io::Error> {
+        use std::fs;
+        // TODO make sure the build targets exist and are up to date
+        // println!("{:?}", self.build_targets);
+
+        let os = &self.target.os;
+        let env = &self.target.env;
+        let name = &self.name;
+        let ver = &self.pkg.version;
+
+        println!("destdir {}", self.destdir.display());
+
+        let install_path_lib = append_to_destdir(&self.destdir, &self.libdir);
+        let install_path_pc = install_path_lib.join("pkg-config");
+        let install_path_include = append_to_destdir(&self.destdir, &self.includedir).join(name);
+
+        // fs::create_dir_all(&install_path_lib);
+        fs::create_dir_all(&install_path_pc)?;
+        fs::create_dir_all(&install_path_include)?;
+
+        println!("{:?}", install_path_pc);
+
+        fs::copy(&build_targets.pc, install_path_pc.join(&format!("{}.pc", name)))?;
+        fs::copy(&build_targets.include, install_path_include.join(&format!("{}.h", name)))?;
+        println!("{:?}", build_targets.include);
+
+        fs::copy(&build_targets.static_lib, install_path_lib.join(&format!("lib{}.a", name)))?;
+        println!("{:?}", build_targets.static_lib);
+
+
+        let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
+            let mut ln_sf = std::process::Command::new("ln");
+            ln_sf.arg("-sf");
+            ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib_with_major_ver));
+            let _ = ln_sf.status().unwrap();
+            let mut ln_sf = std::process::Command::new("ln");
+            ln_sf.arg("-sf");
+            ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib));
+            let _ = ln_sf.status().unwrap();
+        };
+
+        match (os.as_str(), env.as_str()) {
+            ("linux", _) => {
+                let lib = &format!("lib{}.so", name);
+                let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
+                let lib_with_full_ver = &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
+                fs::copy(&build_targets.shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+            }
+            ("macos", _) => {
+                let lib = &format!("lib{}.dylib", name);
+                let lib_with_major_ver = &format!("lib{}.{}.dylib", name, ver.major);
+                let lib_with_full_ver = &format!("lib{}.{}.{}.{}.dylib", name, ver.major, ver.minor, ver.patch);
+                fs::copy(&build_targets.shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+            }
+            ("windows", "gnu") => {
+                let lib = format!("{}.dll", name);
+                let impl_lib = format!("{}.dll.a", name);
+                let def = format!("{}.def", name);
+                fs::copy(&build_targets.shared_lib, install_path_lib.join(lib))?;
+                fs::copy(build_targets.impl_lib.as_ref().unwrap(), install_path_lib.join(impl_lib))?;
+                fs::copy(build_targets.def.as_ref().unwrap(), install_path_lib.join(def))?;
+            }
+            _ => unimplemented!("The target {}-{} is not supported yet", os, env),
+        }
 
         Ok(())
     }
@@ -290,7 +489,6 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut cmd = MetadataCommand::new();
 
-
     println!("{:?}", wd);
     cmd.current_dir(&wd);
     cmd.manifest_path(wd.join("Cargo.toml"));
@@ -302,7 +500,17 @@ fn main() -> Result<(), std::io::Error> {
             let cfg = Config::new(opts, &meta);
             cfg.build()?;
         }
-        _ => unimplemented!(),
+        Command::Install { opts } => {
+            let cfg = Config::new(opts, &meta);
+            // rebuild if the previous build information is missing
+            // TODO: make sure the information is not stale
+            let info = cfg.open_build_info().unwrap_or_else(|| cfg.build().unwrap());
+            let build_targets = BuildTargets::new(&cfg, &info.hash);
+
+            println!("{:?}", build_targets);
+
+            cfg.install(build_targets)?;
+        }
     }
 
     Ok(())
