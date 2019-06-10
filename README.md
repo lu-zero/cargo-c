@@ -14,9 +14,9 @@ $ cargo c install --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 - [x] cli
   - [x] build command
   - [x] install command
-- [ ] build target
+- [x] build target
   - [x] pkg-config generation
-  - [ ] header generation (cbindgen integration)
-- [ ] `staticlib` support
-- [ ] `cdylib` support
+  - [x] header generation (cbindgen integration)
+- [x] `staticlib` support
+- [x] `cdylib` support
 - [ ] Extra Cargo.toml keys
