@@ -169,7 +169,7 @@ impl BuildTargets {
 use serde_derive::*;
 
 /// cargo fingerpring of the target crate
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct BuildInfo {
     hash: String,
 }
@@ -305,21 +305,6 @@ impl Config {
         Ok(())
     }
 
-    fn build(&self) -> Result<BuildInfo, std::io::Error> {
-        std::fs::create_dir_all(&self.targetdir)?;
-
-        let info = self.build_library()?;
-
-        let build_targets = BuildTargets::new(self, &info.hash);
-
-        self.build_pc_file(&build_targets)?;
-        self.build_include_file(&build_targets)?;
-
-        self.save_build_info(&info);
-
-        Ok(info)
-    }
-
     /// Return a list of linker arguments useful to produce a platform-correct dynamic library
     fn shared_object_link_args(&self) -> Vec<String> {
         let mut lines = Vec::new();
@@ -357,7 +342,7 @@ impl Config {
     }
 
     /// Build the Library
-    fn build_library(&self) -> Result<BuildInfo, std::io::Error> {
+    fn build_library(&self) -> Result<Option<BuildInfo>, std::io::Error> {
         use std::io;
         let cargo = std::env::var("CARGO").unwrap();
         let mut cmd = std::process::Command::new(cargo);
@@ -397,15 +382,58 @@ impl Config {
         let re = regex::Regex::new(exp).unwrap();
         let s = std::str::from_utf8(&out.stderr).unwrap();
 
-        let s = s.lines().rfind(|line| line.contains("--cfg cargo_c")).unwrap();
+        let fresh_line = format!("Fresh {} ", self.pkg.name);
 
-        let hash = re.captures(s)
-                    .map(|cap| cap.get(1).unwrap().as_str()).unwrap()
-                    .to_owned();
+        let is_fresh = s.lines().rfind(|line| line.contains(&fresh_line)).is_some();
 
-        println!("{}", hash);
+        if !is_fresh {
+            let s = s.lines().rfind(|line| line.contains("--cfg cargo_c")).unwrap();
 
-        Ok(BuildInfo { hash })
+            let hash = re.captures(s)
+                .map(|cap| cap.get(1).unwrap().as_str()).unwrap()
+                .to_owned();
+
+            println!("{}", hash);
+
+            Ok(Some(BuildInfo { hash }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn build(&self) -> Result<BuildInfo, std::io::Error> {
+        std::fs::create_dir_all(&self.targetdir)?;
+
+        let prev_info = self.open_build_info();
+
+        let mut info = self.build_library()?;
+
+
+        if info.is_none() && prev_info.is_none() {
+            let cargo = std::env::var("CARGO").unwrap();
+            let mut cmd = std::process::Command::new(cargo);
+            cmd.arg("clean");
+
+            cmd.status()?;
+            info = Some(self.build_library()?.unwrap());
+        }
+
+
+        let info = if prev_info.is_none() || (info.is_some() && info != prev_info) {
+            let info = info.unwrap();
+            let build_targets = BuildTargets::new(self, &info.hash);
+
+            self.build_pc_file(&build_targets)?;
+            self.build_include_file(&build_targets)?;
+
+            self.save_build_info(&info);
+            info
+        } else {
+            eprintln!("Already built");
+            prev_info.unwrap()
+        };
+
+        Ok(info)
     }
 
     fn install(&self, build_targets: BuildTargets) -> Result<(), std::io::Error> {
@@ -502,9 +530,8 @@ fn main() -> Result<(), std::io::Error> {
         }
         Command::Install { opts } => {
             let cfg = Config::new(opts, &meta);
-            // rebuild if the previous build information is missing
-            // TODO: make sure the information is not stale
-            let info = cfg.open_build_info().unwrap_or_else(|| cfg.build().unwrap());
+
+            let info = cfg.build()?;
             let build_targets = BuildTargets::new(&cfg, &info.hash);
 
             println!("{:?}", build_targets);
