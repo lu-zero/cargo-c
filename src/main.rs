@@ -52,7 +52,7 @@ enum Command {
 #[derive(Debug, StructOpt)]
 struct Opt {
     /// Path to the project, by default the current working directory
-    #[structopt(long = "projectdir", parse(from_os_str))]
+    #[structopt(long = "project-dir", parse(from_os_str))]
     projectdir: Option<PathBuf>,
 
     #[structopt(subcommand)]
