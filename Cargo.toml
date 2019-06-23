@@ -11,7 +11,7 @@ readme = "README.md"
 cargo_metadata = "0.7"
 structopt = "0.2"
 regex = "1"
-cbindgen = "=0.8.4"
+cbindgen = { git = "https://github.com/eqrion/cbindgen/" }
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"

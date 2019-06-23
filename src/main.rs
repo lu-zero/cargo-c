@@ -223,8 +223,8 @@ impl Config {
         let libdir = opt.libdir.unwrap_or(prefix.join("lib"));
         let includedir = opt.includedir.unwrap_or(prefix.join("include"));
 
-
-        let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).unwrap().name.clone();
+        println!("targets {:?}", pkg.targets);
+        let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).expect("Cannot find a library target").name.clone();
 
         Config {
             name,
@@ -298,6 +298,7 @@ impl Config {
         // TODO: map the errors
         cbindgen::Builder::new()
             .with_crate(crate_path)
+            .with_language(cbindgen::Language::C)
             .generate()
             .unwrap()
             .write_to_file(include_path);
