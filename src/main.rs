@@ -351,6 +351,7 @@ impl Config {
 
         cmd.arg("rustc");
         cmd.arg("-v");
+        cmd.arg("--lib");
         cmd.arg("--target-dir").arg(&self.target_dir);
         cmd.arg("--manifest-path").arg(&self.pkg.manifest_path);
 
