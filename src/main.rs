@@ -296,9 +296,10 @@ impl Config {
         let crate_path = self.pkg.manifest_path.parent().unwrap();
 
         // TODO: map the errors
+        let config = cbindgen::Config::from_root_or_default(crate_path);
         cbindgen::Builder::new()
             .with_crate(crate_path)
-            .with_language(cbindgen::Language::C)
+            .with_config(config)
             .generate()
             .unwrap()
             .write_to_file(include_path);
