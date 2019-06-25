@@ -72,7 +72,7 @@ struct Target {
 
 impl Target {
     fn new<T: AsRef<std::ffi::OsStr>>(target: Option<T>) -> Result<Self, std::io::Error> {
-        let rustc = std::env::var("RUSTC").unwrap_or("rustc".into());
+        let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
         let mut cmd = std::process::Command::new(rustc);
 
         cmd.arg("--print").arg("cfg");
@@ -230,9 +230,9 @@ impl Config {
         let profile = if opt.release { "release" } else { "debug" };
         let targetdir = target_dir.join(profile);
 
-        let prefix = opt.prefix.unwrap_or("/usr/local".into());
-        let libdir = opt.libdir.unwrap_or(prefix.join("lib"));
-        let includedir = opt.includedir.unwrap_or(prefix.join("include"));
+        let prefix = opt.prefix.unwrap_or_else(|| "/usr/local".into());
+        let libdir = opt.libdir.unwrap_or_else(|| prefix.join("lib"));
+        let includedir = opt.includedir.unwrap_or_else(|| prefix.join("include"));
 
         println!("targets {:?}", pkg.targets);
         let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).expect("Cannot find a library target").name.clone();
@@ -241,7 +241,7 @@ impl Config {
             name,
             release: opt.release,
             target: Target::new(opt.target.as_ref()).unwrap(),
-            destdir: opt.destdir.unwrap_or(PathBuf::from("/")),
+            destdir: opt.destdir.unwrap_or_else(|| PathBuf::from("/")),
 
             targetdir,
             target_dir: target_dir.clone(),
