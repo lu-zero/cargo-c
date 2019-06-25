@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use cargo_metadata::{Metadata, MetadataCommand, Package};
+use cargo_metadata::{MetadataCommand, Package};
 use structopt::StructOpt;
 
 mod pkg_config_gen;
@@ -12,6 +12,9 @@ use static_libs::get_static_libs_for_target;
 
 #[derive(Debug, StructOpt)]
 struct Common {
+    /// Path to the project, by default the current working directory
+    #[structopt(long = "project-dir", parse(from_os_str))]
+    projectdir: Option<PathBuf>,
     /// Build artifacts in release mode, with optimizations
     #[structopt(long = "release")]
     release: bool,
@@ -35,14 +38,14 @@ struct Common {
 #[derive(Debug, StructOpt)]
 enum Command {
     /// Build C-compatible libraries, headers and pkg-config files
-    #[structopt(name = "build")]
+    #[structopt(name = "build", alias = "cbuild")]
     Build {
         #[structopt(flatten)]
         opts: Common,
     },
 
     /// Install the C-compatible libraries, headers and pkg-config files
-    #[structopt(name = "install")]
+    #[structopt(name = "install", alias = "cinstall")]
     Install {
         #[structopt(flatten)]
         opts: Common,
@@ -51,10 +54,6 @@ enum Command {
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    /// Path to the project, by default the current working directory
-    #[structopt(long = "project-dir", parse(from_os_str))]
-    projectdir: Option<PathBuf>,
-
     #[structopt(subcommand)]
     cmd: Command,
 }
@@ -208,7 +207,17 @@ fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
 }
 
 impl Config {
-    fn new(opt: Common, meta: &Metadata) -> Self {
+    fn new(opt: Common) -> Self {
+        let wd = opt.projectdir.unwrap_or_else(|| std::env::current_dir().unwrap());
+
+        let mut cmd = MetadataCommand::new();
+
+        println!("{:?}", wd);
+        cmd.current_dir(&wd);
+        cmd.manifest_path(wd.join("Cargo.toml"));
+
+        let meta = cmd.exec().unwrap();
+
         let pkg = meta
             .packages
             .iter()
@@ -513,26 +522,13 @@ impl Config {
 fn main() -> Result<(), std::io::Error> {
     let opts = Opt::from_args();
 
-    println!("{:?}", opts);
-
-    let cwd = std::env::current_dir()?;
-    let wd = opts.projectdir.unwrap_or(cwd);
-
-    let mut cmd = MetadataCommand::new();
-
-    println!("{:?}", wd);
-    cmd.current_dir(&wd);
-    cmd.manifest_path(wd.join("Cargo.toml"));
-
-    let meta = cmd.exec().unwrap();
-
     match opts.cmd {
         Command::Build { opts } => {
-            let cfg = Config::new(opts, &meta);
+            let cfg = Config::new(opts);
             cfg.build()?;
         }
         Command::Install { opts } => {
-            let cfg = Config::new(opts, &meta);
+            let cfg = Config::new(opts);
 
             let info = cfg.build()?;
             let build_targets = BuildTargets::new(&cfg, &info.hash);

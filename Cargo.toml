@@ -1,5 +1,5 @@
 [package]
-name = "cargo-c"
+name = "cargo-cinstall"
 version = "0.1.0"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
