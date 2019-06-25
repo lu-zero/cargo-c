@@ -9,20 +9,16 @@ It produces and installs a correct [pkg-config](https://www.freedesktop.org/wiki
 ## Usage
 
 ``` sh
-# build the library, create the .h header, create the .pc file
-$ cargo c build
-```
-```
-# install all of it
-$ cargo c install --destdir=${D} --prefix=/usr --libdir=/usr/lib64
+# build the library, create the .h header, create the .pc file and install all of it
+$ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
 
 ## Status
 
 - [x] cli
-  - [x] build command
   - [x] install command
-- [x] build target
+  - [x] cargo applet support
+- [x] build targets
   - [x] pkg-config generation
   - [x] header generation (cbindgen integration)
 - [x] `staticlib` support
