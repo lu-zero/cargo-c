@@ -33,6 +33,16 @@ struct Common {
     libdir: Option<PathBuf>,
     #[structopt(long = "includedir", parse(from_os_str))]
     includedir: Option<PathBuf>,
+
+    /// Space-separated list of features to activate
+    #[structopt(long = "features")]
+    features: Option<String>,
+    /// Activate all available features
+    #[structopt(long = "all-features")]
+    allfeatures: bool,
+    /// Do not activate the `default` feature
+    #[structopt(long = "no-default-features")]
+    nodefaultfeatures: bool,
 }
 
 #[derive(Debug, StructOpt)]
@@ -194,6 +204,11 @@ struct Config {
 
     /// Cargo binary to call
     cargo: PathBuf,
+
+    /// Features to pass to the inner call
+    features: Option<String>,
+    allfeatures: bool,
+    nodefaultfeatures: bool,
 }
 
 fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
@@ -214,7 +229,6 @@ impl Config {
 
         let mut cmd = MetadataCommand::new();
 
-        println!("{:?}", wd);
         cmd.current_dir(&wd);
         cmd.manifest_path(wd.join("Cargo.toml"));
 
@@ -234,7 +248,6 @@ impl Config {
         let libdir = opt.libdir.unwrap_or_else(|| prefix.join("lib"));
         let includedir = opt.includedir.unwrap_or_else(|| prefix.join("include"));
 
-        println!("targets {:?}", pkg.targets);
         let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).expect("Cannot find a library target").name.clone();
 
         Config {
@@ -250,6 +263,9 @@ impl Config {
             includedir,
             pkg: pkg.clone(),
             cargo: std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()).into(),
+            features: opt.features,
+            allfeatures: opt.allfeatures,
+            nodefaultfeatures: opt.nodefaultfeatures,
         }
     }
 
@@ -372,6 +388,18 @@ impl Config {
 
         if self.release {
             cmd.arg("--release");
+        }
+
+        if let Some(features) = self.features.as_ref() {
+            cmd.arg("--features").arg(features);
+        }
+
+        if self.allfeatures {
+            cmd.arg("--all-features");
+        }
+
+        if self.nodefaultfeatures {
+            cmd.arg("--no-default-features");
         }
 
         cmd.arg("--");
