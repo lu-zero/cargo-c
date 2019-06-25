@@ -192,6 +192,8 @@ struct Config {
     includedir: PathBuf,
     pkg: Package,
 
+    /// Cargo binary to call
+    cargo: PathBuf,
 }
 
 fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
@@ -247,6 +249,7 @@ impl Config {
             libdir,
             includedir,
             pkg: pkg.clone(),
+            cargo: std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()).into(),
         }
     }
 
@@ -355,8 +358,7 @@ impl Config {
     /// Build the Library
     fn build_library(&self) -> Result<Option<BuildInfo>, std::io::Error> {
         use std::io;
-        let cargo = std::env::var("CARGO").unwrap();
-        let mut cmd = std::process::Command::new(cargo);
+        let mut cmd = std::process::Command::new(&self.cargo);
 
         cmd.arg("rustc");
         cmd.arg("-v");
@@ -422,8 +424,7 @@ impl Config {
 
 
         if info.is_none() && prev_info.is_none() {
-            let cargo = std::env::var("CARGO").unwrap();
-            let mut cmd = std::process::Command::new(cargo);
+            let mut cmd = std::process::Command::new(&self.cargo);
             cmd.arg("clean");
 
             cmd.status()?;
