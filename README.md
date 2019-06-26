@@ -7,7 +7,7 @@
 It produces and installs a correct [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) file, a static library and a dynamic library, and a C header to be used by any C (and C-compatible) software.
 
 ## Usage
-```
+``` sh
 # build the library, create the .h header, create the .pc file
 $ cargo cbuild --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
@@ -19,6 +19,7 @@ $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ## Status
 
 - [x] cli
+  - [x] build command
   - [x] install command
   - [x] cargo applet support
 - [x] build targets
@@ -27,3 +28,4 @@ $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 - [x] `staticlib` support
 - [x] `cdylib` support
 - [ ] Extra Cargo.toml keys
+- [ ] Better status reporting
