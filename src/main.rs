@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use cargo_metadata::{MetadataCommand, Package};
 use structopt::StructOpt;
+use log::*;
 
 mod pkg_config_gen;
 mod static_libs;
@@ -278,11 +279,9 @@ impl Config {
 
         f.read_to_end(&mut s).ok()?;
 
-        println!("bi {}", std::str::from_utf8(&s).unwrap());
-
         let t = toml::from_slice::<BuildInfo>(&s).unwrap();
 
-        println!("{}", t.hash);
+        info!("saved build hash {}", t.hash);
 
         Some(t)
     }
@@ -412,7 +411,7 @@ impl Config {
         for line in self.shared_object_link_args() {
             cmd.arg("-C").arg(&format!("link-arg={}", line));
         }
-        println!("{:?}", cmd);
+        info!("build_library {:?}", cmd);
 
         let out = cmd.output()?;
 
@@ -435,7 +434,7 @@ impl Config {
                 .map(|cap| cap.get(1).unwrap().as_str()).unwrap()
                 .to_owned();
 
-            println!("{}", hash);
+            info!("parsed hash {}", hash);
 
             Ok(Some(BuildInfo { hash }))
         } else {
@@ -487,8 +486,6 @@ impl Config {
         let name = &self.name;
         let ver = &self.pkg.version;
 
-        println!("destdir {}", self.destdir.display());
-
         let install_path_lib = append_to_destdir(&self.destdir, &self.libdir);
         let install_path_pc = install_path_lib.join("pkg-config");
         let install_path_include = append_to_destdir(&self.destdir, &self.includedir).join(name);
@@ -497,14 +494,9 @@ impl Config {
         fs::create_dir_all(&install_path_pc)?;
         fs::create_dir_all(&install_path_include)?;
 
-        println!("{:?}", install_path_pc);
-
         fs::copy(&build_targets.pc, install_path_pc.join(&format!("{}.pc", name)))?;
         fs::copy(&build_targets.include, install_path_include.join(&format!("{}.h", name)))?;
-        println!("{:?}", build_targets.include);
-
         fs::copy(&build_targets.static_lib, install_path_lib.join(&format!("lib{}.a", name)))?;
-        println!("{:?}", build_targets.static_lib);
 
 
         let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
@@ -549,6 +541,7 @@ impl Config {
 }
 
 fn main() -> Result<(), std::io::Error> {
+    pretty_env_logger::init();
     let opts = Opt::from_args();
 
     match opts.cmd {
@@ -562,7 +555,7 @@ fn main() -> Result<(), std::io::Error> {
             let info = cfg.build()?;
             let build_targets = BuildTargets::new(&cfg, &info.hash);
 
-            println!("{:?}", build_targets);
+            info!("{:?}", build_targets);
 
             cfg.install(build_targets)?;
         }

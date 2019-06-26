@@ -27,7 +27,7 @@ pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(target: Option<T>, 
 
     let out = cmd.output()?;
 
-    println!("{:?} {:?}", cmd, out);
+    log::info!("native-static-libs check {:?} {:?}", cmd, out);
 
     if out.status.success() {
         let re = Regex::new(r"note: native-static-libs: (.+)").unwrap();
