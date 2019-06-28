@@ -36,7 +36,7 @@ struct Common {
     includedir: Option<PathBuf>,
     #[structopt(long = "bindir", parse(from_os_str))]
     bindir: Option<PathBuf>,
-    #[structopt(long = "with-pkgconfigdir", parse(from_os_str))]
+    #[structopt(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
 
     /// Space-separated list of features to activate
