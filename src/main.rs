@@ -157,7 +157,7 @@ impl BuildTargets {
                 (shared_lib, None, None)
             }
             ("windows", "gnu") => {
-                let shared_lib = targetdir.join(&format!("lib{}-{}.dll", name, hash));
+                let shared_lib = targetdir.join(&format!("{}-{}.dll", name, hash));
                 let impl_lib = cfg.targetdir.join(&format!("{}.dll.a", name));
                 let def = cfg.targetdir.join(&format!("{}.def", name));
                 (shared_lib, Some(impl_lib), Some(def))
