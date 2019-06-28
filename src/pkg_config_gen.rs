@@ -1,11 +1,15 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
+
+use crate::Config;
+
 #[derive(Debug, Clone)]
 pub struct PkgConfig {
-    prefix: String,
-    exec_prefix: String,
-    includedir: String,
-    libdir: String,
+    prefix: PathBuf,
+    exec_prefix: PathBuf,
+    includedir: PathBuf,
+    libdir: PathBuf,
 
     name: String,
     description: String,
@@ -51,10 +55,10 @@ impl PkgConfig {
             version: version.to_owned(),
             description: description.to_owned(),
 
-            prefix: "/usr/local".to_owned(),
-            exec_prefix: "${prefix}".to_owned(),
-            includedir: "${prefix}/include".to_owned(),
-            libdir: "${exec_prefix}/lib".to_owned(),
+            prefix: "/usr/local".into(),
+            exec_prefix: "${prefix}".into(),
+            includedir: "${prefix}/include".into(),
+            libdir: "${exec_prefix}/lib".into(),
 
             libs: vec![format!("-L{} -l{}", "${libdir}", name).to_owned()],
             libs_private: Vec::new(),
@@ -66,6 +70,26 @@ impl PkgConfig {
 
             conflicts: Vec::new(),
         }
+    }
+
+    pub(crate) fn from_config(cfg: &Config) -> Self {
+        let name = &cfg.name;
+        let version = cfg.pkg.version.to_string();
+        let mut pc = PkgConfig::new(name, version);
+
+        if cfg.pkg.description.is_some() {
+            pc.description = cfg.pkg.description.as_ref().unwrap().to_owned();
+        }
+
+        pc.prefix = cfg.prefix.clone();
+        // TODO: support exec_prefix
+        if cfg.cli.includedir.is_some() {
+            pc.includedir = cfg.includedir.clone();
+        }
+        if cfg.cli.libdir.is_some() {
+            pc.libdir = cfg.libdir.clone();
+        }
+        pc
     }
 
     pub fn set_description<S: AsRef<str>>(&mut self, descr: S) -> &mut Self {
@@ -124,10 +148,10 @@ Description: {}
 Version: {}
 Libs: {}
 Cflags: {}",
-            self.prefix,
-            self.exec_prefix,
-            self.libdir,
-            self.includedir,
+            self.prefix.display(),
+            self.exec_prefix.display(),
+            self.libdir.display(),
+            self.includedir.display(),
             self.name,
             self.description,
             self.version,

@@ -11,7 +11,7 @@ mod static_libs;
 use pkg_config_gen::PkgConfig;
 use static_libs::get_static_libs_for_target;
 
-#[derive(Debug, StructOpt)]
+#[derive(Clone, Debug, StructOpt)]
 struct Common {
     /// Path to the project, by default the current working directory
     #[structopt(long = "project-dir", parse(from_os_str))]
@@ -204,7 +204,7 @@ struct Config {
     target_dir: PathBuf,
 
     destdir: PathBuf,
-    // prefix: PathBuf,
+    prefix: PathBuf,
     libdir: PathBuf,
     includedir: PathBuf,
     bindir: PathBuf,
@@ -218,6 +218,7 @@ struct Config {
     features: Option<String>,
     allfeatures: bool,
     nodefaultfeatures: bool,
+    cli: Common,
 }
 
 fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
@@ -234,6 +235,7 @@ fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
 
 impl Config {
     fn new(opt: Common) -> Self {
+        let cli = opt.clone();
         let wd = opt.projectdir.unwrap_or_else(|| std::env::current_dir().unwrap());
 
         let mut cmd = MetadataCommand::new();
@@ -269,7 +271,7 @@ impl Config {
 
             targetdir,
             target_dir: target_dir.clone(),
-            // prefix,
+            prefix,
             libdir,
             includedir,
             bindir,
@@ -279,6 +281,7 @@ impl Config {
             features: opt.features,
             allfeatures: opt.allfeatures,
             nodefaultfeatures: opt.nodefaultfeatures,
+            cli,
         }
     }
 
@@ -308,16 +311,11 @@ impl Config {
 
     /// Build the pkg-config file
     fn build_pc_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
-        let pkg = &self.pkg;
+        let mut pc = PkgConfig::from_config(&self);
         let target_dir = &self.targetdir;
-        let mut pc = PkgConfig::new(&self.name, &pkg.version.to_string());
         let static_libs = get_static_libs_for_target(self.target.verbatim.as_ref(), target_dir)?;
 
         pc.add_lib_private(static_libs);
-
-        if let Some(descr) = pkg.description.as_ref() {
-            pc.set_description(descr);
-        }
 
         let pc_path = &build_targets.pc;
         let mut out = std::fs::File::create(pc_path)?;
