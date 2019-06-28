@@ -36,6 +36,8 @@ struct Common {
     includedir: Option<PathBuf>,
     #[structopt(long = "bindir", parse(from_os_str))]
     bindir: Option<PathBuf>,
+    #[structopt(long = "with-pkgconfigdir", parse(from_os_str))]
+    pkgconfigdir: Option<PathBuf>,
 
     /// Space-separated list of features to activate
     #[structopt(long = "features")]
@@ -206,6 +208,7 @@ struct Config {
     libdir: PathBuf,
     includedir: PathBuf,
     bindir: PathBuf,
+    pkgconfigdir: PathBuf,
     pkg: Package,
 
     /// Cargo binary to call
@@ -254,6 +257,7 @@ impl Config {
         let libdir = opt.libdir.unwrap_or_else(|| prefix.join("lib"));
         let includedir = opt.includedir.unwrap_or_else(|| prefix.join("include"));
         let bindir = opt.bindir.unwrap_or_else(|| prefix.join("bin"));
+        let pkgconfigdir = opt.pkgconfigdir.unwrap_or_else(|| libdir.join("pkgconfig"));
 
         let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).expect("Cannot find a library target").name.clone();
 
@@ -269,6 +273,7 @@ impl Config {
             libdir,
             includedir,
             bindir,
+            pkgconfigdir,
             pkg: pkg.clone(),
             cargo: std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()).into(),
             features: opt.features,
@@ -494,7 +499,7 @@ impl Config {
         let ver = &self.pkg.version;
 
         let install_path_lib = append_to_destdir(&self.destdir, &self.libdir);
-        let install_path_pc = install_path_lib.join("pkg-config");
+        let install_path_pc = append_to_destdir(&self.destdir, &self.pkgconfigdir);
         let install_path_include = append_to_destdir(&self.destdir, &self.includedir).join(name);
         let install_path_bin = append_to_destdir(&self.destdir, &self.bindir);
 
