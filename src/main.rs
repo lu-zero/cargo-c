@@ -527,7 +527,7 @@ impl Config {
             }
             ("windows", "gnu") => {
                 let lib = format!("{}.dll", name);
-                let impl_lib = format!("{}.dll.a", name);
+                let impl_lib = format!("lib{}.dll.a", name);
                 let def = format!("{}.def", name);
                 fs::copy(&build_targets.shared_lib, install_path_lib.join(lib))?;
                 fs::copy(build_targets.impl_lib.as_ref().unwrap(), install_path_lib.join(impl_lib))?;
