@@ -146,21 +146,23 @@ impl BuildTargets {
 
         let targetdir = cfg.targetdir.join("deps");
 
-        let static_lib = targetdir.join(&format!("lib{}-{}.a", name, hash));
-        let (shared_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
+        let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
             ("linux", _) => {
+                let static_lib = targetdir.join(&format!("lib{}-{}.a", name, hash));
                 let shared_lib = targetdir.join(&format!("lib{}-{}.so", name, hash));
-                (shared_lib, None, None)
+                (shared_lib, static_lib, None, None)
             }
             ("macos", _) => {
+                let static_lib = targetdir.join(&format!("lib{}-{}.a", name, hash));
                 let shared_lib = targetdir.join(&format!("lib{}-{}.dylib", name, hash));
-                (shared_lib, None, None)
+                (shared_lib, static_lib, None, None)
             }
             ("windows", "gnu") => {
+                let static_lib = targetdir.join(&format!("{}-{}.lib", name, hash));
                 let shared_lib = targetdir.join(&format!("{}-{}.dll", name, hash));
                 let impl_lib = cfg.targetdir.join(&format!("{}.dll.a", name));
                 let def = cfg.targetdir.join(&format!("{}.def", name));
-                (shared_lib, Some(impl_lib), Some(def))
+                (shared_lib, static_lib, Some(impl_lib), Some(def))
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         };
