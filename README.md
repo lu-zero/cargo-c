@@ -17,6 +17,29 @@ $ cargo cbuild --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
 
+For a more in-depth explanation of how `cargo-c` works and how to use it for
+your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
+
+The TL;DR:
+
+- [Create][diff-1] a `capi.rs` with the C-API you want to expose and use
+  `#[cfg(cargo_c)]` to hide it when you build a normal rust library.
+- [Make sure][diff-2] you have a lib target and if you are using a workspace
+  the first member is the crate you want to export, that means that you might
+  have [to add a "." member at the start of the list][diff-3].
+- Remember to [add][diff-4] a [`cbindgen.toml`][cbinden-toml] and fill it with
+  at least the include guard and probably you want to set the language to C (it
+  defaults to C++)
+- Once you are happy with the result update your documentation to tell the user
+  to install `cargo-c` and do `cargo cinstall --prefix=/usr
+  --destdir=/tmp/some-place` or something along those lines.
+
+[diff-1]: https://github.com/RustAudio/lewton/pull/50/commits/557cb4ce35beedf6d6bfaa481f29936094a71669
+[diff-2]: https://github.com/RustAudio/lewton/pull/50/commits/e7ea8fff6423213d1892e86d51c0c499d8904dc1
+[diff-3]: https://github.com/xiph/rav1e/pull/1381/commits/7d558125f42f4b503bcdcda5a82765da76a227e0#diff-80398c5faae3c069e4e6aa2ed11b28c0R94
+[diff-4]: https://github.com/RustAudio/lewton/pull/51/files
+[cbindgen-toml]: https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
+
 ## Status
 
 - [x] cli
@@ -30,3 +53,6 @@ $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 - [x] `cdylib` support
 - [ ] Extra Cargo.toml keys
 - [ ] Better status reporting
+
+[dev.to]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn
+[using]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn#using-cargoc
