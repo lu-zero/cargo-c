@@ -20,7 +20,7 @@ $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 For a more in-depth explanation of how `cargo-c` works and how to use it for
 your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 
-The TL;DR:
+### The TL;DR:
 
 - [Create][diff-1] a `capi.rs` with the C-API you want to expose and use
   `#[cfg(cargo_c)]` to hide it when you build a normal rust library.
@@ -39,6 +39,12 @@ The TL;DR:
 [diff-3]: https://github.com/xiph/rav1e/pull/1381/commits/7d558125f42f4b503bcdcda5a82765da76a227e0#diff-80398c5faae3c069e4e6aa2ed11b28c0R94
 [diff-4]: https://github.com/RustAudio/lewton/pull/51/files
 [cbindgen-toml]: https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
+
+## Users
+
+- [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
+- [lewton](https://github.com/RustAudio/lewton)
+- [rav1e](https://github.com/xiph/rav1e)
 
 ## Status
 
