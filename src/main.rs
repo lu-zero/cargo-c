@@ -78,7 +78,7 @@ struct Opt {
 /// Because of https://github.com/rust-lang/rust/issues/61558
 /// It uses internally `rustc` to validate the string.
 struct Target {
-    // arch: String,
+    arch: String,
     // vendor: String,
     os: String,
     env: String,
@@ -104,7 +104,7 @@ impl Target {
                     .to_owned()
             }
 
-            // let arch_re = regex::Regex::new(r#"target_arch="(.+)""#).unwrap();
+            let arch_re = regex::Regex::new(r#"target_arch="(.+)""#).unwrap();
             // let vendor_re = regex::Regex::new(r#"target_vendor="(.+)""#).unwrap();
             let os_re = regex::Regex::new(r#"target_os="(.+)""#).unwrap();
             let env_re = regex::Regex::new(r#"target_env="(.+)""#).unwrap();
@@ -112,7 +112,7 @@ impl Target {
             let s = std::str::from_utf8(&out.stdout).unwrap();
 
             Ok(Target {
-                // arch: match_re(arch_re, s),
+                arch: match_re(arch_re, s),
                 // vendor: match_re(vendor_re, s),
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
@@ -327,6 +327,39 @@ impl Config {
         Ok(())
     }
 
+    /// Build import library for Windows
+    fn build_implib_file(&self) -> Result<(), std::io::Error> {
+        let os = &self.target.os;
+        let env = &self.target.env;
+
+        if os == "windows" && env == "gnu" {
+            let name = &self.name;
+            let arch = &self.target.arch;
+            let target_dir = &self.targetdir;
+
+            let binutils_arch = match arch.as_str() {
+                "x86_64" => "i386:x86-64",
+                "x86" => "i386",
+                _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
+            };
+
+            let mut dlltool = std::process::Command::new("dlltool");
+            dlltool.arg("-m").arg(binutils_arch);
+            dlltool.arg("-D").arg(format!("{}.dll",name));
+            dlltool.arg("-l").arg(target_dir.join(format!("{}.dll.a", name)));
+            dlltool.arg("-d").arg(target_dir.join(format!("{}.def", name)));
+
+            let out = dlltool.output()?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(std::io::ErrorKind::InvalidInput.into())
+            }
+        } else {
+            Ok(())
+        }
+    }
+
     /// Build the C header
     fn build_include_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
         let include_path = &build_targets.include;
@@ -367,10 +400,6 @@ impl Config {
             lines.push(line)
         } else if os == "windows" && env == "gnu" {
             // This is only set up to work on GNU toolchain versions of Rust
-            lines.push(format!(
-                "-Wl,--out-implib,{}",
-                target_dir.join(format!("{}.dll.a", name)).display()
-            ));
             lines.push(format!(
                 "-Wl,--output-def,{}",
                 target_dir.join(format!("{}.def", name)).display()
@@ -474,6 +503,7 @@ impl Config {
             let build_targets = BuildTargets::new(self, &info.hash);
 
             self.build_pc_file(&build_targets)?;
+            self.build_implib_file()?;
             self.build_include_file(&build_targets)?;
 
             self.save_build_info(&info);
