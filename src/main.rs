@@ -324,6 +324,7 @@ impl Config {
 
     /// Build the pkg-config file
     fn build_pc_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
+        log::info!("Building PkgConfig for {}", build_targets.pc.display());
         let mut pc = PkgConfig::from_config(&self);
         let target_dir = &self.targetdir;
         let static_libs = get_static_libs_for_target(self.target.verbatim.as_ref(), target_dir)?;
@@ -342,6 +343,8 @@ impl Config {
 
     /// Build import library for Windows
     fn build_implib_file(&self) -> Result<(), std::io::Error> {
+        log::info!("Building implib using dlltool for target {}",
+                   self.target.verbatim.as_ref().map(|os| os.to_string_lossy().into_owned()).unwrap_or("native".into()));
         let os = &self.target.os;
         let env = &self.target.env;
 
@@ -379,6 +382,7 @@ impl Config {
 
     /// Build the C header
     fn build_include_file(&self, build_targets: &BuildTargets) -> Result<(), std::io::Error> {
+        log::info!("Building include file using cbindgen");
         let include_path = &build_targets.include;
         let crate_path = self.pkg.manifest_path.parent().unwrap();
 
@@ -428,6 +432,7 @@ impl Config {
 
     /// Build the Library
     fn build_library(&self) -> Result<Option<BuildInfo>, std::io::Error> {
+        log::info!("Building the libraries using cargo rustc");
         use std::io;
         let mut cmd = std::process::Command::new(&self.cargo);
 
@@ -508,6 +513,7 @@ impl Config {
     }
 
     fn build(&self) -> Result<BuildInfo, std::io::Error> {
+        log::info!("Building");
         std::fs::create_dir_all(&self.targetdir)?;
 
         let prev_info = self.open_build_info();
@@ -541,6 +547,7 @@ impl Config {
     }
 
     fn install(&self, build_targets: BuildTargets) -> Result<(), std::io::Error> {
+        log::info!("Installing");
         use std::fs;
         // TODO make sure the build targets exist and are up to date
         // println!("{:?}", self.build_targets);
