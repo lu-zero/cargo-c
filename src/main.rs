@@ -2,8 +2,8 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use cargo_metadata::{MetadataCommand, Package};
-use structopt::StructOpt;
 use log::*;
+use structopt::StructOpt;
 
 mod pkg_config_gen;
 mod static_libs;
@@ -236,7 +236,9 @@ fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
 impl Config {
     fn new(opt: Common) -> Self {
         let cli = opt.clone();
-        let wd = opt.projectdir.unwrap_or_else(|| std::env::current_dir().unwrap());
+        let wd = opt
+            .projectdir
+            .unwrap_or_else(|| std::env::current_dir().unwrap());
 
         let mut cmd = MetadataCommand::new();
 
@@ -261,7 +263,13 @@ impl Config {
         let bindir = opt.bindir.unwrap_or_else(|| prefix.join("bin"));
         let pkgconfigdir = opt.pkgconfigdir.unwrap_or_else(|| libdir.join("pkgconfig"));
 
-        let name = pkg.targets.iter().find(|t| t.kind.iter().any(|x| x == "lib")).expect("Cannot find a library target").name.clone();
+        let name = pkg
+            .targets
+            .iter()
+            .find(|t| t.kind.iter().any(|x| x == "lib"))
+            .expect("Cannot find a library target")
+            .name
+            .clone();
 
         Config {
             name,
@@ -277,7 +285,9 @@ impl Config {
             bindir,
             pkgconfigdir,
             pkg: pkg.clone(),
-            cargo: std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()).into(),
+            cargo: std::env::var("CARGO")
+                .unwrap_or_else(|_| "cargo".into())
+                .into(),
             features: opt.features,
             allfeatures: opt.allfeatures,
             nodefaultfeatures: opt.nodefaultfeatures,
@@ -345,9 +355,13 @@ impl Config {
 
             let mut dlltool = std::process::Command::new("dlltool");
             dlltool.arg("-m").arg(binutils_arch);
-            dlltool.arg("-D").arg(format!("{}.dll",name));
-            dlltool.arg("-l").arg(target_dir.join(format!("{}.dll.a", name)));
-            dlltool.arg("-d").arg(target_dir.join(format!("{}.def", name)));
+            dlltool.arg("-D").arg(format!("{}.dll", name));
+            dlltool
+                .arg("-l")
+                .arg(target_dir.join(format!("{}.dll.a", name)));
+            dlltool
+                .arg("-d")
+                .arg(target_dir.join(format!("{}.def", name)));
 
             let out = dlltool.output()?;
             if out.status.success() {
@@ -467,10 +481,15 @@ impl Config {
         let is_fresh = s.lines().rfind(|line| line.contains(&fresh_line)).is_some();
 
         if !is_fresh {
-            let s = s.lines().rfind(|line| line.contains("--cfg cargo_c")).unwrap();
+            let s = s
+                .lines()
+                .rfind(|line| line.contains("--cfg cargo_c"))
+                .unwrap();
 
-            let hash = re.captures(s)
-                .map(|cap| cap.get(1).unwrap().as_str()).unwrap()
+            let hash = re
+                .captures(s)
+                .map(|cap| cap.get(1).unwrap().as_str())
+                .unwrap()
                 .to_owned();
 
             info!("parsed hash {}", hash);
@@ -488,7 +507,6 @@ impl Config {
 
         let mut info = self.build_library()?;
 
-
         if info.is_none() && prev_info.is_none() {
             let mut cmd = std::process::Command::new(&self.cargo);
             cmd.arg("clean");
@@ -496,7 +514,6 @@ impl Config {
             cmd.status()?;
             info = Some(self.build_library()?.unwrap());
         }
-
 
         let info = if prev_info.is_none() || (info.is_some() && info != prev_info) {
             let info = info.unwrap();
@@ -536,15 +553,25 @@ impl Config {
         fs::create_dir_all(&install_path_include)?;
         fs::create_dir_all(&install_path_bin)?;
 
-        fs::copy(&build_targets.pc, install_path_pc.join(&format!("{}.pc", name)))?;
-        fs::copy(&build_targets.include, install_path_include.join(&format!("{}.h", name)))?;
-        fs::copy(&build_targets.static_lib, install_path_lib.join(&format!("lib{}.a", name)))?;
-
+        fs::copy(
+            &build_targets.pc,
+            install_path_pc.join(&format!("{}.pc", name)),
+        )?;
+        fs::copy(
+            &build_targets.include,
+            install_path_include.join(&format!("{}.h", name)),
+        )?;
+        fs::copy(
+            &build_targets.static_lib,
+            install_path_lib.join(&format!("lib{}.a", name)),
+        )?;
 
         let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
             let mut ln_sf = std::process::Command::new("ln");
             ln_sf.arg("-sf");
-            ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib_with_major_ver));
+            ln_sf
+                .arg(lib_with_full_ver)
+                .arg(install_path_lib.join(lib_with_major_ver));
             let _ = ln_sf.status().unwrap();
             let mut ln_sf = std::process::Command::new("ln");
             ln_sf.arg("-sf");
@@ -556,15 +583,25 @@ impl Config {
             ("linux", _) => {
                 let lib = &format!("lib{}.so", name);
                 let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
-                let lib_with_full_ver = &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
-                fs::copy(&build_targets.shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                let lib_with_full_ver =
+                    &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
+                fs::copy(
+                    &build_targets.shared_lib,
+                    install_path_lib.join(lib_with_full_ver),
+                )?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
             ("macos", _) => {
                 let lib = &format!("lib{}.dylib", name);
                 let lib_with_major_ver = &format!("lib{}.{}.dylib", name, ver.major);
-                let lib_with_full_ver = &format!("lib{}.{}.{}.{}.dylib", name, ver.major, ver.minor, ver.patch);
-                fs::copy(&build_targets.shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                let lib_with_full_ver = &format!(
+                    "lib{}.{}.{}.{}.dylib",
+                    name, ver.major, ver.minor, ver.patch
+                );
+                fs::copy(
+                    &build_targets.shared_lib,
+                    install_path_lib.join(lib_with_full_ver),
+                )?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
             ("windows", "gnu") => {
@@ -572,8 +609,14 @@ impl Config {
                 let impl_lib = format!("lib{}.dll.a", name);
                 let def = format!("{}.def", name);
                 fs::copy(&build_targets.shared_lib, install_path_bin.join(lib))?;
-                fs::copy(build_targets.impl_lib.as_ref().unwrap(), install_path_lib.join(impl_lib))?;
-                fs::copy(build_targets.def.as_ref().unwrap(), install_path_lib.join(def))?;
+                fs::copy(
+                    build_targets.impl_lib.as_ref().unwrap(),
+                    install_path_lib.join(impl_lib),
+                )?;
+                fs::copy(
+                    build_targets.def.as_ref().unwrap(),
+                    install_path_lib.join(def),
+                )?;
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         }

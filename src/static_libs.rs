@@ -6,7 +6,10 @@ use std::{env, str};
 
 use regex::Regex;
 
-pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(target: Option<T>, target_dir: &PathBuf) -> Result<String> {
+pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(
+    target: Option<T>,
+    target_dir: &PathBuf,
+) -> Result<String> {
     let rustc = env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
 
     let mut cmd = Command::new(rustc);
