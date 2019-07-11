@@ -16,6 +16,9 @@ struct Common {
     /// Path to the project, by default the current working directory
     #[structopt(long = "project-dir", parse(from_os_str))]
     projectdir: Option<PathBuf>,
+    /// Number of rustc jobs to run in parallel.
+    #[structopt(long = "jobs")]
+    jobs: Option<u32>,
     /// Build artifacts in release mode, with optimizations
     #[structopt(long = "release")]
     release: bool,
@@ -433,6 +436,10 @@ impl Config {
         cmd.arg("--lib");
         cmd.arg("--target-dir").arg(&self.target_dir);
         cmd.arg("--manifest-path").arg(&self.pkg.manifest_path);
+
+        if let Some(jobs) = self.cli.jobs {
+            cmd.arg("--jobs").arg(jobs.to_string());
+        }
 
         if let Some(t) = self.target.verbatim.as_ref() {
             cmd.arg("--target").arg(t);
