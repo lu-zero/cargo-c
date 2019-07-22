@@ -32,6 +32,7 @@ matrix:
     - rust: nightly
   fast_finish: true
 before_install:
+  - "sudo chown -R travis: $HOME/.ccache"
   - export PATH="/usr/local/opt/ccache/libexec:/usr/lib/ccache:$PATH"
   - if [[ "$TRAVIS_RUST_VERSION" != "nightly" ]]; then rustup component add clippy-preview || true; fi
   - cargo install cargo-kcov || echo "cargo-kcov already installed"
