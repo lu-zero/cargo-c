@@ -33,7 +33,7 @@ matrix:
   fast_finish: true
 before_install:
   - export PATH="/usr/local/opt/ccache/libexec:/usr/lib/ccache:$PATH"
-  - rustup component add clippy-preview || true
+  - if [[ "$TRAVIS_RUST_VERSION" != "nightly" ]]; then rustup component add clippy-preview || true; fi
   - cargo install cargo-kcov || echo "cargo-kcov already installed"
   - mkdir kcov
   - wget -O - https://github.com/SimonKagstrom/kcov/archive/v36.tar.gz | tar xz -C kcov --strip-components 1
@@ -41,7 +41,7 @@ before_install:
   - cmake .. -G"Ninja" -DCMAKE_BUILD_TYPE=Release
   - sudo ninja install
 script:
-  - cargo clippy
+  - if [[ "$TRAVIS_RUST_VERSION" != "nightly" ]]; then cargo clippy || true; fi
   - cargo build --verbose --all
   - cargo clean
   - RUSTFLAGS="-C link-dead-code" cargo test --no-run
