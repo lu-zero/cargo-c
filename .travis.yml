@@ -3,7 +3,10 @@ rust:
   - stable
   - beta
   - nightly
-cache: cargo
+cache:
+  cargo: true
+  directories:
+    - $HOME/.ccache
 dist: xenial
 osx_image: xcode11
 os:
@@ -12,6 +15,7 @@ os:
 addons:
   apt:
     packages:
+      - ccache
       - pkg-config
       - libcurl4-openssl-dev
       - libelf-dev
@@ -28,6 +32,7 @@ matrix:
     - rust: nightly
   fast_finish: true
 before_install:
+  - export PATH="/usr/local/opt/ccache/libexec:/usr/lib/ccache:$PATH"
   - rustup component add clippy-preview || true
   - cargo install cargo-kcov || echo "cargo-kcov already installed"
   - mkdir kcov
