@@ -196,7 +196,7 @@ mod test {
 
     #[test]
     fn simple() {
-        let mut pkg = PkgConfig::new("foo", "0.1", "test pc");
+        let mut pkg = PkgConfig::new("foo", "0.1");
         pkg.add_lib("-lbar").add_cflag("-DFOO");
 
         println!("{:?}\n{}", pkg, pkg.render());
