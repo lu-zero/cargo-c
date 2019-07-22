@@ -43,4 +43,6 @@ before_install:
 script:
   - cargo clippy
   - cargo build --verbose --all
+  - cargo clean
+  - RUSTFLAGS="-C link-dead-code" cargo test --no-run
   - travis_wait cargo kcov -v --coveralls --no-clean-rebuild
