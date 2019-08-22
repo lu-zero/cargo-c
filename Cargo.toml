@@ -22,7 +22,7 @@ path = "src/main.rs"
 [dependencies]
 log = "0.4"
 pretty_env_logger = "0.3.0"
-cargo_metadata = "0.7"
+cargo_metadata = "0.8"
 structopt = "0.2"
 regex = "1"
 cbindgen = "0.9"
