@@ -482,6 +482,10 @@ impl Config {
 
         io::stdout().write_all(&out.stdout).unwrap();
         io::stderr().write_all(&out.stderr).unwrap();
+
+        if !out.status.success() {
+            return Err(std::io::ErrorKind::InvalidInput.into());
+        }
         // TODO: replace this hack with something saner
         let exp = &format!(".* -C extra-filename=-([^ ]*) .*");
         // println!("exp : {}", exp);
