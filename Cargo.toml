@@ -9,6 +9,7 @@ readme = "README.md"
 repository = "http://github.com/lu-zero/cargo-c"
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 keywords = ["cargo", "cdylib"]
+default-run = "cargo-cbuild"
 
 
 [[bin]]
