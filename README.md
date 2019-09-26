@@ -29,6 +29,7 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 - [Make sure][diff-2] you have a lib target and if you are using a workspace
   the first member is the crate you want to export, that means that you might
   have [to add a "." member at the start of the list][diff-3].
+- Since Rust 1.38, also add "staticlib" to the "lib" `crate-type`.
 - Remember to [add][diff-4] a [`cbindgen.toml`][cbinden-toml] and fill it with
   at least the include guard and probably you want to set the language to C (it
   defaults to C++)
