@@ -343,8 +343,14 @@ impl Config {
 
     /// Build import library for Windows
     fn build_implib_file(&self) -> Result<(), std::io::Error> {
-        log::info!("Building implib using dlltool for target {}",
-                   self.target.verbatim.as_ref().map(|os| os.to_string_lossy().into_owned()).unwrap_or("native".into()));
+        log::info!(
+            "Building implib using dlltool for target {}",
+            self.target
+                .verbatim
+                .as_ref()
+                .map(|os| os.to_string_lossy().into_owned())
+                .unwrap_or("native".into())
+        );
         let os = &self.target.os;
         let env = &self.target.env;
 
