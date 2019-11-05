@@ -18,7 +18,7 @@ jobs:
           override: true
       - name: Install rustfmt and clippy
         run: rustup component add rustfmt clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/clippy-check@v1.0.5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
