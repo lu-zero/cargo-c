@@ -205,8 +205,6 @@ struct Config {
     targetdir: PathBuf,
     /// Directory for all generated artifacts without the profile appended.
     target_dir: PathBuf,
-    /// Extra version defines to add to the generated include file
-    version_header: String,
 
     destdir: PathBuf,
     prefix: PathBuf,
@@ -284,7 +282,6 @@ impl Config {
 
             targetdir,
             target_dir: target_dir.clone(),
-            version_header: "".to_string(),
             prefix,
             libdir,
             includedir,
@@ -397,11 +394,15 @@ impl Config {
 
         // TODO: map the errors
         let mut config = cbindgen::Config::from_root_or_default(crate_path);
-        let orig_header = match config.header {
-            Some(h) => h,
-            None => "".to_string()
-        };
-        config.header = Some(orig_header + &self.version_header);
+        let orig_header = config.header.unwrap_or_default();
+        let version_header = format!(
+            "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
+            self.pkg.name.to_uppercase(),
+            self.pkg.version.major,
+            self.pkg.version.minor,
+            self.pkg.version.patch
+        );
+        config.header = Some(orig_header + &version_header);
         cbindgen::Builder::new()
             .with_crate(crate_path)
             .with_config(config)
