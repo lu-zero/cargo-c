@@ -78,57 +78,6 @@ jobs:
         with:
           command: test
           args: --verbose
-  macOS-Nightly:
-    name: macOS-Nightly
-    runs-on: macOS-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features --no-fail-fast
-        env:
-          'CARGO_INCREMENTAL': '0'
-          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
-      - name: Generate coverage
-        run: grcov . -t lcov > coverage.info
-      - name: Coveralls upload
-        uses: coverallsapp/github-action@master
-        with:
-          parallel: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.info
-  macOS-Stable:
-    name: macOS-Stable
-    runs-on: macOS-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
   msvc-Nightly:
     name: msvc-Nightly
     runs-on: windows-latest
