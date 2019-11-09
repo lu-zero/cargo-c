@@ -60,6 +60,8 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
   - [x] header generation (cbindgen integration)
 - [x] `staticlib` support
 - [x] `cdylib` support
+- [x] Generate version information in the header
+  - [ ] Make it tunable
 - [ ] Extra Cargo.toml keys
 - [ ] Better status reporting
 
