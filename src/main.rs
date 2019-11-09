@@ -394,15 +394,15 @@ impl Config {
 
         // TODO: map the errors
         let mut config = cbindgen::Config::from_root_or_default(crate_path);
-        let orig_header = config.header.unwrap_or_default();
-        let version_header = format!(
+        let warning = config.autogen_warning.unwrap_or_default();
+        let version_info = format!(
             "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
             self.pkg.name.to_uppercase(),
             self.pkg.version.major,
             self.pkg.version.minor,
             self.pkg.version.patch
         );
-        config.header = Some(orig_header + &version_header);
+        config.autogen_warning = Some(warning + &version_info);
         cbindgen::Builder::new()
             .with_crate(crate_path)
             .with_config(config)
