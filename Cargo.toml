@@ -1,6 +1,6 @@
 [package]
 name = "cargo-c"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
 license = "MIT"
@@ -26,7 +26,7 @@ pretty_env_logger = "0.3.0"
 cargo_metadata = "0.9"
 structopt = "0.3"
 regex = "1"
-cbindgen = "0.9"
+cbindgen = "0.11"
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"
