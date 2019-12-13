@@ -154,7 +154,7 @@ impl BuildTargets {
         let targetdir = cfg.targetdir.join("deps");
 
         let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
-            ("linux", _) | ("freebsd", _) => {
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) => {
                 let static_lib = targetdir.join(&format!("lib{}-{}.a", name, hash));
                 let shared_lib = targetdir.join(&format!("lib{}-{}.so", name, hash));
                 (shared_lib, static_lib, None, None)
@@ -428,7 +428,7 @@ impl Config {
         let libdir = &self.libdir;
         let target_dir = &self.targetdir;
 
-        if os == "linux" || os == "freebsd" {
+        if os == "linux" || os == "freebsd" || os == "dragonfly" {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", name, major));
         } else if os == "macos" {
             let line = format!("-Wl,-install_name,{1}/lib{0}.{2}.{3}.{4}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{2}",
