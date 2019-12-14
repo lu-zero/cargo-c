@@ -272,7 +272,7 @@ impl Config {
             .find(|t| t.kind.iter().any(|x| x == "lib"))
             .expect("Cannot find a library target")
             .name
-            .clone();
+            .replace("-", "_");
 
         Config {
             name,
@@ -397,7 +397,7 @@ impl Config {
         let warning = config.autogen_warning.unwrap_or_default();
         let version_info = format!(
             "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
-            self.pkg.name.to_uppercase().replace("-", "_"),
+            self.name.to_uppercase(),
             self.pkg.version.major,
             self.pkg.version.minor,
             self.pkg.version.patch
