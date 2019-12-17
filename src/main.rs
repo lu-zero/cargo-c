@@ -613,7 +613,7 @@ impl Config {
         };
 
         match (os.as_str(), env.as_str()) {
-            ("linux", _) => {
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
                 let lib = &format!("lib{}.so", name);
                 let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
                 let lib_with_full_ver =
