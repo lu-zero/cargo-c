@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 
+use crate::install_paths::InstallPaths;
 use std::path::PathBuf;
-
-use crate::Config;
 
 #[derive(Debug, Clone)]
 pub struct PkgConfig {
@@ -60,7 +59,7 @@ impl PkgConfig {
             includedir: "${prefix}/include".into(),
             libdir: "${exec_prefix}/lib".into(),
 
-            libs: vec![format!("-L{} -l{}", "${libdir}", name).to_owned()],
+            libs: vec![format!("-L{} -l{}", "${libdir}", name)],
             libs_private: Vec::new(),
 
             requires: Vec::new(),
@@ -72,23 +71,25 @@ impl PkgConfig {
         }
     }
 
-    pub(crate) fn from_config(cfg: &Config) -> Self {
-        let name = &cfg.name;
-        let version = cfg.pkg.version.to_string();
+    pub(crate) fn from_workspace(
+        name: &str,
+        ws: &cargo::core::Workspace,
+        install_paths: &InstallPaths,
+    ) -> Self {
+        let pkg = ws.current().unwrap();
+        let version = pkg.version().to_string();
+        let description = &pkg.manifest().metadata().description;
+
         let mut pc = PkgConfig::new(name, version);
 
-        if cfg.pkg.description.is_some() {
-            pc.description = cfg.pkg.description.as_ref().unwrap().to_owned();
+        if let Some(ref d) = description {
+            pc.description = d.clone();
         }
 
-        pc.prefix = cfg.prefix.clone();
+        pc.prefix = install_paths.prefix.clone();
         // TODO: support exec_prefix
-        if cfg.cli.includedir.is_some() {
-            pc.includedir = cfg.includedir.clone();
-        }
-        if cfg.cli.libdir.is_some() {
-            pc.libdir = cfg.libdir.clone();
-        }
+        pc.includedir = install_paths.includedir.clone();
+        pc.libdir = install_paths.libdir.clone();
         pc
     }
 
@@ -157,8 +158,7 @@ Cflags: {}",
             self.version,
             self.libs.join(" "),
             self.cflags.join(" "),
-        )
-        .to_owned();
+        );
 
         if !self.libs_private.is_empty() {
             base.push_str(&format!(
