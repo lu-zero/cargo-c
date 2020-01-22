@@ -14,13 +14,15 @@ default-run = "cargo-cbuild"
 
 [[bin]]
 name = "cargo-cinstall"
-path = "src/main.rs"
+path = "src/cinstall.rs"
 
 [[bin]]
 name = "cargo-cbuild"
-path = "src/main.rs"
+path = "src/cbuild.rs"
 
 [dependencies]
+cargo = "0.43"
+semver = "0.9"
 log = "0.4"
 pretty_env_logger = "0.4"
 cargo_metadata = "0.9"
@@ -30,3 +32,4 @@ cbindgen = "0.13.1"
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"
+anyhow = "1.0"

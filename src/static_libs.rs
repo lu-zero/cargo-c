@@ -1,9 +1,9 @@
 use std::ffi::OsString;
-use std::io::Result;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, str};
 
+use anyhow::Result;
 use regex::Regex;
 
 pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(
@@ -41,6 +41,6 @@ pub fn get_static_libs_for_target<T: AsRef<std::ffi::OsStr>>(
             .map_or("", |cap| cap.get(1).unwrap().as_str())
             .to_owned())
     } else {
-        Err(std::io::ErrorKind::InvalidData.into())
+        Err(anyhow::anyhow!("cannot run {:?}", cmd))
     }
 }
