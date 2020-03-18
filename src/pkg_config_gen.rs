@@ -29,7 +29,6 @@ impl PkgConfig {
     ///
     /// Build a pkgconfig structure with the following defaults:
     ///
-    /// ```
     /// prefix=/usr/local
     /// exec_prefix=${prefix}
     /// includedir=${prefix}/include
