@@ -160,23 +160,3 @@ jobs:
           parallel: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.info
-  mingw-Stable:
-    name: mingw-Stable
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install stable-gnu
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable-gnu
-          override: true
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
