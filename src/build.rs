@@ -227,7 +227,7 @@ pub fn cbuild(
     let prev_hash = fingerprint(&build_targets.static_lib)?;
 
     let r = ops::compile(ws, &compile_opts)?;
-    assert_eq!(root_output, r.root_output.to_path_buf());
+    assert_eq!(root_output, r.root_output);
 
     let cur_hash = fingerprint(&build_targets.static_lib)?;
 
