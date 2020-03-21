@@ -129,6 +129,26 @@ fn build_implib_file(
     }
 }
 
+fn fingerprint(path: &PathBuf) -> anyhow::Result<Option<u64>> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
+    use std::io::Read;
+
+    let hash = if let Ok(mut f) = std::fs::File::open(path) {
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf)?;
+
+        let mut hasher = DefaultHasher::new();
+        hasher.write(&buf);
+
+        Some(hasher.finish())
+    } else {
+        None
+    };
+
+    Ok(hash)
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
@@ -201,15 +221,23 @@ pub fn cbuild(
         .collect();
 
     compile_opts.target_rustc_args = Some(link_args);
+
+    let build_targets = BuildTargets::new(&name, &rustc_target, &root_output);
+
+    let prev_hash = fingerprint(&build_targets.static_lib)?;
+
     let r = ops::compile(ws, &compile_opts)?;
     assert_eq!(root_output, r.root_output.to_path_buf());
 
+    let cur_hash = fingerprint(&build_targets.static_lib)?;
+
     build_pc_file(&ws, &name, &root_output, &pc)?;
-    build_implib_file(&ws, &name, &rustc_target, &root_output)?;
 
-    build_include_file(&ws, &name, &version, &root_output, &root_path)?;
+    if prev_hash != cur_hash {
+        build_implib_file(&ws, &name, &rustc_target, &root_output)?;
 
-    let build_targets = BuildTargets::new(&name, &rustc_target, &root_output);
+        build_include_file(&ws, &name, &version, &root_output, &root_path)?;
+    }
 
     Ok((build_targets, install_paths))
 }
