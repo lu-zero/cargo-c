@@ -82,7 +82,7 @@ fn cinstall(
     let env = &target.env;
     let ver = pkg.version();
 
-    let name = pkg
+    let name = &pkg
         .manifest()
         .targets()
         .iter()
