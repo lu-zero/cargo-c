@@ -219,11 +219,14 @@ pub fn cbuild(
         .to_path_buf()
         .join(&profiles.get_dir_name());
 
-    let link_args: Vec<String> = rustc_target
+    let mut link_args: Vec<String> = rustc_target
         .shared_object_link_args(name, ws, &install_paths.libdir, &root_output)
         .into_iter()
         .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
         .collect();
+
+    link_args.push("--cfg".into());
+    link_args.push("cargo_c".into());
 
     compile_opts.target_rustc_args = Some(link_args);
 
