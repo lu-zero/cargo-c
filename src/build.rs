@@ -159,14 +159,14 @@ pub fn cbuild(
 
     patch_lib_kind_in_target(ws)?;
 
-    let name = ws
+    let name = &ws
         .current()?
         .manifest()
         .targets()
         .iter()
         .find(|t| t.is_lib())
         .unwrap()
-        .name();
+        .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.root().to_path_buf();
 

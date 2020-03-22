@@ -88,7 +88,7 @@ fn cinstall(
         .iter()
         .find(|t| t.is_lib())
         .unwrap()
-        .name();
+        .crate_name();
 
     let destdir = &paths.destdir;
 
