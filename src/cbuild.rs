@@ -4,19 +4,13 @@ use cargo::CliResult;
 use cargo::Config;
 
 use cargo_c::build::*;
+use cargo_c::cli::base_cli;
 
 use structopt::clap::*;
-use structopt::StructOpt;
 
 pub fn cli() -> App<'static, 'static> {
-    let subcommand = Common::clap()
+    let subcommand = base_cli()
         .name("cbuild")
-        .arg(opt("quiet", "No output printed to stdout").short("q"))
-        .arg_package_spec(
-            "Package to build (see `cargo help pkgid`)",
-            "Build all packages in the workspace",
-            "Exclude packages from the build",
-        )
         .arg_jobs()
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg_profile("Build artifacts with the specified profile")
@@ -65,7 +59,7 @@ fn main() -> CliResult {
         }
     };
 
-    config_configure(&mut config, &args, subcommand_args)?;
+    config_configure(&mut config, subcommand_args)?;
 
     let mut ws = subcommand_args.workspace(&config)?;
 

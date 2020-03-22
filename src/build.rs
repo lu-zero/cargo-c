@@ -8,7 +8,6 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliResult, Config};
 
 use semver::Version;
-use structopt::StructOpt;
 
 use crate::build_targets::BuildTargets;
 use crate::install_paths::InstallPaths;
@@ -250,31 +249,10 @@ pub fn cbuild(
     Ok((build_targets, install_paths))
 }
 
-// TODO: convert to a function using cargo opt()
-#[derive(Clone, Debug, StructOpt)]
-pub struct Common {
-    #[structopt(long = "destdir", parse(from_os_str))]
-    destdir: Option<PathBuf>,
-    #[structopt(long = "prefix", parse(from_os_str))]
-    prefix: Option<PathBuf>,
-    #[structopt(long = "libdir", parse(from_os_str))]
-    libdir: Option<PathBuf>,
-    #[structopt(long = "includedir", parse(from_os_str))]
-    includedir: Option<PathBuf>,
-    #[structopt(long = "bindir", parse(from_os_str))]
-    bindir: Option<PathBuf>,
-    #[structopt(long = "pkgconfigdir", parse(from_os_str))]
-    pkgconfigdir: Option<PathBuf>,
-}
-
-pub fn config_configure(
-    config: &mut Config,
-    args: &ArgMatches<'_>,
-    subcommand_args: &ArgMatches<'_>,
-) -> CliResult {
-    let arg_target_dir = &subcommand_args.value_of_path("target-dir", config);
+pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
+    let arg_target_dir = &args.value_of_path("target-dir", config);
     let config_args: Vec<&str> = args.values_of("config").unwrap_or_default().collect();
-    let quiet = if args.is_present("quiet") || subcommand_args.is_present("quiet") {
+    let quiet = if args.is_present("quiet") {
         Some(true)
     } else {
         None
