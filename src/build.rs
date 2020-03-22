@@ -174,7 +174,7 @@ pub fn cbuild(
     let version = ws.current()?.version().clone();
     let root_path = ws.root().to_path_buf();
 
-    let mut pc = PkgConfig::from_workspace(name, ws, &install_paths);
+    let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args);
 
     let static_libs = get_static_libs_for_target(
         rustc_target.verbatim.as_ref(),

@@ -74,6 +74,7 @@ impl PkgConfig {
         name: &str,
         ws: &cargo::core::Workspace,
         install_paths: &InstallPaths,
+        args: &structopt::clap::ArgMatches<'_>,
     ) -> Self {
         let pkg = ws.current().unwrap();
         let version = pkg.version().to_string();
@@ -87,8 +88,12 @@ impl PkgConfig {
 
         pc.prefix = install_paths.prefix.clone();
         // TODO: support exec_prefix
-        pc.includedir = install_paths.includedir.clone();
-        pc.libdir = install_paths.libdir.clone();
+        if args.is_present("includedir") {
+            pc.includedir = install_paths.includedir.clone();
+        }
+        if args.is_present("libdir") {
+            pc.libdir = install_paths.libdir.clone();
+        }
         pc
     }
 
