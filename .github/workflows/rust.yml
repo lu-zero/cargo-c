@@ -72,12 +72,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose
+          args: --locked --verbose
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
+          args: --locked --verbose
   msvc-Nightly:
     name: msvc-Nightly
     runs-on: windows-latest
@@ -123,12 +123,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose
+          args: --locked --verbose
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
+          args: --locked --verbose
   mingw-Nightly:
     name: mingw-Nightly
     runs-on: windows-latest
