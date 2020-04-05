@@ -59,6 +59,11 @@ fn main() -> CliResult {
         }
     };
 
+    if subcommand_args.is_present("version") {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     config_configure(&mut config, subcommand_args)?;
 
     let mut ws = subcommand_args.workspace(&config)?;
