@@ -1,0 +1,27 @@
+name: deploy
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create Cargo.lock
+      run: |
+        cargo update
+
+    - name: Create a release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          Cargo.lock
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
