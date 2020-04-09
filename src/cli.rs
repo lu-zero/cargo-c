@@ -47,4 +47,14 @@ pub fn base_cli() -> App<'static, 'static> {
                 .global(true)
                 .hidden(true),
         )
+        .arg(
+            multi_opt(
+                "library-type",
+                "LIBRARY-TYPE",
+                "Build only a type of library",
+            )
+            .global(true)
+            .case_insensitive(true)
+            .possible_values(&["cdylib", "staticlib"]),
+        )
 }

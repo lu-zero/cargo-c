@@ -68,16 +68,28 @@ fn build_pc_file(
     Ok(())
 }
 
-fn patch_lib_kind_in_target(ws: &mut Workspace) -> anyhow::Result<()> {
+fn patch_lib_kind_in_target(ws: &mut Workspace, args: &ArgMatches<'_>) -> anyhow::Result<()> {
+    use cargo::core::LibKind::*;
+
     let pkg = ws.current_mut()?;
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
+    let kinds = args.values_of("library-type").map_or_else(
+        || vec![Lib, Other("staticlib".into()), Other("cdylib".into())],
+        |v| {
+            let mut kinds = vec![Lib];
+            v.for_each(|kind| {
+                kinds.push(Other(kind.into()));
+            });
+
+            kinds
+        },
+    );
+
     for target in targets.iter_mut() {
-        use cargo::core::LibKind::*;
         if target.is_lib() {
-            *target.kind_mut() =
-                TargetKind::Lib(vec![Lib, Other("staticlib".into()), Other("cdylib".into())]);
+            *target.kind_mut() = TargetKind::Lib(kinds.clone());
         }
     }
 
@@ -161,7 +173,7 @@ pub fn cbuild(
     let rustc_target = target::Target::new(args.target())?;
     let install_paths = InstallPaths::from_matches(args);
 
-    patch_lib_kind_in_target(ws)?;
+    patch_lib_kind_in_target(ws, args)?;
 
     let name = &ws
         .current()?
