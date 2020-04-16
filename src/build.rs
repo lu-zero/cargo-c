@@ -184,7 +184,7 @@ pub fn cbuild(
         .unwrap()
         .crate_name();
     let version = ws.current()?.version().clone();
-    let root_path = ws.root().to_path_buf();
+    let root_path = ws.current()?.root().to_path_buf();
 
     let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args);
 
