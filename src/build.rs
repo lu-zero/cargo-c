@@ -263,15 +263,14 @@ pub fn cbuild(
 
 pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
     let arg_target_dir = &args.value_of_path("target-dir", config);
-    let config_args: Vec<&str> = args.values_of("config").unwrap_or_default().collect();
-    let quiet = if args.is_present("quiet") {
-        Some(true)
-    } else {
-        None
-    };
+    let config_args: Vec<_> = args
+        .values_of("config")
+        .unwrap_or_default()
+        .map(String::from)
+        .collect();
     config.configure(
         args.occurrences_of("verbose") as u32,
-        quiet,
+        args.is_present("quiet"),
         args.value_of("color"),
         args.is_present("frozen"),
         args.is_present("locked"),
