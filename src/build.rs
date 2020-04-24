@@ -68,24 +68,14 @@ fn build_pc_file(
     Ok(())
 }
 
-fn patch_lib_kind_in_target(ws: &mut Workspace, args: &ArgMatches<'_>) -> anyhow::Result<()> {
+fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Result<()> {
     use cargo::core::LibKind::*;
 
     let pkg = ws.current_mut()?;
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
-    let kinds = args.values_of("library-type").map_or_else(
-        || vec![Lib, Other("staticlib".into()), Other("cdylib".into())],
-        |v| {
-            let mut kinds = vec![Lib];
-            v.for_each(|kind| {
-                kinds.push(Other(kind.into()));
-            });
-
-            kinds
-        },
-    );
+    let kinds: Vec<_> = libkinds.iter().map(|&kind| Other(kind.into())).collect();
 
     for target in targets.iter_mut() {
         if target.is_lib() {
@@ -147,11 +137,11 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
 
     let mut hasher = DefaultHasher::new();
 
-    for path in &[
-        &build_targets.static_lib,
-        &build_targets.shared_lib,
-        &build_targets.include,
-    ] {
+    let mut paths = vec![&build_targets.include];
+    build_targets.static_lib.as_ref().map(|p| paths.push(p));
+    build_targets.shared_lib.as_ref().map(|p| paths.push(p));
+
+    for path in paths.iter() {
         if let Ok(mut f) = std::fs::File::open(path) {
             let mut buf = Vec::new();
             f.read_to_end(&mut buf)?;
@@ -172,8 +162,12 @@ pub fn cbuild(
 ) -> anyhow::Result<(BuildTargets, InstallPaths)> {
     let rustc_target = target::Target::new(args.target())?;
     let install_paths = InstallPaths::from_matches(args);
+    let libkinds = args
+        .values_of("library-type")
+        .map_or_else(|| vec!["staticlib", "cdylib"], |v| v.collect::<Vec<_>>());
+    let only_staticlib = !libkinds.contains(&"cdylib");
 
-    patch_lib_kind_in_target(ws, args)?;
+    patch_lib_kind_in_target(ws, &libkinds)?;
 
     let name = &ws
         .current()?
@@ -192,7 +186,11 @@ pub fn cbuild(
         rustc_target.verbatim.as_ref(),
         &ws.target_dir().as_path_unlocked().to_path_buf(),
     )?;
-    pc.add_lib_private(static_libs);
+
+    if only_staticlib {
+        pc.add_lib(&static_libs);
+    }
+    pc.add_lib_private(&static_libs);
 
     let mut compile_opts = args.compile_options(
         config,
@@ -241,7 +239,7 @@ pub fn cbuild(
 
     compile_opts.target_rustc_args = Some(link_args);
 
-    let build_targets = BuildTargets::new(&name, &rustc_target, &root_output);
+    let build_targets = BuildTargets::new(&name, &rustc_target, &root_output, &libkinds);
 
     let prev_hash = fingerprint(&build_targets)?;
 

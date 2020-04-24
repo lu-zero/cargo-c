@@ -108,65 +108,62 @@ fn cinstall(
         &build_targets.include,
         install_path_include.join(&format!("{}.h", name)),
     )?;
-    ws.config().shell().status("Installing", "static library")?;
-    fs::copy(
-        &build_targets.static_lib,
-        install_path_lib.join(&format!("lib{}.a", name)),
-    )?;
 
-    ws.config().shell().status("Installing", "shared library")?;
-    let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
-        let mut ln_sf = std::process::Command::new("ln");
-        ln_sf.arg("-sf");
-        ln_sf
-            .arg(lib_with_full_ver)
-            .arg(install_path_lib.join(lib_with_major_ver));
-        let _ = ln_sf.status().unwrap();
-        let mut ln_sf = std::process::Command::new("ln");
-        ln_sf.arg("-sf");
-        ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib));
-        let _ = ln_sf.status().unwrap();
-    };
+    if let Some(ref static_lib) = build_targets.static_lib {
+        ws.config().shell().status("Installing", "static library")?;
+        fs::copy(static_lib, install_path_lib.join(&format!("lib{}.a", name)))?;
+    }
 
-    match (os.as_str(), env.as_str()) {
-        ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
-            let lib = &format!("lib{}.so", name);
-            let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
-            let lib_with_full_ver = &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
-            fs::copy(
-                &build_targets.shared_lib,
-                install_path_lib.join(lib_with_full_ver),
-            )?;
-            link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+    if let Some(ref shared_lib) = build_targets.shared_lib {
+        ws.config().shell().status("Installing", "shared library")?;
+        let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
+            let mut ln_sf = std::process::Command::new("ln");
+            ln_sf.arg("-sf");
+            ln_sf
+                .arg(lib_with_full_ver)
+                .arg(install_path_lib.join(lib_with_major_ver));
+            let _ = ln_sf.status().unwrap();
+            let mut ln_sf = std::process::Command::new("ln");
+            ln_sf.arg("-sf");
+            ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib));
+            let _ = ln_sf.status().unwrap();
+        };
+
+        match (os.as_str(), env.as_str()) {
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
+                let lib = &format!("lib{}.so", name);
+                let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
+                let lib_with_full_ver =
+                    &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
+                fs::copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+            }
+            ("macos", _) => {
+                let lib = &format!("lib{}.dylib", name);
+                let lib_with_major_ver = &format!("lib{}.{}.dylib", name, ver.major);
+                let lib_with_full_ver = &format!(
+                    "lib{}.{}.{}.{}.dylib",
+                    name, ver.major, ver.minor, ver.patch
+                );
+                fs::copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+            }
+            ("windows", "gnu") => {
+                let lib = format!("{}.dll", name);
+                let impl_lib = format!("lib{}.dll.a", name);
+                let def = format!("{}.def", name);
+                fs::copy(shared_lib, install_path_bin.join(lib))?;
+                fs::copy(
+                    build_targets.impl_lib.as_ref().unwrap(),
+                    install_path_lib.join(impl_lib),
+                )?;
+                fs::copy(
+                    build_targets.def.as_ref().unwrap(),
+                    install_path_lib.join(def),
+                )?;
+            }
+            _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         }
-        ("macos", _) => {
-            let lib = &format!("lib{}.dylib", name);
-            let lib_with_major_ver = &format!("lib{}.{}.dylib", name, ver.major);
-            let lib_with_full_ver = &format!(
-                "lib{}.{}.{}.{}.dylib",
-                name, ver.major, ver.minor, ver.patch
-            );
-            fs::copy(
-                &build_targets.shared_lib,
-                install_path_lib.join(lib_with_full_ver),
-            )?;
-            link_libs(lib, lib_with_major_ver, lib_with_full_ver);
-        }
-        ("windows", "gnu") => {
-            let lib = format!("{}.dll", name);
-            let impl_lib = format!("lib{}.dll.a", name);
-            let def = format!("{}.def", name);
-            fs::copy(&build_targets.shared_lib, install_path_bin.join(lib))?;
-            fs::copy(
-                build_targets.impl_lib.as_ref().unwrap(),
-                install_path_lib.join(impl_lib),
-            )?;
-            fs::copy(
-                build_targets.def.as_ref().unwrap(),
-                install_path_lib.join(def),
-            )?;
-        }
-        _ => unimplemented!("The target {}-{} is not supported yet", os, env),
     }
 
     Ok(())
