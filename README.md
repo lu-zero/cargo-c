@@ -64,7 +64,7 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 - [x] Generate version information in the header
   - [ ] Make it tunable
 - [ ] Extra Cargo.toml keys
-- [ ] Better status reporting
+- [x] Better status reporting
 
 [dev.to]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn
 [using]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn#using-cargoc
