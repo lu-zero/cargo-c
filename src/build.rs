@@ -138,8 +138,8 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
     let mut hasher = DefaultHasher::new();
 
     let mut paths = vec![&build_targets.include];
-    build_targets.static_lib.as_ref().map(|p| paths.push(p));
-    build_targets.shared_lib.as_ref().map(|p| paths.push(p));
+    paths.extend(&build_targets.static_lib);
+    paths.extend(&build_targets.shared_lib);
 
     for path in paths.iter() {
         if let Ok(mut f) = std::fs::File::open(path) {
