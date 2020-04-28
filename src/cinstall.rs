@@ -111,7 +111,12 @@ fn cinstall(
 
     if let Some(ref static_lib) = build_targets.static_lib {
         ws.config().shell().status("Installing", "static library")?;
-        fs::copy(static_lib, install_path_lib.join(&format!("lib{}.a", name)))?;
+        let static_lib_path = if env == "msvc" {
+            format!("{}.lib", name)
+        } else {
+            format!("lib{}.a", name)
+        };
+        fs::copy(static_lib, install_path_lib.join(&static_lib_path))?;
     }
 
     if let Some(ref shared_lib) = build_targets.shared_lib {
@@ -148,9 +153,13 @@ fn cinstall(
                 fs::copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
-            ("windows", "gnu") => {
+            ("windows", ref env) => {
                 let lib = format!("{}.dll", name);
-                let impl_lib = format!("lib{}.dll.a", name);
+                let impl_lib = if *env == "msvc" {
+                    format!("{}.dll.lib", name)
+                } else {
+                    format!("lib{}.dll.a", name)
+                };
                 let def = format!("{}.def", name);
                 fs::copy(shared_lib, install_path_bin.join(lib))?;
                 fs::copy(

@@ -1,4 +1,5 @@
-use std::io::Write;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 
 use cargo::core::profiles::Profiles;
@@ -86,7 +87,63 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
     Ok(())
 }
 
-/// Build import library for Windows
+/// Build def file for windows-msvc
+fn build_def_file(
+    ws: &Workspace,
+    name: &str,
+    target: &target::Target,
+    targetdir: &PathBuf,
+) -> anyhow::Result<()> {
+    let os = &target.os;
+    let env = &target.env;
+
+    if os == "windows" && env == "msvc" {
+        ws.config()
+            .shell()
+            .status("Building", ".def file using dumpbin")?;
+
+        let txt_path = targetdir.join(format!("{}.txt", name));
+        let mut dumpbin = std::process::Command::new("dumpbin");
+        dumpbin
+            .arg("/EXPORTS")
+            .arg(targetdir.join(format!("{}.dll", name)));
+        dumpbin.arg(format!("/OUT:{}", txt_path.to_str().unwrap()));
+
+        let out = dumpbin.output()?;
+        if out.status.success() {
+            let txt_file = File::open(txt_path)?;
+            let buf_reader = BufReader::new(txt_file);
+            let mut def_file = File::create(targetdir.join(format!("{}.def", name)))?;
+            writeln!(def_file, "{}", "EXPORTS".to_string())?;
+
+            // Skip 16 lines and, for each line, delete all the characters
+            // until the fourth space included (tokens = 4)
+            for line in buf_reader
+                .lines()
+                .skip(16)
+                .take_while(|l| !l.as_ref().unwrap().is_empty())
+                .map(|l| {
+                    l.unwrap()
+                        .as_str()
+                        .split_whitespace()
+                        .nth(3)
+                        .unwrap()
+                        .to_string()
+                })
+            {
+                writeln!(def_file, "\t{}", line)?;
+            }
+
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Command failed {:?}", dumpbin))
+        }
+    } else {
+        Ok(())
+    }
+}
+
+/// Build import library for windows-gnu
 fn build_implib_file(
     ws: &Workspace,
     name: &str,
@@ -251,6 +308,7 @@ pub fn cbuild(
     build_pc_file(&ws, &name, &root_output, &pc)?;
 
     if cur_hash.is_none() || prev_hash != cur_hash {
+        build_def_file(&ws, &name, &rustc_target, &root_output)?;
         build_implib_file(&ws, &name, &rustc_target, &root_output)?;
 
         build_include_file(&ws, &name, &version, &root_output, &root_path)?;

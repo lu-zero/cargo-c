@@ -36,10 +36,14 @@ impl BuildTargets {
                 let shared_lib = targetdir.join(&format!("lib{}.dylib", name));
                 (shared_lib, static_lib, None, None)
             }
-            ("windows", "gnu") => {
+            ("windows", ref env) => {
                 let static_lib = targetdir.join(&format!("{}.lib", name));
                 let shared_lib = targetdir.join(&format!("{}.dll", name));
-                let impl_lib = targetdir.join(&format!("{}.dll.a", name));
+                let impl_lib = if *env == "msvc" {
+                    targetdir.join(&format!("{}.dll.lib", name))
+                } else {
+                    targetdir.join(&format!("{}.dll.a", name))
+                };
                 let def = targetdir.join(&format!("{}.def", name));
                 (shared_lib, static_lib, Some(impl_lib), Some(def))
             }
