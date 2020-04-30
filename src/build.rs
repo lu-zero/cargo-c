@@ -116,8 +116,16 @@ fn build_def_file(
             let mut def_file = File::create(targetdir.join(format!("{}.def", name)))?;
             writeln!(def_file, "{}", "EXPORTS".to_string())?;
 
-            // Skip 16 lines and, for each line, delete all the characters
-            // until the fourth space included (tokens = 4)
+            // The Rust loop below is analogue to the following loop.
+            // for /f "skip=19 tokens=4" %A in (file.txt) do echo %A > file.def
+            // The most recent versions of dumpbin adds three lines of copyright
+            // information before the relevant content.
+            // If the "/OUT:file.txt" dumpbin's option is used, the three
+            // copyright lines are added to the shell, so the txt file
+            // contains three lines less.
+            // The Rust loop first skips 16 lines and then, for each line,
+            // deletes all the characters up to the fourth space included
+            // (skip=16 tokens=4)
             for line in buf_reader
                 .lines()
                 .skip(16)
