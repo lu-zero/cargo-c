@@ -1,159 +1,217 @@
----
 name: Rust
 
-on:
-  - push
-  - pull_request
+on: [push, pull_request]
 
 jobs:
+
   rustfmt-clippy:
+
     name: Format and Clippy
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install stable
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
           override: true
+
       - name: Install rustfmt and clippy
         run: rustup component add rustfmt clippy
+
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
+
       - name: Run format
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
+
   Ubuntu-Nightly:
+
     name: Ubuntu-Nightly
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: nightly
           override: true
+
       - name: Install grcov
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: grcov
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
         env:
-          'CARGO_INCREMENTAL': '0'
-          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: >
+            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
+            -Coverflow-checks=off
+
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
+
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
           parallel: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.info
+
   Ubuntu-Stable:
+
     name: Ubuntu-Stable
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install stable
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
           override: true
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --verbose
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --verbose
+
   msvc-Nightly:
+
     name: msvc-Nightly
+
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: nightly
           override: true
+
       - name: Install grcov
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: grcov
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
         env:
-          'CARGO_INCREMENTAL': '0'
-          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: >
+            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
+            -Coverflow-checks=off
+
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
+
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
           parallel: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.info
+
   msvc-Stable:
+
     name: msvc-Stable
+
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install stable
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
           override: true
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --verbose
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --verbose
+
   mingw-Nightly:
+
     name: mingw-Nightly
+
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
       - name: Install nightly-gnu
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: nightly-gnu
           override: true
+
       - name: Install grcov
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: grcov
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
         env:
-          'CARGO_INCREMENTAL': '0'
-          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: >
+            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
+            -Coverflow-checks=off
+
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
+
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
