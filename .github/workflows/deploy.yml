@@ -7,12 +7,121 @@ on:
 
 jobs:
 
+  windows-binaries:
+
+    strategy:
+      matrix:
+        conf:
+         - msvc
+         - gnu
+        include:
+         - conf: msvc
+           toolchain: stable
+         - conf: gnu
+           toolchain: stable-x86_64-pc-windows-gnu
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.toolchain }}
+        override: true
+
+    - name: Build cargo-c
+      run: |
+        cargo build --release
+
+    - name: Create zip
+      run: |
+        $CARGO_C_PATH="$Env:GITHUB_WORKSPACE\target\release"
+        7z a cargo-c-windows-${{ matrix.conf }}.zip `
+             "$CARGO_C_PATH\cargo-cbuild.exe" `
+             "$CARGO_C_PATH\cargo-cinstall.exe"
+
+    - name: Upload binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: cargo-c-windows-${{ matrix.conf }}-binaries
+        path: cargo-c-windows-${{ matrix.conf }}.zip
+
+
+  unix-binaries:
+
+    strategy:
+      matrix:
+        conf:
+         - linux
+         - macos
+        include:
+         - conf: linux
+           os: ubuntu-latest
+         - conf: macos
+           os: macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Build cargo-c
+      run: |
+        cargo build --release
+
+    - name: Create zip
+      run: |
+        cd target/release
+        strip cargo-cbuild cargo-cinstall
+        zip $GITHUB_WORKSPACE/cargo-c-${{ matrix.conf }}.zip \
+            cargo-cbuild \
+            cargo-cinstall
+
+    - name: Upload binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: cargo-c-${{ matrix.conf }}-binaries
+        path: cargo-c-${{ matrix.conf }}.zip
+
   deploy:
+
+    needs: [windows-binaries, unix-binaries]
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Download zip files
+      uses: actions/download-artifact@v2
+
+    - name: Strip windows-msvc binaries
+      run: |
+        cd cargo-c-windows-msvc-binaries
+        unzip cargo-c-windows-msvc.zip
+        strip cargo-cbuild.exe cargo-cinstall.exe
+        zip $GITHUB_WORKSPACE/cargo-c-windows-msvc.zip \
+            cargo-cbuild.exe \
+            cargo-cinstall.exe
+
+    - name: Strip windows-gnu binaries
+      run: |
+        cd cargo-c-windows-gnu-binaries
+        unzip cargo-c-windows-gnu.zip
+        strip cargo-cbuild.exe cargo-cinstall.exe
+        zip $GITHUB_WORKSPACE/cargo-c-windows-gnu.zip \
+            cargo-cbuild.exe \
+            cargo-cinstall.exe
 
     - name: Create Cargo.lock
       run: |
@@ -23,5 +132,9 @@ jobs:
       with:
         files: |
           Cargo.lock
+          cargo-c-linux-binaries/cargo-c-linux.zip
+          cargo-c-macos-binaries/cargo-c-macos.zip
+          cargo-c-windows-msvc.zip
+          cargo-c-windows-gnu.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
