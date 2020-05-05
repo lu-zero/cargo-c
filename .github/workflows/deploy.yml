@@ -49,21 +49,59 @@ jobs:
         name: cargo-c-windows-${{ matrix.conf }}-binaries
         path: cargo-c-windows-${{ matrix.conf }}.zip
 
+  linux-binaries:
 
-  unix-binaries:
+    runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        conf:
-         - linux
-         - macos
-        include:
-         - conf: linux
-           os: ubuntu-latest
-         - conf: macos
-           os: macos-latest
+    steps:
+    - uses: actions/checkout@v2
 
-    runs-on: ${{ matrix.os }}
+    - name: Install musl-tools
+      run: |
+        sudo apt-get install musl-tools
+
+    - name: Install Rust stable and musl target
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: x86_64-unknown-linux-musl
+        override: true
+
+    - name: Build openssl for musl
+      run: |
+         OPENSSL_BIN=target/x86_64-unknown-linux-musl/release/build
+         git clone --depth 1 https://github.com/sfackler/rust-openssl
+         cd rust-openssl/openssl-sys
+         cargo build --target x86_64-unknown-linux-musl \
+                     --release \
+                     --features=vendored
+         mv ../$OPENSSL_BIN/openssl-sys-*/out/openssl-build/install/* \
+            $GITHUB_WORKSPACE
+
+    - name: Build cargo-c
+      run: |
+        export OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/lib
+        export OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/include
+        cargo build --target x86_64-unknown-linux-musl --release
+
+    - name: Create zip
+      run: |
+        cd target/x86_64-unknown-linux-musl/release
+        strip cargo-cbuild cargo-cinstall
+        tar -czvf $GITHUB_WORKSPACE/cargo-c-linux.tar.gz \
+                  cargo-cbuild \
+                  cargo-cinstall
+
+    - name: Upload binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: cargo-c-linux-binaries
+        path: cargo-c-linux.tar.gz
+
+  macos-binaries:
+
+    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -83,19 +121,19 @@ jobs:
       run: |
         cd target/release
         strip cargo-cbuild cargo-cinstall
-        zip $GITHUB_WORKSPACE/cargo-c-${{ matrix.conf }}.zip \
+        zip $GITHUB_WORKSPACE/cargo-c-macos.zip \
             cargo-cbuild \
             cargo-cinstall
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
       with:
-        name: cargo-c-${{ matrix.conf }}-binaries
-        path: cargo-c-${{ matrix.conf }}.zip
+        name: cargo-c-macos-binaries
+        path: cargo-c-macos.zip
 
   deploy:
 
-    needs: [windows-binaries, unix-binaries]
+    needs: [windows-binaries, linux-binaries, macos-binaries]
 
     runs-on: ubuntu-latest
 
@@ -132,7 +170,7 @@ jobs:
       with:
         files: |
           Cargo.lock
-          cargo-c-linux-binaries/cargo-c-linux.zip
+          cargo-c-linux-binaries/cargo-c-linux.tar.gz
           cargo-c-macos-binaries/cargo-c-macos.zip
           cargo-c-windows-msvc.zip
           cargo-c-windows-gnu.zip
