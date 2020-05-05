@@ -65,7 +65,7 @@ jobs:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: >
             -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
-            -Coverflow-checks=off
+            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
 
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
@@ -136,7 +136,7 @@ jobs:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: >
             -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
-            -Coverflow-checks=off
+            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
 
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
@@ -207,7 +207,7 @@ jobs:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: >
             -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code 
-            -Coverflow-checks=off
+            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
 
       - name: Generate coverage
         run: grcov . -t lcov > coverage.info
