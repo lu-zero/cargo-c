@@ -36,12 +36,17 @@ jobs:
       run: |
         cargo build --release
 
+    - name: Strip gnu binaries
+      if: matrix.conf == 'gnu'
+      run: |
+        strip "target\release\cargo-cbuild.exe" `
+              "target\release\cargo-cinstall.exe"
+
     - name: Create zip
       run: |
-        $CARGO_C_PATH="$Env:GITHUB_WORKSPACE\target\release"
         7z a cargo-c-windows-${{ matrix.conf }}.zip `
-             "$CARGO_C_PATH\cargo-cbuild.exe" `
-             "$CARGO_C_PATH\cargo-cinstall.exe"
+             "target\release\cargo-cbuild.exe" `
+             "target\release\cargo-cinstall.exe"
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
@@ -143,24 +148,6 @@ jobs:
     - name: Download zip files
       uses: actions/download-artifact@v2
 
-    - name: Strip windows-msvc binaries
-      run: |
-        cd cargo-c-windows-msvc-binaries
-        unzip cargo-c-windows-msvc.zip
-        strip cargo-cbuild.exe cargo-cinstall.exe
-        zip $GITHUB_WORKSPACE/cargo-c-windows-msvc.zip \
-            cargo-cbuild.exe \
-            cargo-cinstall.exe
-
-    - name: Strip windows-gnu binaries
-      run: |
-        cd cargo-c-windows-gnu-binaries
-        unzip cargo-c-windows-gnu.zip
-        strip cargo-cbuild.exe cargo-cinstall.exe
-        zip $GITHUB_WORKSPACE/cargo-c-windows-gnu.zip \
-            cargo-cbuild.exe \
-            cargo-cinstall.exe
-
     - name: Create Cargo.lock
       run: |
         cargo update
@@ -172,7 +159,7 @@ jobs:
           Cargo.lock
           cargo-c-linux-binaries/cargo-c-linux.tar.gz
           cargo-c-macos-binaries/cargo-c-macos.zip
-          cargo-c-windows-msvc.zip
-          cargo-c-windows-gnu.zip
+          cargo-c-windows-msvc-binaries/cargo-c-windows-msvc.zip
+          cargo-c-windows-gnu-binaries/cargo-c-windows-gnu.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
