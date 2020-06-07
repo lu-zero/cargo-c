@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cargo::core::Workspace;
 use cargo::util::command_prelude::opt;
@@ -12,6 +12,7 @@ use cargo_c::cli::base_cli;
 use cargo_c::install_paths::InstallPaths;
 use cargo_c::target::Target;
 
+use anyhow::Context;
 use structopt::clap::*;
 
 pub fn cli() -> App<'static, 'static> {
@@ -60,6 +61,13 @@ fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
     };
 
     destdir.join(path)
+}
+
+fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
+    let from = from.as_ref();
+    let to = to.as_ref();
+    std::fs::copy(from, to)
+        .with_context(|| format!("Cannot copy {} to {}.", from.display(), to.display()))
 }
 
 fn cinstall(
@@ -116,7 +124,7 @@ fn cinstall(
         } else {
             format!("lib{}.a", name)
         };
-        fs::copy(static_lib, install_path_lib.join(&static_lib_path))?;
+        copy(static_lib, install_path_lib.join(&static_lib_path))?;
     }
 
     if let Some(ref shared_lib) = build_targets.shared_lib {
@@ -140,7 +148,7 @@ fn cinstall(
                 let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
                 let lib_with_full_ver =
                     &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
-                fs::copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
             ("macos", _) => {
@@ -150,7 +158,7 @@ fn cinstall(
                     "lib{}.{}.{}.{}.dylib",
                     name, ver.major, ver.minor, ver.patch
                 );
-                fs::copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
             ("windows", ref env) => {
@@ -161,12 +169,12 @@ fn cinstall(
                     format!("lib{}.dll.a", name)
                 };
                 let def = format!("{}.def", name);
-                fs::copy(shared_lib, install_path_bin.join(lib))?;
-                fs::copy(
+                copy(shared_lib, install_path_bin.join(lib))?;
+                copy(
                     build_targets.impl_lib.as_ref().unwrap(),
                     install_path_lib.join(impl_lib),
                 )?;
-                fs::copy(
+                copy(
                     build_targets.def.as_ref().unwrap(),
                     install_path_lib.join(def),
                 )?;
