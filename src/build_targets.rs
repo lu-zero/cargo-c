@@ -37,7 +37,11 @@ impl BuildTargets {
                 (shared_lib, static_lib, None, None)
             }
             ("windows", ref env) => {
-                let static_lib = targetdir.join(&format!("{}.lib", name));
+                let static_lib = if *env == "msvc" {
+                    targetdir.join(&format!("{}.lib", name))
+                } else {
+                    targetdir.join(&format!("lib{}.a", name))
+                };
                 let shared_lib = targetdir.join(&format!("{}.dll", name));
                 let impl_lib = if *env == "msvc" {
                     targetdir.join(&format!("{}.dll.lib", name))
