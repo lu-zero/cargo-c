@@ -49,6 +49,7 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 - [lewton](https://github.com/RustAudio/lewton)
 - [rav1e](https://github.com/xiph/rav1e)
 - [sled](https://github.com/spacejam/sled/tree/master/bindings/sled-native)
+- [pathfinder](https://github.com/servo/pathfinder#c)
 
 ## Status
 
