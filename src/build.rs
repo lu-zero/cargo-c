@@ -291,6 +291,11 @@ pub fn cbuild(
         .target_dir()
         .as_path_unlocked()
         .to_path_buf()
+        .join(
+            args.target()
+                .map(|t| PathBuf::from(t))
+                .unwrap_or_else(|| PathBuf::from(".")),
+        )
         .join(&profiles.get_dir_name());
 
     let mut link_args: Vec<String> = rustc_target
