@@ -325,7 +325,9 @@ pub fn cbuild(
     if cur_hash.is_none() || prev_hash != cur_hash {
         build_def_file(&ws, &name, &rustc_target, &root_output)?;
 
-        let mut dlltool = std::env::var_os("DLLTOOL").unwrap_or_else(|| PathBuf::from("dlltool"));
+        let mut dlltool = std::env::var_os("DLLTOOL")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("dlltool"));
 
         // dlltool argument overwrites environment var
         if args.value_of("dlltool").is_some() {
