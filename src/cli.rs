@@ -19,6 +19,8 @@ struct Common {
     bindir: Option<PathBuf>,
     #[structopt(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
+    #[structopt(long = "dlltool", parse(from_os_str))]
+    dlltool: Option<PathBuf>,
 }
 
 pub fn base_cli() -> App<'static, 'static> {

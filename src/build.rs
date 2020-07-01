@@ -157,6 +157,7 @@ fn build_implib_file(
     name: &str,
     target: &target::Target,
     targetdir: &PathBuf,
+    dlltool: &PathBuf,
 ) -> anyhow::Result<()> {
     let os = &target.os;
     let env = &target.env;
@@ -174,21 +175,21 @@ fn build_implib_file(
             _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
         };
 
-        let mut dlltool = std::process::Command::new("dlltool");
-        dlltool.arg("-m").arg(binutils_arch);
-        dlltool.arg("-D").arg(format!("{}.dll", name));
-        dlltool
+        let mut dlltool_command = std::process::Command::new(dlltool.to_str().unwrap_or_else(|| "dlltool"));
+        dlltool_command.arg("-m").arg(binutils_arch);
+        dlltool_command.arg("-D").arg(format!("{}.dll", name));
+        dlltool_command
             .arg("-l")
             .arg(targetdir.join(format!("{}.dll.a", name)));
-        dlltool
+        dlltool_command
             .arg("-d")
             .arg(targetdir.join(format!("{}.def", name)));
 
-        let out = dlltool.output()?;
+        let out = dlltool_command.output()?;
         if out.status.success() {
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Command failed {:?}", dlltool))
+            Err(anyhow::anyhow!("Command failed {:?}", dlltool_command))
         }
     } else {
         Ok(())
@@ -322,7 +323,22 @@ pub fn cbuild(
 
     if cur_hash.is_none() || prev_hash != cur_hash {
         build_def_file(&ws, &name, &rustc_target, &root_output)?;
-        build_implib_file(&ws, &name, &rustc_target, &root_output)?;
+
+        let mut dlltool = PathBuf::from("dlltool");
+
+        if std::env::var_os("DLLTOOL").is_some() {
+            dlltool = PathBuf::from(std::env::var_os("DLLTOOL").unwrap());
+        }
+
+        // dlltool argument overwrites environment var
+        if args.value_of("dlltool").is_some() {
+            dlltool = args
+                .value_of("dlltool")
+                .map(PathBuf::from)
+                .unwrap();
+        }
+
+        build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
 
         build_include_file(&ws, &name, &version, &root_output, &root_path)?;
     }
