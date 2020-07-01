@@ -175,7 +175,8 @@ fn build_implib_file(
             _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
         };
 
-        let mut dlltool_command = std::process::Command::new(dlltool.to_str().unwrap_or_else(|| "dlltool"));
+        let mut dlltool_command =
+            std::process::Command::new(dlltool.to_str().unwrap_or_else(|| "dlltool"));
         dlltool_command.arg("-m").arg(binutils_arch);
         dlltool_command.arg("-D").arg(format!("{}.dll", name));
         dlltool_command
@@ -332,10 +333,7 @@ pub fn cbuild(
 
         // dlltool argument overwrites environment var
         if args.value_of("dlltool").is_some() {
-            dlltool = args
-                .value_of("dlltool")
-                .map(PathBuf::from)
-                .unwrap();
+            dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
         }
 
         build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
