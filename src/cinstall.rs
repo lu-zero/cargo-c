@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use cargo::core::Workspace;
 use cargo::util::command_prelude::opt;
@@ -52,15 +52,62 @@ the --release flag will use the `release` profile instead.
 }
 
 fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
-    let path = if path.is_absolute() {
-        let mut components = path.components();
-        let _ = components.next();
-        components.as_path()
-    } else {
-        path.as_path()
-    };
+    let mut joined = destdir.clone();
+    for component in path.components() {
+        match component {
+            Component::Prefix(_) | Component::RootDir => {}
+            _ => joined.push(component),
+        };
+    }
+    joined
+}
 
-    destdir.join(path)
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    #[test]
+    fn append_to_destdir() {
+        assert_eq!(
+            super::append_to_destdir(&PathBuf::from(r"/foo"), &PathBuf::from(r"/bar/./..")),
+            PathBuf::from(r"/foo/bar/./..")
+        );
+
+        assert_eq!(
+            super::append_to_destdir(&PathBuf::from(r"foo"), &PathBuf::from(r"bar")),
+            PathBuf::from(r"foo/bar")
+        );
+
+        assert_eq!(
+            super::append_to_destdir(&PathBuf::from(r""), &PathBuf::from(r"")),
+            PathBuf::from(r"")
+        );
+
+        if cfg!(windows) {
+            assert_eq!(
+                super::append_to_destdir(&PathBuf::from(r"X:\foo"), &PathBuf::from(r"Y:\bar")),
+                PathBuf::from(r"X:\foo\bar")
+            );
+
+            assert_eq!(
+                super::append_to_destdir(&PathBuf::from(r"A:\foo"), &PathBuf::from(r"B:bar")),
+                PathBuf::from(r"A:\foo\bar")
+            );
+
+            assert_eq!(
+                super::append_to_destdir(&PathBuf::from(r"\foo"), &PathBuf::from(r"\bar")),
+                PathBuf::from(r"\foo\bar")
+            );
+
+            assert_eq!(
+                super::append_to_destdir(
+                    &PathBuf::from(r"C:\dest"),
+                    &PathBuf::from(r"\\server\share\foo\bar")
+                ),
+                PathBuf::from(r"C:\\dest\\foo\\bar")
+            );
+        }
+    }
 }
 
 fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
