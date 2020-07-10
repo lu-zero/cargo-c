@@ -323,18 +323,20 @@ pub fn cbuild(
     build_pc_file(&ws, &name, &root_output, &pc)?;
 
     if cur_hash.is_none() || prev_hash != cur_hash {
-        build_def_file(&ws, &name, &rustc_target, &root_output)?;
+        if !only_staticlib {
+            build_def_file(&ws, &name, &rustc_target, &root_output)?;
 
-        let mut dlltool = std::env::var_os("DLLTOOL")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("dlltool"));
+            let mut dlltool = std::env::var_os("DLLTOOL")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("dlltool"));
 
-        // dlltool argument overwrites environment var
-        if args.value_of("dlltool").is_some() {
-            dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
+            // dlltool argument overwrites environment var
+            if args.value_of("dlltool").is_some() {
+                dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
+            }
+
+            build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
         }
-
-        build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
 
         build_include_file(&ws, &name, &version, &root_output, &root_path)?;
     }
