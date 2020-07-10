@@ -255,7 +255,7 @@ fn main() -> CliResult {
 
     cinstall(
         &ws,
-        &Target::new(args.target())?,
+        &Target::new(subcommand_args.target())?,
         build_targets,
         install_paths,
     )?;
