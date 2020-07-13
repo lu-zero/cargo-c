@@ -11,7 +11,7 @@ use cargo::{CliResult, Config};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
-use crate::install_paths::InstallPaths;
+use crate::install::InstallPaths;
 use crate::pkg_config_gen::PkgConfig;
 use crate::static_libs::get_static_libs_for_target;
 use crate::target;

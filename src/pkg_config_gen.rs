@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::install_paths::InstallPaths;
+use crate::install::InstallPaths;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
+use cargo::util::command_prelude::AppExt;
 use cargo::util::command_prelude::{multi_opt, opt};
+
 use structopt::clap::*;
 use structopt::StructOpt;
 
@@ -24,7 +26,7 @@ struct Common {
     dlltool: Option<PathBuf>,
 }
 
-pub fn base_cli() -> App<'static, 'static> {
+fn base_cli() -> App<'static, 'static> {
     Common::clap()
         .arg(opt("version", "Print version info and exit").short("V"))
         .arg(
@@ -59,5 +61,33 @@ pub fn base_cli() -> App<'static, 'static> {
             .global(true)
             .case_insensitive(true)
             .possible_values(&["cdylib", "staticlib"]),
+        )
+}
+
+pub fn subcommand_cli(name: &str) -> App<'static, 'static> {
+    base_cli()
+        .name(name)
+        .arg_jobs()
+        .arg_release("Build artifacts in release mode, with optimizations")
+        .arg_profile("Build artifacts with the specified profile")
+        .arg_features()
+        .arg_target_triple("Build for the target triple")
+        .arg_target_dir()
+        .arg(
+            opt(
+                "out-dir",
+                "Copy final artifacts to this directory (unstable)",
+            )
+            .value_name("PATH"),
+        )
+        .arg_manifest_path()
+        .arg_message_format()
+        .arg_build_plan()
+        .after_help(
+            "
+Compilation can be configured via the use of profiles which are configured in
+the manifest. The default profile for this command is `dev`, but passing
+the --release flag will use the `release` profile instead.
+",
         )
 }

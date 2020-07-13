@@ -1,55 +1,12 @@
 use std::path::{Component, Path, PathBuf};
+use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
-use cargo::util::command_prelude::opt;
-use cargo::util::command_prelude::{AppExt, ArgMatchesExt};
-use cargo::CliResult;
-use cargo::Config;
 
-use cargo_c::build::{cbuild, config_configure};
-use cargo_c::build_targets::BuildTargets;
-use cargo_c::cli::base_cli;
-use cargo_c::install_paths::InstallPaths;
-use cargo_c::target::Target;
+use crate::build_targets::BuildTargets;
+use crate::target::Target;
 
 use anyhow::Context;
-use structopt::clap::*;
-
-pub fn cli() -> App<'static, 'static> {
-    let subcommand = base_cli()
-        .name("cinstall")
-        .arg_jobs()
-        .arg_release("Build artifacts in release mode, with optimizations")
-        .arg_profile("Build artifacts with the specified profile")
-        .arg_features()
-        .arg_target_triple("Build for the target triple")
-        .arg_target_dir()
-        .arg(
-            opt(
-                "out-dir",
-                "Copy final artifacts to this directory (unstable)",
-            )
-            .value_name("PATH"),
-        )
-        .arg_manifest_path()
-        .arg_message_format()
-        .arg_build_plan()
-        .after_help(
-            "\
-Compilation can be configured via the use of profiles which are configured in
-the manifest. The default profile for this command is `dev`, but passing
-the --release flag will use the `release` profile instead.
-",
-        );
-
-    app_from_crate!()
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::VersionlessSubcommands,
-        ])
-        .subcommand(subcommand)
-}
 
 fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
     let mut joined = destdir.clone();
@@ -117,7 +74,7 @@ fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
         .with_context(|| format!("Cannot copy {} to {}.", from.display(), to.display()))
 }
 
-fn cinstall(
+pub fn cinstall(
     ws: &Workspace,
     target: &Target,
     build_targets: BuildTargets,
@@ -233,32 +190,50 @@ fn cinstall(
     Ok(())
 }
 
-fn main() -> CliResult {
-    let mut config = Config::default()?;
+#[derive(Debug)]
+pub struct InstallPaths {
+    pub destdir: PathBuf,
+    pub prefix: PathBuf,
+    pub libdir: PathBuf,
+    pub includedir: PathBuf,
+    pub bindir: PathBuf,
+    pub pkgconfigdir: PathBuf,
+}
 
-    let args = cli().get_matches();
+impl InstallPaths {
+    pub fn from_matches(args: &ArgMatches<'_>) -> Self {
+        let destdir = args
+            .value_of("destdir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("/"));
+        let prefix = args
+            .value_of("prefix")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "/usr/local".into());
+        let libdir = args
+            .value_of("libdir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| prefix.join("lib"));
+        let includedir = args
+            .value_of("includedir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| prefix.join("include"));
+        let bindir = args
+            .value_of("bindir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| prefix.join("bin"));
+        let pkgconfigdir = args
+            .value_of("pkgconfigdir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| libdir.join("pkgconfig"));
 
-    let subcommand_args = match args.subcommand() {
-        ("cinstall", Some(args)) => args,
-        _ => {
-            // No subcommand provided.
-            cli().print_help()?;
-            return Ok(());
+        InstallPaths {
+            destdir,
+            prefix,
+            libdir,
+            includedir,
+            bindir,
+            pkgconfigdir,
         }
-    };
-
-    config_configure(&mut config, subcommand_args)?;
-
-    let mut ws = subcommand_args.workspace(&config)?;
-
-    let (build_targets, install_paths) = cbuild(&mut ws, &config, &subcommand_args)?;
-
-    cinstall(
-        &ws,
-        &Target::new(subcommand_args.target())?,
-        build_targets,
-        install_paths,
-    )?;
-
-    Ok(())
+    }
 }

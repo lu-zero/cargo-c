@@ -9,16 +9,18 @@ readme = "README.md"
 repository = "http://github.com/lu-zero/cargo-c"
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 keywords = ["cargo", "cdylib"]
-default-run = "cargo-cbuild"
 
+[[bin]]
+name = "cargo-capi"
+path = "src/bin/capi.rs"
 
 [[bin]]
 name = "cargo-cinstall"
-path = "src/cinstall.rs"
+path = "src/bin/cinstall.rs"
 
 [[bin]]
 name = "cargo-cbuild"
-path = "src/cbuild.rs"
+path = "src/bin/cbuild.rs"
 
 [dependencies]
 cargo = "0.45"
