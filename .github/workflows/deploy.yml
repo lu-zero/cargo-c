@@ -39,12 +39,15 @@ jobs:
     - name: Strip gnu binaries
       if: matrix.conf == 'gnu'
       run: |
-        strip "target\release\cargo-cbuild.exe" `
+        strip "target\release\cargo-capi.exe" `
+              "target\release\cargo-cbuild.exe" `
               "target\release\cargo-cinstall.exe"
+
 
     - name: Create zip
       run: |
         7z a cargo-c-windows-${{ matrix.conf }}.zip `
+             "target\release\cargo-capi.exe" `
              "target\release\cargo-cbuild.exe" `
              "target\release\cargo-cinstall.exe"
 
