@@ -1,7 +1,6 @@
 use cargo_c::build::{cbuild, config_configure};
 use cargo_c::cli::subcommand_cli;
 use cargo_c::install::cinstall;
-use cargo_c::target::Target;
 
 use cargo::util::command_prelude::opt;
 use cargo::util::command_prelude::ArgMatchesExt;
@@ -59,13 +58,7 @@ fn main() -> CliResult {
     let (build_targets, install_paths, capi_config) = cbuild(&mut ws, &config, &subcommand_args)?;
 
     if cmd == "install" {
-        cinstall(
-            &ws,
-            &Target::new(subcommand_args.target())?,
-            &capi_config,
-            build_targets,
-            install_paths,
-        )?;
+        cinstall(&ws, &capi_config, build_targets, install_paths)?;
     }
 
     Ok(())
