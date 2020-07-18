@@ -8,19 +8,6 @@ use structopt::StructOpt;
 
 // TODO: convert to a function using cargo opt()
 #[derive(Clone, Debug, StructOpt)]
-/// options to set paths for installing built targets
-///
-/// default target installation directory structure
-/// /   (destdir)
-/// | --- usr   (prefix)
-///       | --- include     (includedir)
-///       | --- bin         (bindir)
-///       | --- lib         (libdir)
-///             | --- pkgconfig     (pkgconfigdir)
-///
-/// the path, if specified, for prefix, libdir, includedir,
-/// binddir and pkgconfigdir is always considered to be
-/// relative to destdir
 struct Common {
     /// path to directory where target should be copied to
     #[structopt(long = "destdir", parse(from_os_str))]
