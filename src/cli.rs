@@ -25,7 +25,7 @@ struct Common {
     /// path to directory for installing generated executable files
     #[structopt(long = "bindir", parse(from_os_str))]
     bindir: Option<PathBuf>,
-    /// path to directory for keeping generated pkg-config .pc files
+    /// path to directory for installing generated pkg-config .pc files
     #[structopt(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
     #[structopt(long = "dlltool", parse(from_os_str))]
