@@ -13,8 +13,8 @@ use structopt::clap::*;
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
-    let cli_build = subcommand_cli("build");
-    let cli_install = subcommand_cli("install");
+    let cli_build = subcommand_cli("build", "Build the crate C-API");
+    let cli_install = subcommand_cli("install", "Install the crate C-API");
 
     let mut app = app_from_crate!()
         .settings(&[
