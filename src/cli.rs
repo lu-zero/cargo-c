@@ -71,9 +71,10 @@ fn base_cli() -> App<'static, 'static> {
         )
 }
 
-pub fn subcommand_cli(name: &str) -> App<'static, 'static> {
+pub fn subcommand_cli(name: &str, about: &'static str) -> App<'static, 'static> {
     base_cli()
         .name(name)
+        .about(about)
         .arg_jobs()
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg_profile("Build artifacts with the specified profile")
