@@ -87,6 +87,20 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
     Ok(())
 }
 
+fn patch_capi_feature(
+    compile_opts: &mut ops::CompileOptions,
+    ws: &Workspace,
+) -> anyhow::Result<()> {
+    let pkg = ws.current()?;
+    let manifest = pkg.manifest();
+
+    if manifest.summary().features().get("capi").is_some() {
+        compile_opts.features.push("capi".to_string());
+    }
+
+    Ok(())
+}
+
 /// Build def file for windows-msvc
 fn build_def_file(
     ws: &Workspace,
@@ -265,6 +279,8 @@ pub fn cbuild(
         Some(ws),
         ProfileChecking::Checked,
     )?;
+
+    patch_capi_feature(&mut compile_opts, ws)?;
 
     compile_opts.filter = ops::CompileFilter::new(
         ops::LibRule::True,
