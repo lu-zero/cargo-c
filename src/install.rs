@@ -113,22 +113,20 @@ pub fn cinstall(
         .status("Installing", "pkg-config file")?;
     fs::copy(
         &build_targets.pc,
-        install_path_pc.join(&format!("{}.pc", name)),
+        install_path_pc.join(build_targets.pc.file_name().unwrap()),
     )?;
     ws.config().shell().status("Installing", "header file")?;
     fs::copy(
         &build_targets.include,
-        install_path_include.join(&format!("{}.h", name)),
+        install_path_include.join(build_targets.include.file_name().unwrap()),
     )?;
 
     if let Some(ref static_lib) = build_targets.static_lib {
         ws.config().shell().status("Installing", "static library")?;
-        let static_lib_path = if env == "msvc" {
-            format!("{}.lib", name)
-        } else {
-            format!("lib{}.a", name)
-        };
-        copy(static_lib, install_path_lib.join(&static_lib_path))?;
+        copy(
+            static_lib,
+            install_path_lib.join(static_lib.file_name().unwrap()),
+        )?;
     }
 
     if let Some(ref shared_lib) = build_targets.shared_lib {
@@ -165,23 +163,15 @@ pub fn cinstall(
                 copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
-            ("windows", ref env) => {
-                let lib = format!("{}.dll", name);
-                let impl_lib = if *env == "msvc" {
-                    format!("{}.dll.lib", name)
-                } else {
-                    format!("lib{}.dll.a", name)
-                };
-                let def = format!("{}.def", name);
-                copy(shared_lib, install_path_bin.join(lib))?;
-                copy(
-                    build_targets.impl_lib.as_ref().unwrap(),
-                    install_path_lib.join(impl_lib),
-                )?;
-                copy(
-                    build_targets.def.as_ref().unwrap(),
-                    install_path_lib.join(def),
-                )?;
+            ("windows", _) => {
+                let lib_name = shared_lib.file_name().unwrap();
+                copy(shared_lib, install_path_bin.join(lib_name))?;
+                let impl_lib = build_targets.impl_lib.as_ref().unwrap();
+                let impl_lib_name = impl_lib.file_name().unwrap();
+                copy(impl_lib, install_path_lib.join(impl_lib_name))?;
+                let def = build_targets.def.as_ref().unwrap();
+                let def_name = def.file_name().unwrap();
+                copy(def, install_path_lib.join(def_name))?;
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         }
