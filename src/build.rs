@@ -27,7 +27,9 @@ fn build_include_file(
     ws.config()
         .shell()
         .status("Building", "header file using cbindgen")?;
-    let include_path = root_output.join(&format!("{}.h", name));
+    let mut header_name = PathBuf::from(name);
+    header_name.set_extension("h");
+    let include_path = root_output.join(header_name);
     let crate_path = root_path;
 
     // TODO: map the errors
@@ -236,6 +238,36 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
     Ok(Some(hasher.finish()))
 }
 
+#[derive(Default)]
+pub struct Overrides {
+    pub header_name: Option<String>,
+}
+
+fn load_manifest_overrides(root_path: &PathBuf) -> anyhow::Result<Overrides> {
+    use std::io::Read;
+    let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
+    let mut manifest_str = String::new();
+    manifest.read_to_string(&mut manifest_str)?;
+
+    let toml = manifest_str.parse::<toml::Value>()?;
+
+    let meta = toml
+        .get("package")
+        .and_then(|v| v.get("metadata"))
+        .and_then(|v| v.get("capi"));
+
+    Ok(if let Some(meta) = meta {
+        Overrides {
+            header_name: meta
+                .get("header_name")
+                .map(|v| v.clone().try_into())
+                .unwrap_or(Ok(None))?,
+        }
+    } else {
+        Overrides::default()
+    })
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
@@ -260,6 +292,7 @@ pub fn cbuild(
         .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
+    let overrides = load_manifest_overrides(&root_path)?;
 
     let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args);
 
@@ -327,7 +360,8 @@ pub fn cbuild(
 
     compile_opts.target_rustc_args = Some(link_args);
 
-    let build_targets = BuildTargets::new(&name, &rustc_target, &root_output, &libkinds);
+    let build_targets =
+        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &overrides);
 
     let prev_hash = fingerprint(&build_targets)?;
 
@@ -354,7 +388,9 @@ pub fn cbuild(
             build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
         }
 
-        build_include_file(&ws, &name, &version, &root_output, &root_path)?;
+        let header_name = overrides.header_name.as_ref().unwrap_or(&name);
+
+        build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
     }
 
     Ok((build_targets, install_paths))

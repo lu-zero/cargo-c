@@ -44,6 +44,14 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 [diff-4]: https://github.com/RustAudio/lewton/pull/51/files
 [cbindgen-toml]: https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
 
+## Advanced
+You may override the header name setting in `Cargo.toml` the `package.metadata.capi.header_name` key:
+
+``` toml
+[package.metadata.capi]
+header_name = "new_name"
+```
+
 ## Users
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
