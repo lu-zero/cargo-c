@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::build::Overrides;
 use crate::install::InstallPaths;
 use std::path::PathBuf;
 
@@ -40,7 +41,7 @@ impl PkgConfig {
     /// Cflags: -I${includedir}/$name
     /// Libs: -L${libdir} -l$name
     ///
-    pub fn new<A, B>(name: A, version: B) -> Self
+    pub fn new<A, B>(name: A, version: B, overrides: &Overrides) -> Self
     where
         A: AsRef<str>,
         B: AsRef<str>,
@@ -64,7 +65,11 @@ impl PkgConfig {
             requires: Vec::new(),
             requires_private: Vec::new(),
 
-            cflags: vec![format!("-I{}/{}", "${includedir}", name)],
+            cflags: vec![if overrides.header.subdirectory {
+                format!("-I{}/{}", "${includedir}", name)
+            } else {
+                String::from("-I${includedir}")
+            }],
 
             conflicts: Vec::new(),
         }
@@ -75,12 +80,13 @@ impl PkgConfig {
         ws: &cargo::core::Workspace,
         install_paths: &InstallPaths,
         args: &structopt::clap::ArgMatches<'_>,
+        overrides: &Overrides,
     ) -> Self {
         let pkg = ws.current().unwrap();
         let version = pkg.version().to_string();
         let description = &pkg.manifest().metadata().description;
 
-        let mut pc = PkgConfig::new(name, version);
+        let mut pc = PkgConfig::new(name, version, overrides);
 
         if let Some(ref d) = description {
             pc.description = d.clone();
@@ -200,7 +206,17 @@ mod test {
 
     #[test]
     fn simple() {
-        let mut pkg = PkgConfig::new("foo", "0.1");
+        let mut pkg = PkgConfig::new(
+            "foo",
+            "0.1",
+            &Overrides {
+                header: crate::build::HeaderOverrides {
+                    name: "foo".into(),
+                    subdirectory: true,
+                    generation: true,
+                },
+            },
+        );
         pkg.add_lib("-lbar").add_cflag("-DFOO");
 
         println!("{:?}\n{}", pkg, pkg.render());

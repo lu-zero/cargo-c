@@ -3,6 +3,7 @@ use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
 
+use crate::build::Overrides;
 use crate::build_targets::BuildTargets;
 use crate::target::Target;
 
@@ -100,7 +101,7 @@ pub fn cinstall(
 
     let install_path_lib = append_to_destdir(destdir, &paths.libdir);
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-    let install_path_include = append_to_destdir(destdir, &paths.includedir).join(name);
+    let install_path_include = append_to_destdir(destdir, &paths.includedir);
     let install_path_bin = append_to_destdir(destdir, &paths.bindir);
 
     fs::create_dir_all(&install_path_lib)?;
@@ -191,7 +192,7 @@ pub struct InstallPaths {
 }
 
 impl InstallPaths {
-    pub fn from_matches(args: &ArgMatches<'_>) -> Self {
+    pub fn new(name: &str, args: &ArgMatches<'_>, overrides: &Overrides) -> Self {
         let destdir = args
             .value_of("destdir")
             .map(PathBuf::from)
@@ -204,10 +205,13 @@ impl InstallPaths {
             .value_of("libdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("lib"));
-        let includedir = args
+        let mut includedir = args
             .value_of("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
+        if overrides.header.subdirectory {
+            includedir = includedir.join(name);
+        }
         let bindir = args
             .value_of("bindir")
             .map(PathBuf::from)

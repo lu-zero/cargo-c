@@ -45,11 +45,21 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 [cbindgen-toml]: https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
 
 ## Advanced
-You may override the header name setting in `Cargo.toml` the `package.metadata.capi.header_name` key:
+You may override various aspects of `cargo-c` via settings in `Cargo.toml` under the `package.metadata.capi` key
 
-``` toml
-[package.metadata.capi]
-header_name = "new_name"
+### Header Generation
+
+```toml
+[package.metadata.capi.header]
+# Used as header file name. By default this is equal to the crate name.
+# The name can be with or without the header filename extension `.h`
+name = "new_name"
+# Install the header into a subdirectory with the name of the crate. This
+# is enabled by default
+subdirectory = true
+# Generate the header file with `cbindgen`, or copy a pre-generated header
+# from the `assets` subdirectory. By default a header is generated.
+generation = true
 ```
 
 ## Users
