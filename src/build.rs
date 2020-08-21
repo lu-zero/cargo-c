@@ -53,6 +53,27 @@ fn build_include_file(
     Ok(())
 }
 
+/// Copy the pre-built C header from the asset directory
+fn copy_prebuilt_include_file(
+    ws: &Workspace,
+    name: &str,
+    root_output: &PathBuf,
+    root_path: &PathBuf,
+) -> anyhow::Result<()> {
+    ws.config()
+        .shell()
+        .status("Building", "pre-built header file")?;
+    let mut header_name = PathBuf::from(name);
+    header_name.set_extension("h");
+
+    let source_path = root_path.join("assets").join(&header_name);
+    let target_path = root_output.join(header_name);
+
+    std::fs::copy(source_path, target_path)?;
+
+    Ok(())
+}
+
 fn build_pc_file(
     ws: &Workspace,
     name: &str,
@@ -238,12 +259,17 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
     Ok(Some(hasher.finish()))
 }
 
-#[derive(Default)]
 pub struct Overrides {
-    pub header_name: Option<String>,
+    pub header: HeaderOverrides,
 }
 
-fn load_manifest_overrides(root_path: &PathBuf) -> anyhow::Result<Overrides> {
+pub struct HeaderOverrides {
+    pub name: String,
+    pub subdirectory: bool,
+    pub generation: bool,
+}
+
+fn load_manifest_overrides(name: &str, root_path: &PathBuf) -> anyhow::Result<Overrides> {
     use std::io::Read;
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
@@ -251,21 +277,41 @@ fn load_manifest_overrides(root_path: &PathBuf) -> anyhow::Result<Overrides> {
 
     let toml = manifest_str.parse::<toml::Value>()?;
 
-    let meta = toml
+    let capi = toml
         .get("package")
         .and_then(|v| v.get("metadata"))
         .and_then(|v| v.get("capi"));
 
-    Ok(if let Some(meta) = meta {
-        Overrides {
-            header_name: meta
-                .get("header_name")
+    let header = capi.and_then(|v| v.get("header"));
+
+    let header = if let Some(ref capi) = capi {
+        HeaderOverrides {
+            name: header
+                .as_ref()
+                .and_then(|h| h.get("name"))
+                .or_else(|| capi.get("header_name"))
                 .map(|v| v.clone().try_into())
-                .unwrap_or(Ok(None))?,
+                .unwrap_or(Ok(String::from(name)))?,
+            subdirectory: header
+                .as_ref()
+                .and_then(|h| h.get("subdirectory"))
+                .map(|v| v.clone().try_into())
+                .unwrap_or(Ok(true))?,
+            generation: header
+                .as_ref()
+                .and_then(|h| h.get("generation"))
+                .map(|v| v.clone().try_into())
+                .unwrap_or(Ok(true))?,
         }
     } else {
-        Overrides::default()
-    })
+        HeaderOverrides {
+            name: String::from(name),
+            subdirectory: true,
+            generation: true,
+        }
+    };
+
+    Ok(Overrides { header })
 }
 
 pub fn cbuild(
@@ -274,7 +320,6 @@ pub fn cbuild(
     args: &ArgMatches<'_>,
 ) -> anyhow::Result<(BuildTargets, InstallPaths)> {
     let rustc_target = target::Target::new(args.target())?;
-    let install_paths = InstallPaths::from_matches(args);
     let libkinds = args
         .values_of("library-type")
         .map_or_else(|| vec!["staticlib", "cdylib"], |v| v.collect::<Vec<_>>());
@@ -292,9 +337,11 @@ pub fn cbuild(
         .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
-    let overrides = load_manifest_overrides(&root_path)?;
+    let overrides = load_manifest_overrides(name, &root_path)?;
 
-    let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args);
+    let install_paths = InstallPaths::new(name, args, &overrides);
+
+    let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args, &overrides);
 
     let static_libs = get_static_libs_for_target(
         rustc_target.verbatim.as_ref(),
@@ -388,9 +435,12 @@ pub fn cbuild(
             build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
         }
 
-        let header_name = overrides.header_name.as_ref().unwrap_or(&name);
-
-        build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
+        let header_name = &overrides.header.name;
+        if overrides.header.generation {
+            build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
+        } else {
+            copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
+        }
     }
 
     Ok((build_targets, install_paths))

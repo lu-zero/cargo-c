@@ -22,11 +22,7 @@ impl BuildTargets {
         overrides: &Overrides,
     ) -> BuildTargets {
         let pc = targetdir.join(&format!("{}.pc", name));
-        let mut header_name = overrides
-            .header_name
-            .as_ref()
-            .map(|v| PathBuf::from(v))
-            .unwrap_or_else(|| PathBuf::from(name));
+        let mut header_name = PathBuf::from(&overrides.header.name);
         header_name.set_extension("h");
         let include = targetdir.join(&header_name);
 
