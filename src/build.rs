@@ -282,6 +282,22 @@ fn load_manifest_overrides(name: &str, root_path: &PathBuf) -> anyhow::Result<Ov
         .and_then(|v| v.get("metadata"))
         .and_then(|v| v.get("capi"));
 
+    if let Some(min_version) = capi
+        .as_ref()
+        .and_then(|capi| capi.get("min_version"))
+        .and_then(|v| v.as_str())
+    {
+        let min_version = Version::parse(min_version)?;
+        let version = Version::parse(env!("CARGO_PKG_VERSION"))?;
+        if min_version > version {
+            anyhow::bail!(
+                "Minimum required cargo-c version is {} but using cargo-c version {}",
+                min_version,
+                version
+            );
+        }
+    }
+
     let header = capi.and_then(|v| v.get("header"));
 
     let header = if let Some(ref capi) = capi {
