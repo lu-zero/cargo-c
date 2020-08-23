@@ -47,6 +47,13 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 ## Advanced
 You may override various aspects of `cargo-c` via settings in `Cargo.toml` under the `package.metadata.capi` key
 
+```toml
+[package.metadata.capi]
+# Configures the minimum required cargo-c version. Trying to run with an
+# older version causes an error.
+min_version = "0.6.10"
+```
+
 ### Header Generation
 
 ```toml
