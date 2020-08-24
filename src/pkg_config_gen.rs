@@ -41,18 +41,11 @@ impl PkgConfig {
     /// Cflags: -I${includedir}/$name
     /// Libs: -L${libdir} -l$name
     ///
-    pub fn new<A, B>(name: A, version: B, overrides: &Overrides) -> Self
-    where
-        A: AsRef<str>,
-        B: AsRef<str>,
-    {
-        let name = name.as_ref();
-        let version = version.as_ref();
-        let description = "";
+    pub fn new(name: &str, overrides: &Overrides) -> Self {
         PkgConfig {
-            name: name.to_owned(),
-            version: version.to_owned(),
-            description: description.to_owned(),
+            name: overrides.pkg_config.name.clone(),
+            description: overrides.pkg_config.description.clone(),
+            version: overrides.pkg_config.version.clone(),
 
             prefix: "/usr/local".into(),
             exec_prefix: "${prefix}".into(),
@@ -77,20 +70,11 @@ impl PkgConfig {
 
     pub(crate) fn from_workspace(
         name: &str,
-        ws: &cargo::core::Workspace,
         install_paths: &InstallPaths,
         args: &structopt::clap::ArgMatches<'_>,
         overrides: &Overrides,
     ) -> Self {
-        let pkg = ws.current().unwrap();
-        let version = pkg.version().to_string();
-        let description = &pkg.manifest().metadata().description;
-
-        let mut pc = PkgConfig::new(name, version, overrides);
-
-        if let Some(ref d) = description {
-            pc.description = d.clone();
-        }
+        let mut pc = PkgConfig::new(name, overrides);
 
         pc.prefix = install_paths.prefix.clone();
         // TODO: support exec_prefix
@@ -208,12 +192,16 @@ mod test {
     fn simple() {
         let mut pkg = PkgConfig::new(
             "foo",
-            "0.1",
             &Overrides {
                 header: crate::build::HeaderOverrides {
                     name: "foo".into(),
                     subdirectory: true,
                     generation: true,
+                },
+                pkg_config: crate::build::PkgConfigOverrides {
+                    name: "foo".into(),
+                    description: "".into(),
+                    version: "0.1".into(),
                 },
             },
         );
