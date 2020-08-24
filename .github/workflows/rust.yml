@@ -43,6 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install grcov
+        env:
+          LINK: https://github.com/mozilla/grcov/releases/download
+          GRCOV_VERSION: 0.5.15
+        run: |
+          curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
+          tar xj -C $HOME/.cargo/bin
+
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
@@ -50,32 +58,31 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov
+      - name: Run cargo clean
+        run: |
+          cargo clean
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features --no-fail-fast
         env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: >
-            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code
-            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
+            -Zprofile -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off
+            -Cpanic=abort -Zpanic_abort_tests
+          RUSTDOCFLAGS: >
+            -Zprofile -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off
+            -Cpanic=abort -Zpanic_abort_tests
+        run: |
+          cargo test --all-features --no-fail-fast --verbose
 
-      - name: Generate coverage
-        run: grcov . -t lcov > coverage.info
+      - name: Run grcov
+        id: coverage
+        uses: actions-rs/grcov@v0.1
 
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
-          parallel: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.info
+          path-to-lcov: ${{ steps.coverage.outputs.report }}
 
   Ubuntu-Stable:
 
@@ -121,22 +128,11 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov
-
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: >
-            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code
-            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
 
   msvc-Stable:
 
@@ -182,19 +178,8 @@ jobs:
           toolchain: nightly-gnu
           override: true
 
-      - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov
-
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: >
-            -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code
-            -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
