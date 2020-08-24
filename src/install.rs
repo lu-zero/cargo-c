@@ -3,7 +3,7 @@ use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
 
-use crate::build::Overrides;
+use crate::build::CApiConfig;
 use crate::build_targets::BuildTargets;
 use crate::target::Target;
 
@@ -192,7 +192,7 @@ pub struct InstallPaths {
 }
 
 impl InstallPaths {
-    pub fn new(name: &str, args: &ArgMatches<'_>, overrides: &Overrides) -> Self {
+    pub fn new(name: &str, args: &ArgMatches<'_>, capi_config: &CApiConfig) -> Self {
         let destdir = args
             .value_of("destdir")
             .map(PathBuf::from)
@@ -209,7 +209,7 @@ impl InstallPaths {
             .value_of("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
-        if overrides.header.subdirectory {
+        if capi_config.header.subdirectory {
             includedir = includedir.join(name);
         }
         let bindir = args
