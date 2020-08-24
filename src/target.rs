@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::*;
-use cargo::core::Workspace;
+
+use crate::build::CApiConfig;
 
 /// Split a target string to its components
 ///
@@ -57,15 +58,14 @@ impl Target {
     /// Build a list of linker arguments
     pub fn shared_object_link_args(
         &self,
-        name: &str,
-        ws: &Workspace,
+        capi_config: &CApiConfig,
         libdir: &PathBuf,
         target_dir: &PathBuf,
     ) -> Vec<String> {
         let mut lines = Vec::new();
 
-        let pkg = ws.current().unwrap();
-        let version = pkg.version();
+        let lib_name = &capi_config.library.name;
+        let version = &capi_config.library.version;
 
         let major = version.major;
         let minor = version.minor;
@@ -75,16 +75,16 @@ impl Target {
         let env = &self.env;
 
         if os == "linux" || os == "freebsd" || os == "dragonfly" || os == "netbsd" {
-            lines.push(format!("-Wl,-soname,lib{}.so.{}", name, major));
+            lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
         } else if os == "macos" {
             let line = format!("-Wl,-install_name,{1}/lib{0}.{2}.{3}.{4}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{2}",
-                    name, libdir.display(), major, minor, patch);
+                    lib_name, libdir.display(), major, minor, patch);
             lines.push(line)
         } else if os == "windows" && env == "gnu" {
             // This is only set up to work on GNU toolchain versions of Rust
             lines.push(format!(
                 "-Wl,--output-def,{}",
-                target_dir.join(format!("{}.def", name)).display()
+                target_dir.join(format!("{}.def", lib_name)).display()
             ));
         }
 

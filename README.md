@@ -81,6 +81,18 @@ description = "some description"
 version = "1.2.3"
 ```
 
+### Library Generation
+
+```toml
+[package.metadata.capi.library]
+# Used as the library name and defaults to the crate name. This might get
+# prefixed with `lib` depending on the target platform.
+name = "new_name"
+# Used as library version and defaults to the crate version. How this is used
+# depends on the target platform.
+version = "1.2.3"
+```
+
 ## Users
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)

@@ -52,7 +52,7 @@ impl PkgConfig {
             includedir: "${prefix}/include".into(),
             libdir: "${exec_prefix}/lib".into(),
 
-            libs: vec![format!("-L{} -l{}", "${libdir}", name)],
+            libs: vec![format!("-L{} -l{}", "${libdir}", capi_config.library.name)],
             libs_private: Vec::new(),
 
             requires: Vec::new(),
@@ -187,6 +187,7 @@ Requires: {}",
 #[cfg(test)]
 mod test {
     use super::*;
+    use semver::Version;
 
     #[test]
     fn simple() {
@@ -202,6 +203,10 @@ mod test {
                     name: "foo".into(),
                     description: "".into(),
                     version: "0.1".into(),
+                },
+                library: crate::build::LibraryCApiConfig {
+                    name: "foo".into(),
+                    version: Version::parse("0.1.0").unwrap(),
                 },
             },
         );

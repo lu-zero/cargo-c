@@ -78,24 +78,14 @@ fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
 pub fn cinstall(
     ws: &Workspace,
     target: &Target,
+    capi_config: &CApiConfig,
     build_targets: BuildTargets,
     paths: InstallPaths,
 ) -> anyhow::Result<()> {
     use std::fs;
 
-    let pkg = ws.current()?;
-
     let os = &target.os;
     let env = &target.env;
-    let ver = pkg.version();
-
-    let name = &pkg
-        .manifest()
-        .targets()
-        .iter()
-        .find(|t| t.is_lib())
-        .unwrap()
-        .crate_name();
 
     let destdir = &paths.destdir;
 
@@ -132,6 +122,10 @@ pub fn cinstall(
 
     if let Some(ref shared_lib) = build_targets.shared_lib {
         ws.config().shell().status("Installing", "shared library")?;
+
+        let lib_name = &capi_config.library.name;
+        let lib_version = &capi_config.library.version;
+
         let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
             let mut ln_sf = std::process::Command::new("ln");
             ln_sf.arg("-sf");
@@ -147,19 +141,21 @@ pub fn cinstall(
 
         match (os.as_str(), env.as_str()) {
             ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
-                let lib = &format!("lib{}.so", name);
-                let lib_with_major_ver = &format!("{}.{}", lib, ver.major);
-                let lib_with_full_ver =
-                    &format!("{}.{}.{}", lib_with_major_ver, ver.minor, ver.patch);
+                let lib = &format!("lib{}.so", lib_name);
+                let lib_with_major_ver = &format!("{}.{}", lib, lib_version.major);
+                let lib_with_full_ver = &format!(
+                    "{}.{}.{}",
+                    lib_with_major_ver, lib_version.minor, lib_version.patch
+                );
                 copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
             }
             ("macos", _) => {
-                let lib = &format!("lib{}.dylib", name);
-                let lib_with_major_ver = &format!("lib{}.{}.dylib", name, ver.major);
+                let lib = &format!("lib{}.dylib", lib_name);
+                let lib_with_major_ver = &format!("lib{}.{}.dylib", lib_name, lib_version.major);
                 let lib_with_full_ver = &format!(
                     "lib{}.{}.{}.{}.dylib",
-                    name, ver.major, ver.minor, ver.patch
+                    lib_name, lib_version.major, lib_version.minor, lib_version.patch
                 );
                 copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
                 link_libs(lib, lib_with_major_ver, lib_with_full_ver);
