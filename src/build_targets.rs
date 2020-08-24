@@ -26,33 +26,35 @@ impl BuildTargets {
         header_name.set_extension("h");
         let include = targetdir.join(&header_name);
 
+        let lib_name = &capi_config.library.name;
+
         let os = &target.os;
         let env = &target.env;
 
         let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
             ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
-                let static_lib = targetdir.join(&format!("lib{}.a", name));
-                let shared_lib = targetdir.join(&format!("lib{}.so", name));
+                let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
+                let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)
             }
             ("macos", _) => {
-                let static_lib = targetdir.join(&format!("lib{}.a", name));
-                let shared_lib = targetdir.join(&format!("lib{}.dylib", name));
+                let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
+                let shared_lib = targetdir.join(&format!("lib{}.dylib", lib_name));
                 (shared_lib, static_lib, None, None)
             }
             ("windows", ref env) => {
                 let static_lib = if *env == "msvc" {
-                    targetdir.join(&format!("{}.lib", name))
+                    targetdir.join(&format!("{}.lib", lib_name))
                 } else {
-                    targetdir.join(&format!("lib{}.a", name))
+                    targetdir.join(&format!("lib{}.a", lib_name))
                 };
-                let shared_lib = targetdir.join(&format!("{}.dll", name));
+                let shared_lib = targetdir.join(&format!("{}.dll", lib_name));
                 let impl_lib = if *env == "msvc" {
-                    targetdir.join(&format!("{}.dll.lib", name))
+                    targetdir.join(&format!("{}.dll.lib", lib_name))
                 } else {
-                    targetdir.join(&format!("{}.dll.a", name))
+                    targetdir.join(&format!("{}.dll.a", lib_name))
                 };
-                let def = targetdir.join(&format!("{}.def", name));
+                let def = targetdir.join(&format!("{}.def", lib_name));
                 (shared_lib, static_lib, Some(impl_lib), Some(def))
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),

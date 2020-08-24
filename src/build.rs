@@ -262,6 +262,7 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
 pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
+    pub library: LibraryCApiConfig,
 }
 
 pub struct HeaderCApiConfig {
@@ -274,6 +275,11 @@ pub struct PkgConfigCApiConfig {
     pub name: String,
     pub description: String,
     pub version: String,
+}
+
+pub struct LibraryCApiConfig {
+    pub name: String,
+    pub version: Version,
 }
 
 fn load_manifest_capi_config(
@@ -340,7 +346,7 @@ fn load_manifest_capi_config(
 
     let pc = capi.and_then(|v| v.get("pkg_config"));
     let pkg = ws.current().unwrap();
-    let mut name = String::from(name);
+    let mut pc_name = String::from(name);
     let mut description = String::from(
         pkg.manifest()
             .metadata()
@@ -352,7 +358,7 @@ fn load_manifest_capi_config(
 
     if let Some(ref pc) = pc {
         if let Some(override_name) = pc.get("name").and_then(|v| v.as_str()) {
-            name = String::from(override_name);
+            pc_name = String::from(override_name);
         }
         if let Some(override_description) = pc.get("description").and_then(|v| v.as_str()) {
             description = String::from(override_description);
@@ -363,19 +369,41 @@ fn load_manifest_capi_config(
     }
 
     let pkg_config = PkgConfigCApiConfig {
-        name,
+        name: pc_name,
         description,
         version,
     };
 
-    Ok(CApiConfig { header, pkg_config })
+    let library = capi.and_then(|v| v.get("library"));
+    let mut lib_name = String::from(name);
+    let mut version = pkg.version().clone();
+
+    if let Some(ref library) = library {
+        if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
+            lib_name = String::from(override_name);
+        }
+        if let Some(override_version) = library.get("version").and_then(|v| v.as_str()) {
+            version = Version::parse(override_version)?;
+        }
+    }
+
+    let library = LibraryCApiConfig {
+        name: lib_name,
+        version,
+    };
+
+    Ok(CApiConfig {
+        header,
+        pkg_config,
+        library,
+    })
 }
 
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
-) -> anyhow::Result<(BuildTargets, InstallPaths)> {
+) -> anyhow::Result<(BuildTargets, InstallPaths, CApiConfig)> {
     let rustc_target = target::Target::new(args.target())?;
     let libkinds = args
         .values_of("library-type")
@@ -454,7 +482,7 @@ pub fn cbuild(
         .join(&profiles.get_dir_name());
 
     let mut link_args: Vec<String> = rustc_target
-        .shared_object_link_args(name, ws, &install_paths.libdir, &root_output)
+        .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
         .into_iter()
         .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
         .collect();
@@ -500,7 +528,7 @@ pub fn cbuild(
         }
     }
 
-    Ok((build_targets, install_paths))
+    Ok((build_targets, install_paths, capi_config))
 }
 
 pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
