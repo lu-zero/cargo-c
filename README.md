@@ -69,6 +69,18 @@ subdirectory = true
 generation = true
 ```
 
+### `pkg-config` File Generation
+
+```toml
+[package.metadata.capi.pkg_config]
+# Used as the package name in the pkg-config file and defaults to the crate name.
+name = "libfoo"
+# Used as the package description in the pkg-config file and defaults to the crate description.
+description = "some description"
+# Used as the package version in the pkg-config file and defaults to the crate version.
+version = "1.2.3"
+```
+
 ## Users
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)

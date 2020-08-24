@@ -261,6 +261,7 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
 
 pub struct Overrides {
     pub header: HeaderOverrides,
+    pub pkg_config: PkgConfigOverrides,
 }
 
 pub struct HeaderOverrides {
@@ -269,7 +270,17 @@ pub struct HeaderOverrides {
     pub generation: bool,
 }
 
-fn load_manifest_overrides(name: &str, root_path: &PathBuf) -> anyhow::Result<Overrides> {
+pub struct PkgConfigOverrides {
+    pub name: String,
+    pub description: String,
+    pub version: String,
+}
+
+fn load_manifest_overrides(
+    name: &str,
+    root_path: &PathBuf,
+    ws: &Workspace,
+) -> anyhow::Result<Overrides> {
     use std::io::Read;
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
@@ -327,7 +338,37 @@ fn load_manifest_overrides(name: &str, root_path: &PathBuf) -> anyhow::Result<Ov
         }
     };
 
-    Ok(Overrides { header })
+    let pc = capi.and_then(|v| v.get("pkg_config"));
+    let pkg = ws.current().unwrap();
+    let mut name = String::from(name);
+    let mut description = String::from(
+        pkg.manifest()
+            .metadata()
+            .description
+            .as_deref()
+            .unwrap_or_else(|| ""),
+    );
+    let mut version = pkg.version().to_string();
+
+    if let Some(ref pc) = pc {
+        if let Some(override_name) = pc.get("name").and_then(|v| v.as_str()) {
+            name = String::from(override_name);
+        }
+        if let Some(override_description) = pc.get("description").and_then(|v| v.as_str()) {
+            description = String::from(override_description);
+        }
+        if let Some(override_version) = pc.get("version").and_then(|v| v.as_str()) {
+            version = String::from(override_version);
+        }
+    }
+
+    let pkg_config = PkgConfigOverrides {
+        name,
+        description,
+        version,
+    };
+
+    Ok(Overrides { header, pkg_config })
 }
 
 pub fn cbuild(
@@ -353,11 +394,11 @@ pub fn cbuild(
         .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
-    let overrides = load_manifest_overrides(name, &root_path)?;
+    let overrides = load_manifest_overrides(name, &root_path, &ws)?;
 
     let install_paths = InstallPaths::new(name, args, &overrides);
 
-    let mut pc = PkgConfig::from_workspace(name, ws, &install_paths, args, &overrides);
+    let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &overrides);
 
     let static_libs = get_static_libs_for_target(
         rustc_target.verbatim.as_ref(),
