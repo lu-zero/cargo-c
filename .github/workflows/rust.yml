@@ -138,16 +138,6 @@ jobs:
             -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code
             -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
 
-      - name: Generate coverage
-        run: grcov . -t lcov > coverage.info
-
-      - name: Coveralls upload
-        uses: coverallsapp/github-action@master
-        with:
-          parallel: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.info
-
   msvc-Stable:
 
     name: msvc-Stable
@@ -208,13 +198,3 @@ jobs:
           RUSTFLAGS: >
             -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code
             -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests
-
-      - name: Generate coverage
-        run: grcov . -t lcov > coverage.info
-
-      - name: Coveralls upload
-        uses: coverallsapp/github-action@master
-        with:
-          parallel: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.info
