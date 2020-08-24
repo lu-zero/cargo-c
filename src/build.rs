@@ -259,28 +259,28 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
     Ok(Some(hasher.finish()))
 }
 
-pub struct Overrides {
-    pub header: HeaderOverrides,
-    pub pkg_config: PkgConfigOverrides,
+pub struct CApiConfig {
+    pub header: HeaderCApiConfig,
+    pub pkg_config: PkgConfigCApiConfig,
 }
 
-pub struct HeaderOverrides {
+pub struct HeaderCApiConfig {
     pub name: String,
     pub subdirectory: bool,
     pub generation: bool,
 }
 
-pub struct PkgConfigOverrides {
+pub struct PkgConfigCApiConfig {
     pub name: String,
     pub description: String,
     pub version: String,
 }
 
-fn load_manifest_overrides(
+fn load_manifest_capi_config(
     name: &str,
     root_path: &PathBuf,
     ws: &Workspace,
-) -> anyhow::Result<Overrides> {
+) -> anyhow::Result<CApiConfig> {
     use std::io::Read;
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
@@ -312,7 +312,7 @@ fn load_manifest_overrides(
     let header = capi.and_then(|v| v.get("header"));
 
     let header = if let Some(ref capi) = capi {
-        HeaderOverrides {
+        HeaderCApiConfig {
             name: header
                 .as_ref()
                 .and_then(|h| h.get("name"))
@@ -331,7 +331,7 @@ fn load_manifest_overrides(
                 .unwrap_or(Ok(true))?,
         }
     } else {
-        HeaderOverrides {
+        HeaderCApiConfig {
             name: String::from(name),
             subdirectory: true,
             generation: true,
@@ -362,13 +362,13 @@ fn load_manifest_overrides(
         }
     }
 
-    let pkg_config = PkgConfigOverrides {
+    let pkg_config = PkgConfigCApiConfig {
         name,
         description,
         version,
     };
 
-    Ok(Overrides { header, pkg_config })
+    Ok(CApiConfig { header, pkg_config })
 }
 
 pub fn cbuild(
@@ -394,11 +394,11 @@ pub fn cbuild(
         .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
-    let overrides = load_manifest_overrides(name, &root_path, &ws)?;
+    let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
 
-    let install_paths = InstallPaths::new(name, args, &overrides);
+    let install_paths = InstallPaths::new(name, args, &capi_config);
 
-    let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &overrides);
+    let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &capi_config);
 
     let static_libs = get_static_libs_for_target(
         rustc_target.verbatim.as_ref(),
@@ -465,7 +465,7 @@ pub fn cbuild(
     compile_opts.target_rustc_args = Some(link_args);
 
     let build_targets =
-        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &overrides);
+        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
 
     let prev_hash = fingerprint(&build_targets)?;
 
@@ -492,8 +492,8 @@ pub fn cbuild(
             build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
         }
 
-        let header_name = &overrides.header.name;
-        if overrides.header.generation {
+        let header_name = &capi_config.header.name;
+        if capi_config.header.generation {
             build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
         } else {
             copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::build::Overrides;
+use crate::build::CApiConfig;
 use crate::target::Target;
 
 #[derive(Debug)]
@@ -19,10 +19,10 @@ impl BuildTargets {
         target: &Target,
         targetdir: &PathBuf,
         libkinds: &[&str],
-        overrides: &Overrides,
+        capi_config: &CApiConfig,
     ) -> BuildTargets {
         let pc = targetdir.join(&format!("{}.pc", name));
-        let mut header_name = PathBuf::from(&overrides.header.name);
+        let mut header_name = PathBuf::from(&capi_config.header.name);
         header_name.set_extension("h");
         let include = targetdir.join(&header_name);
 

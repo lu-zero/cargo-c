@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::build::Overrides;
+use crate::build::CApiConfig;
 use crate::install::InstallPaths;
 use std::path::PathBuf;
 
@@ -41,11 +41,11 @@ impl PkgConfig {
     /// Cflags: -I${includedir}/$name
     /// Libs: -L${libdir} -l$name
     ///
-    pub fn new(name: &str, overrides: &Overrides) -> Self {
+    pub fn new(name: &str, capi_config: &CApiConfig) -> Self {
         PkgConfig {
-            name: overrides.pkg_config.name.clone(),
-            description: overrides.pkg_config.description.clone(),
-            version: overrides.pkg_config.version.clone(),
+            name: capi_config.pkg_config.name.clone(),
+            description: capi_config.pkg_config.description.clone(),
+            version: capi_config.pkg_config.version.clone(),
 
             prefix: "/usr/local".into(),
             exec_prefix: "${prefix}".into(),
@@ -58,7 +58,7 @@ impl PkgConfig {
             requires: Vec::new(),
             requires_private: Vec::new(),
 
-            cflags: vec![if overrides.header.subdirectory {
+            cflags: vec![if capi_config.header.subdirectory {
                 format!("-I{}/{}", "${includedir}", name)
             } else {
                 String::from("-I${includedir}")
@@ -72,9 +72,9 @@ impl PkgConfig {
         name: &str,
         install_paths: &InstallPaths,
         args: &structopt::clap::ArgMatches<'_>,
-        overrides: &Overrides,
+        capi_config: &CApiConfig,
     ) -> Self {
-        let mut pc = PkgConfig::new(name, overrides);
+        let mut pc = PkgConfig::new(name, capi_config);
 
         pc.prefix = install_paths.prefix.clone();
         // TODO: support exec_prefix
@@ -192,13 +192,13 @@ mod test {
     fn simple() {
         let mut pkg = PkgConfig::new(
             "foo",
-            &Overrides {
-                header: crate::build::HeaderOverrides {
+            &CApiConfig {
+                header: crate::build::HeaderCApiConfig {
                     name: "foo".into(),
                     subdirectory: true,
                     generation: true,
                 },
-                pkg_config: crate::build::PkgConfigOverrides {
+                pkg_config: crate::build::PkgConfigCApiConfig {
                     name: "foo".into(),
                     description: "".into(),
                     version: "0.1".into(),
