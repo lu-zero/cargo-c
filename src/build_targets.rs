@@ -32,7 +32,7 @@ impl BuildTargets {
         let env = &target.env;
 
         let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
-            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) | ("android", _) => {
                 let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
                 let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)
