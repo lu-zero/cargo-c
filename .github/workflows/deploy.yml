@@ -46,10 +46,11 @@ jobs:
 
     - name: Create zip
       run: |
-        7z a cargo-c-windows-${{ matrix.conf }}.zip `
-             "target\release\cargo-capi.exe" `
-             "target\release\cargo-cbuild.exe" `
-             "target\release\cargo-cinstall.exe"
+        cd target/release
+        7z a ../../cargo-c-windows-${{ matrix.conf }}.zip `
+             "cargo-capi.exe" `
+             "cargo-cbuild.exe" `
+             "cargo-cinstall.exe"
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
