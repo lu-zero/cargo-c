@@ -97,8 +97,9 @@ jobs:
     - name: Create zip
       run: |
         cd target/x86_64-unknown-linux-musl/release
-        strip cargo-cbuild cargo-cinstall
+        strip cargo-capi cargo-cbuild cargo-cinstall
         tar -czvf $GITHUB_WORKSPACE/cargo-c-linux.tar.gz \
+                  cargo-capi \
                   cargo-cbuild \
                   cargo-cinstall
 
@@ -129,8 +130,9 @@ jobs:
     - name: Create zip
       run: |
         cd target/release
-        strip cargo-cbuild cargo-cinstall
+        strip cargo-capi cargo-cbuild cargo-cinstall
         zip $GITHUB_WORKSPACE/cargo-c-macos.zip \
+            cargo-capi \
             cargo-cbuild \
             cargo-cinstall
 
