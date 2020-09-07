@@ -37,7 +37,7 @@ impl BuildTargets {
                 let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)
             }
-            ("macos", _) => {
+            ("macos", _) | ("ios", _) => {
                 let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
                 let shared_lib = targetdir.join(&format!("lib{}.dylib", lib_name));
                 (shared_lib, static_lib, None, None)

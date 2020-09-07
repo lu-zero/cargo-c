@@ -78,7 +78,7 @@ impl Target {
             lines.push(format!("-Wl,-soname,lib{}.so", lib_name));
         } else if os == "linux" || os == "freebsd" || os == "dragonfly" || os == "netbsd" {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
-        } else if os == "macos" {
+        } else if os == "macos" || os == "ios" {
             let line = format!("-Wl,-install_name,{1}/lib{0}.{2}.{3}.{4}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{2}",
                     lib_name, libdir.display(), major, minor, patch);
             lines.push(line)
