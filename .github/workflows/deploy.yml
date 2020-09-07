@@ -125,7 +125,7 @@ jobs:
 
     - name: Build cargo-c
       run: |
-        cargo build --release
+        cargo build --features=cargo/vendored-openssl --release
 
     - name: Create zip
       run: |
