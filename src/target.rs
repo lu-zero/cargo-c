@@ -74,7 +74,9 @@ impl Target {
         let os = &self.os;
         let env = &self.env;
 
-        if os == "linux" || os == "freebsd" || os == "dragonfly" || os == "netbsd" {
+        if os == "android" {
+            lines.push(format!("-Wl,-soname,lib{}.so", lib_name));
+        } else if os == "linux" || os == "freebsd" || os == "dragonfly" || os == "netbsd" {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
         } else if os == "macos" {
             let line = format!("-Wl,-install_name,{1}/lib{0}.{2}.{3}.{4}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{2}",
