@@ -1,0 +1,47 @@
+name: Build example project
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  example-project:
+
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+          - os: windows-latest
+            toolchain-suffix: -gnu
+          - os: windows-latest
+            toolchain-suffix: -msvc
+          - os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable${{ matrix.toolchain-suffix }}
+          override: true
+
+      - name: Install cargo-c applet
+        run: |
+          cargo install --path .
+
+      - name: Build example project
+        working-directory: example-project
+        run: |
+          cargo cbuild --verbose --release
+
+      - name: Install example project
+        working-directory: example-project
+        run: |
+          cargo cinstall --verbose --release --prefix=/usr/local --destdir=temp
+          sudo cp -r temp/usr/local/* /usr/local/
