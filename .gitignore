@@ -1,3 +1,5 @@
 /target
 **/*.rs.bk
 Cargo.lock
+/example-project/target/
+/example-project/makefile-usage/run_tests
