@@ -35,13 +35,25 @@ jobs:
         run: |
           cargo install --path .
 
+      - name: Set MSVC/dumpbin path
+        if: matrix.toolchain-suffix == '-msvc'
+        run: |
+          $MsvcPath = vswhere -latest -products * -find "VC\Tools\MSVC\*\bin\Hostx64\x64" |
+                      Select-Object -Last 1
+          echo "::add-path::$MsvcPath"
+
       - name: Build example project
         working-directory: example-project
         run: |
           cargo cbuild --verbose --release
 
-      - name: Install example project
+      - name: Install into temporary location
         working-directory: example-project
         run: |
-          cargo cinstall --verbose --release --prefix=/usr/local --destdir=temp
+          cargo cinstall --verbose --release --destdir=temp
+
+      - name: Copy installed files to /usr/local
+        if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
+        working-directory: example-project
+        run: |
           sudo cp -r temp/usr/local/* /usr/local/
