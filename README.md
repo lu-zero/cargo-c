@@ -9,6 +9,18 @@
 
 It produces and installs a correct [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) file, a static library and a dynamic library, and a C header to be used by any C (and C-compatible) software.
 
+## Installation
+**cargo-c** may be installed from [crates.io](https://crates.io/crates/cargo-c). 
+``` sh
+cargo install cargo-c
+```
+
+Since it depends on [cargo](https://crates.io/crates/cargo) you may pass `--features=cargo/vendored-openssl` if you have problems building openssl-sys on your platforms.
+
+``` sh
+cargo install cargo-c --features=cargo/vendored-openssl
+```
+
 ## Usage
 ``` sh
 # build the library, create the .h header, create the .pc file
