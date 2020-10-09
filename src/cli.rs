@@ -9,23 +9,23 @@ use structopt::StructOpt;
 // TODO: convert to a function using cargo opt()
 #[derive(Clone, Debug, StructOpt)]
 struct Common {
-    /// path to directory where target should be copied to
+    /// Path to directory where target should be copied to
     #[structopt(long = "destdir", parse(from_os_str))]
     destdir: Option<PathBuf>,
-    /// directory path used to construct default values of
+    /// Directory path used to construct default values of
     /// includedir, libdir, bindir, pkgconfigdir
     #[structopt(long = "prefix", parse(from_os_str))]
     prefix: Option<PathBuf>,
-    /// path to directory for installing generated library files
+    /// Path to directory for installing generated library files
     #[structopt(long = "libdir", parse(from_os_str))]
     libdir: Option<PathBuf>,
-    /// path to directory for installing generated headers files
+    /// Path to directory for installing generated headers files
     #[structopt(long = "includedir", parse(from_os_str))]
     includedir: Option<PathBuf>,
-    /// path to directory for installing generated executable files
+    /// Path to directory for installing generated executable files
     #[structopt(long = "bindir", parse(from_os_str))]
     bindir: Option<PathBuf>,
-    /// path to directory for installing generated pkg-config .pc files
+    /// Path to directory for installing generated pkg-config .pc files
     #[structopt(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
     #[structopt(long = "dlltool", parse(from_os_str))]
