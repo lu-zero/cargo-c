@@ -40,7 +40,7 @@ jobs:
         run: |
           $BinGlob = "VC\Tools\MSVC\*\bin\Hostx64\x64"
           $BinPath = vswhere -latest -products * -find "$BinGlob" | Select-Object -Last 1
-          echo "$BinPath" >> $GITHUB_PATH
+          echo "$BinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build example project
         working-directory: example-project
