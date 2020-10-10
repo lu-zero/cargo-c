@@ -35,12 +35,12 @@ jobs:
         run: |
           cargo install --path .
 
-      - name: Set MSVC/dumpbin path
+      - name: Set MSVC binaries path
         if: matrix.toolchain-suffix == '-msvc'
         run: |
-          $MsvcPath = vswhere -latest -products * -find "VC\Tools\MSVC\*\bin\Hostx64\x64" |
-                      Select-Object -Last 1
-          echo "::add-path::$MsvcPath"
+          $BinGlob = "VC\Tools\MSVC\*\bin\Hostx64\x64"
+          $BinPath = vswhere -latest -products * -find "$BinGlob" | Select-Object -Last 1
+          echo "$BinPath" >> $GITHUB_PATH
 
       - name: Build example project
         working-directory: example-project
