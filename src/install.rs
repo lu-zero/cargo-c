@@ -90,7 +90,11 @@ pub fn cinstall(
 
     let install_path_lib = append_to_destdir(destdir, &paths.libdir);
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-    let install_path_include = append_to_destdir(destdir, &paths.includedir);
+    let mut install_path_include = append_to_destdir(destdir, &paths.includedir);
+    if let Some(name) = paths.subdir_name {
+        install_path_include = install_path_include.join(name);
+    }
+
     let install_path_bin = append_to_destdir(destdir, &paths.bindir);
 
     fs::create_dir_all(&install_path_lib)?;
@@ -178,6 +182,7 @@ pub fn cinstall(
 
 #[derive(Debug)]
 pub struct InstallPaths {
+    pub subdir_name: Option<PathBuf>,
     pub destdir: PathBuf,
     pub prefix: PathBuf,
     pub libdir: PathBuf,
@@ -200,13 +205,15 @@ impl InstallPaths {
             .value_of("libdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("lib"));
-        let mut includedir = args
+        let includedir = args
             .value_of("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
-        if capi_config.header.subdirectory {
-            includedir = includedir.join(name);
-        }
+        let subdir_name = if capi_config.header.subdirectory {
+            Some(PathBuf::from(name))
+        } else {
+            None
+        };
         let bindir = args
             .value_of("bindir")
             .map(PathBuf::from)
@@ -217,6 +224,7 @@ impl InstallPaths {
             .unwrap_or_else(|| libdir.join("pkgconfig"));
 
         InstallPaths {
+            subdir_name,
             destdir,
             prefix,
             libdir,
