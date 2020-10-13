@@ -407,7 +407,7 @@ pub fn cbuild(
     let targets = args.targets();
     let target = match targets.len() {
         0 => None,
-        1 => Some(targets[1].clone()),
+        1 => Some(targets[0].clone()),
         _ => {
             anyhow::bail!("Multiple targets not supported yet");
         }
