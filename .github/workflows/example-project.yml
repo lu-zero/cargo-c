@@ -39,6 +39,7 @@ jobs:
         if: matrix.toolchain-suffix == '-msvc'
         run: |
           $BinGlob = "VC\Tools\MSVC\*\bin\Hostx64\x64"
+          $env:PATH = "$env:PATH;${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
           $BinPath = vswhere -latest -products * -find "$BinGlob" | Select-Object -Last 1
           echo "$BinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
