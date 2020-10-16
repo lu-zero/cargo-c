@@ -2,4 +2,4 @@
 **/*.rs.bk
 Cargo.lock
 /example-project/target/
-/example-project/makefile-usage/run_tests
+/example-project/usage-from-c/run_tests
