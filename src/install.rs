@@ -5,6 +5,7 @@ use cargo::core::Workspace;
 
 use crate::build::CApiConfig;
 use crate::build_targets::BuildTargets;
+use crate::target::Target;
 
 use anyhow::Context;
 
@@ -76,13 +77,13 @@ fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
 
 pub fn cinstall(
     ws: &Workspace,
+    target: &Target,
     capi_config: &CApiConfig,
     build_targets: BuildTargets,
     paths: InstallPaths,
 ) -> anyhow::Result<()> {
     use std::fs;
 
-    let target = &build_targets.target;
     let os = &target.os;
     let env = &target.env;
 
