@@ -68,8 +68,9 @@ jobs:
       - name: Test pkg-config
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         run: |
-          pkg-config --cflags example_project
-          pkg-config --libs example_project
+          set -x
+          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example_project"
+          test "$(pkg-config --libs example_project)" = "-L/usr/local/lib -lexample_project"
 
       - name: Update dynamic linker cache
         if: startsWith(matrix.os, 'ubuntu')
