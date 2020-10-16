@@ -1,0 +1,7 @@
+include_guard = "EXAMPLE_PROJECT_H"
+include_version = true
+language = "C"
+cpp_compat = true
+
+[export.rename]
+"OddCounter" = "ExampleProjectOddCounter"
