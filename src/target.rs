@@ -8,7 +8,7 @@ use crate::build::CApiConfig;
 ///
 /// Because of https://github.com/rust-lang/rust/issues/61558
 /// It uses internally `rustc` to validate the string.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Target {
     pub arch: String,
     // pub vendor: String,

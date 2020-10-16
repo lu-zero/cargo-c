@@ -5,6 +5,7 @@ use cargo::Config;
 use cargo_c::build::{cbuild, config_configure};
 use cargo_c::cli::subcommand_cli;
 use cargo_c::install::cinstall;
+use cargo_c::target::Target;
 
 use structopt::clap::*;
 
@@ -42,7 +43,13 @@ fn main() -> CliResult {
 
     let (build_targets, install_paths, capi_config) = cbuild(&mut ws, &config, &subcommand_args)?;
 
-    cinstall(&ws, &capi_config, build_targets, install_paths)?;
+    cinstall(
+        &ws,
+        &Target::new(subcommand_args.target())?,
+        &capi_config,
+        build_targets,
+        install_paths,
+    )?;
 
     Ok(())
 }
