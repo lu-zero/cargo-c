@@ -1,4 +1,4 @@
-#include <example_project/example_project.h>
+#include <example_project.h>
 #include <stdio.h>
 
 int main() {

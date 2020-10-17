@@ -69,7 +69,7 @@ jobs:
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         run: |
           set -x
-          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example_project"
+          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include"
           test "$(pkg-config --libs example_project)" = "-L/usr/local/lib -lexample_project"
 
       - name: Update dynamic linker cache

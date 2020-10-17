@@ -9,3 +9,6 @@ capi = ["libc"]
 
 [dependencies]
 libc = { version = "0.2", optional = true }
+
+[package.metadata.capi.header]
+subdirectory = false
