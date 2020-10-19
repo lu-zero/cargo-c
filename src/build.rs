@@ -405,9 +405,16 @@ pub fn cbuild(
     args: &ArgMatches<'_>,
 ) -> anyhow::Result<(BuildTargets, InstallPaths, CApiConfig)> {
     let rustc_target = target::Target::new(args.target())?;
-    let libkinds = args
-        .values_of("library-type")
-        .map_or_else(|| vec!["staticlib", "cdylib"], |v| v.collect::<Vec<_>>());
+    let libkinds = args.values_of("library-type").map_or_else(
+        || {
+            if rustc_target.env == "musl" {
+                vec!["staticlib"]
+            } else {
+                vec!["staticlib", "cdylib"]
+            }
+        },
+        |v| v.collect::<Vec<_>>(),
+    );
     let only_staticlib = !libkinds.contains(&"cdylib");
 
     patch_lib_kind_in_target(ws, &libkinds)?;
