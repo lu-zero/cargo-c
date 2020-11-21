@@ -26,7 +26,6 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
 
       - name: Run format
         uses: actions-rs/cargo@v1
@@ -72,7 +71,7 @@ jobs:
             -Zprofile -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off
             -Cpanic=abort -Zpanic_abort_tests
         run: |
-          cargo test --all-features --no-fail-fast --verbose
+          cargo test --no-fail-fast --verbose
 
       - name: Run grcov
         id: coverage
@@ -132,7 +131,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features --no-fail-fast
+          args: --no-fail-fast
 
   msvc-Stable:
 
@@ -182,4 +181,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features --no-fail-fast
+          args: --no-fail-fast
