@@ -405,11 +405,33 @@ fn load_manifest_capi_config(
     })
 }
 
+pub fn compile_options(
+    ws: &Workspace,
+    config: &Config,
+    args: &ArgMatches<'_>,
+    compile_mode: CompileMode,
+) -> anyhow::Result<ops::CompileOptions> {
+    let mut compile_opts =
+        args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
+
+    patch_capi_feature(&mut compile_opts, ws)?;
+
+    compile_opts.filter = ops::CompileFilter::new(
+        ops::LibRule::True,
+        ops::FilterRule::none(),
+        ops::FilterRule::none(),
+        ops::FilterRule::none(),
+        ops::FilterRule::none(),
+    );
+
+    Ok(compile_opts)
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
-) -> anyhow::Result<(BuildTargets, InstallPaths, CApiConfig)> {
+) -> anyhow::Result<(BuildTargets, InstallPaths, CApiConfig, String)> {
     let targets = args.targets();
     let target = match targets.len() {
         0 => None,
@@ -453,22 +475,7 @@ pub fn cbuild(
     }
     pc.add_lib_private(&static_libs);
 
-    let mut compile_opts = args.compile_options(
-        config,
-        CompileMode::Build,
-        Some(ws),
-        ProfileChecking::Checked,
-    )?;
-
-    patch_capi_feature(&mut compile_opts, ws)?;
-
-    compile_opts.filter = ops::CompileFilter::new(
-        ops::LibRule::True,
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
-    );
+    let mut compile_opts = compile_options(ws, config, args, CompileMode::Build)?;
 
     let profiles = Profiles::new(
         ws.profiles(),
@@ -536,7 +543,7 @@ pub fn cbuild(
         }
     }
 
-    Ok((build_targets, install_paths, capi_config))
+    Ok((build_targets, install_paths, capi_config, static_libs))
 }
 
 pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
