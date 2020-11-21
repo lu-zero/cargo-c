@@ -19,19 +19,20 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          components: clippy, rustfmt
 
-      - name: Install rustfmt and clippy
-        run: rustup component add rustfmt clippy
-
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run format
+      - name: Run rustfmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
+
+      - name: Run clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all -- -D warnings --verbose
+
 
   Ubuntu-Nightly:
 
