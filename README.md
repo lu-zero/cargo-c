@@ -10,15 +10,21 @@
 It produces and installs a correct [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/) file, a static library and a dynamic library, and a C header to be used by any C (and C-compatible) software.
 
 ## Installation
-**cargo-c** may be installed from [crates.io](https://crates.io/crates/cargo-c). 
+**cargo-c** may be installed from [crates.io](https://crates.io/crates/cargo-c).
 ``` sh
 cargo install cargo-c
 ```
 
-Since it depends on [cargo](https://crates.io/crates/cargo) you may pass `--features=cargo/vendored-openssl` if you have problems building openssl-sys on your platforms.
+You must have the **cargo** build [requirements](https://github.com/rust-lang/cargo#compiling-from-source) satisfied in order to build **cargo-c**:
+* `git`
+* `pkg-config` (on Unix, used to figure out the host-provided headers/libraries)
+* `curl` (on Unix)
+* OpenSSL headers (only for Unix, this is the `libssl-dev` package on deb-based distributions)
+
+You may pass `--features=vendored-openssl` if you have problems building openssl-sys using the host-provided OpenSSL.
 
 ``` sh
-cargo install cargo-c --features=cargo/vendored-openssl
+cargo install cargo-c --features=vendored-openssl
 ```
 
 ## Usage
