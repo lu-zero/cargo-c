@@ -1,5 +1,5 @@
-use cargo_c::build::{cbuild, config_configure};
-use cargo_c::cli::subcommand_cli;
+use cargo_c::build::{cbuild, config_configure, ctest};
+use cargo_c::cli::*;
 use cargo_c::install::cinstall;
 
 use cargo::util::command_prelude::opt;
@@ -14,6 +14,7 @@ fn main() -> CliResult {
 
     let cli_build = subcommand_cli("build", "Build the crate C-API");
     let cli_install = subcommand_cli("install", "Install the crate C-API");
+    let cli_test = subcommand_test("test");
 
     let mut app = app_from_crate!()
         .settings(&[
@@ -26,14 +27,15 @@ fn main() -> CliResult {
                 .about("Build or install the crate C-API")
                 .arg(opt("version", "Print version info and exit").short("V"))
                 .subcommand(cli_build)
-                .subcommand(cli_install),
+                .subcommand(cli_install)
+                .subcommand(cli_test),
         );
 
     let args = app.clone().get_matches();
 
     let (cmd, subcommand_args) = match args.subcommand() {
         ("capi", Some(args)) => match args.subcommand() {
-            (cmd, Some(args)) if cmd == "build" || cmd == "install" => (cmd, args),
+            (cmd, Some(args)) if cmd == "build" || cmd == "install" || cmd == "test" => (cmd, args),
             _ => {
                 // No subcommand provided.
                 app.print_help()?;
@@ -55,11 +57,20 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let (build_targets, install_paths, capi_config, _) =
+    let (build_targets, install_paths, capi_config, static_libs, compile_opts) =
         cbuild(&mut ws, &config, &subcommand_args)?;
 
     if cmd == "install" {
         cinstall(&ws, &capi_config, build_targets, install_paths)?;
+    } else if cmd == "test" {
+        ctest(
+            &ws,
+            &config,
+            subcommand_args,
+            build_targets,
+            static_libs,
+            compile_opts,
+        )?;
     }
 
     Ok(())

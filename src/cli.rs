@@ -59,6 +59,21 @@ fn base_cli() -> App<'static, 'static> {
                 .global(true)
                 .hidden(true),
         )
+        .arg_jobs()
+        .arg_release("Build artifacts in release mode, with optimizations")
+        .arg_profile("Build artifacts with the specified profile")
+        .arg_features()
+        .arg_target_triple("Build for the target triple")
+        .arg_target_dir()
+        .arg_manifest_path()
+        .arg_message_format()
+        .arg_build_plan()
+}
+
+pub fn subcommand_cli(name: &str, about: &'static str) -> App<'static, 'static> {
+    base_cli()
+        .name(name)
+        .about(about)
         .arg(
             multi_opt(
                 "library-type",
@@ -69,28 +84,6 @@ fn base_cli() -> App<'static, 'static> {
             .case_insensitive(true)
             .possible_values(&["cdylib", "staticlib"]),
         )
-}
-
-pub fn subcommand_cli(name: &str, about: &'static str) -> App<'static, 'static> {
-    base_cli()
-        .name(name)
-        .about(about)
-        .arg_jobs()
-        .arg_release("Build artifacts in release mode, with optimizations")
-        .arg_profile("Build artifacts with the specified profile")
-        .arg_features()
-        .arg_target_triple("Build for the target triple")
-        .arg_target_dir()
-        .arg(
-            opt(
-                "out-dir",
-                "Copy final artifacts to this directory (unstable)",
-            )
-            .value_name("PATH"),
-        )
-        .arg_manifest_path()
-        .arg_message_format()
-        .arg_build_plan()
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
@@ -98,4 +91,19 @@ the manifest. The default profile for this command is `dev`, but passing
 the --release flag will use the `release` profile instead.
 ",
         )
+}
+
+pub fn subcommand_test(name: &str) -> App<'static, 'static> {
+    base_cli()
+        .settings(&[AppSettings::TrailingVarArg])
+        .name(name)
+        .about("Test the crate C-API")
+        .arg(
+            Arg::with_name("args")
+                .help("Arguments for the test binary")
+                .multiple(true)
+                .last(true),
+        )
+        .arg(opt("no-run", "Compile, but don't run tests"))
+        .arg(opt("no-fail-fast", "Run all tests regardless of failure"))
 }

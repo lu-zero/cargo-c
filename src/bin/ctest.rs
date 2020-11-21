@@ -1,17 +1,17 @@
-use cargo::util::command_prelude::ArgMatchesExt;
+use cargo::util::command_prelude::*;
 use cargo::CliResult;
 use cargo::Config;
 
-use cargo_c::build::{cbuild, config_configure};
-use cargo_c::cli::subcommand_cli;
-use cargo_c::install::cinstall;
+use cargo_c::build::*;
+use cargo_c::cli::subcommand_test;
 
 use structopt::clap::*;
 
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
-    let subcommand = subcommand_cli("cinstall", "Install the crate C-API");
+    let subcommand = subcommand_test("ctest");
+
     let mut app = app_from_crate!()
         .settings(&[
             AppSettings::UnifiedHelpMessage,
@@ -23,7 +23,7 @@ fn main() -> CliResult {
     let args = app.clone().get_matches();
 
     let subcommand_args = match args.subcommand() {
-        ("cinstall", Some(args)) => args,
+        ("ctest", Some(args)) => args,
         _ => {
             // No subcommand provided.
             app.print_help()?;
@@ -40,10 +40,15 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let (build_targets, install_paths, capi_config, _, _) =
+    let (build_targets, _, _, static_libs, compile_opts) =
         cbuild(&mut ws, &config, &subcommand_args)?;
 
-    cinstall(&ws, &capi_config, build_targets, install_paths)?;
-
-    Ok(())
+    ctest(
+        &ws,
+        &config,
+        subcommand_args,
+        build_targets,
+        static_libs,
+        compile_opts,
+    )
 }

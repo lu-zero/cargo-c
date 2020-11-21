@@ -10,5 +10,8 @@ capi = ["libc"]
 [dependencies]
 libc = { version = "0.2", optional = true }
 
+[dev-dependencies]
+inline-c = "0.1"
+
 [package.metadata.capi.header]
 subdirectory = false
