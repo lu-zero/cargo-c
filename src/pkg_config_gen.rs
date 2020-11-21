@@ -178,7 +178,7 @@ Requires: {}",
                 ).to_owned()
         */
 
-        base.push_str("\n");
+        base.push('\n');
 
         base
     }

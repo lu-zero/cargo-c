@@ -219,8 +219,7 @@ fn build_implib_file(
             _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
         };
 
-        let mut dlltool_command =
-            std::process::Command::new(dlltool.to_str().unwrap_or_else(|| "dlltool"));
+        let mut dlltool_command = std::process::Command::new(dlltool.to_str().unwrap_or("dlltool"));
         dlltool_command.arg("-m").arg(binutils_arch);
         dlltool_command.arg("-D").arg(format!("{}.dll", name));
         dlltool_command
@@ -331,7 +330,7 @@ fn load_manifest_capi_config(
                 .and_then(|h| h.get("name"))
                 .or_else(|| capi.get("header_name"))
                 .map(|v| v.clone().try_into())
-                .unwrap_or(Ok(String::from(name)))?,
+                .unwrap_or_else(|| Ok(String::from(name)))?,
             subdirectory: header
                 .as_ref()
                 .and_then(|h| h.get("subdirectory"))
@@ -359,7 +358,7 @@ fn load_manifest_capi_config(
             .metadata()
             .description
             .as_deref()
-            .unwrap_or_else(|| ""),
+            .unwrap_or(""),
     );
     let mut version = pkg.version().to_string();
 
@@ -485,7 +484,7 @@ pub fn cbuild(
         .to_path_buf()
         .join(
             target
-                .map(|t| PathBuf::from(t))
+                .map(PathBuf::from)
                 .unwrap_or_else(|| PathBuf::from(".")),
         )
         .join(&profiles.get_dir_name());
