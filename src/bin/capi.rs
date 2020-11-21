@@ -55,7 +55,8 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let (build_targets, install_paths, capi_config) = cbuild(&mut ws, &config, &subcommand_args)?;
+    let (build_targets, install_paths, capi_config, _) =
+        cbuild(&mut ws, &config, &subcommand_args)?;
 
     if cmd == "install" {
         cinstall(&ws, &capi_config, build_targets, install_paths)?;
