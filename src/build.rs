@@ -4,10 +4,12 @@ use std::path::PathBuf;
 
 use cargo::core::profiles::Profiles;
 use cargo::core::{TargetKind, Workspace};
-use cargo::ops;
+use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
-use cargo::{CliResult, Config};
+use cargo::util::errors;
+use cargo::{CliError, CliResult, Config};
 
+use anyhow::Error;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -117,10 +119,7 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
     Ok(())
 }
 
-fn patch_capi_feature(
-    compile_opts: &mut ops::CompileOptions,
-    ws: &Workspace,
-) -> anyhow::Result<()> {
+fn patch_capi_feature(compile_opts: &mut CompileOptions, ws: &Workspace) -> anyhow::Result<()> {
     let pkg = ws.current()?;
     let manifest = pkg.manifest();
 
@@ -410,18 +409,18 @@ pub fn compile_options(
     config: &Config,
     args: &ArgMatches<'_>,
     compile_mode: CompileMode,
-) -> anyhow::Result<ops::CompileOptions> {
+) -> anyhow::Result<CompileOptions> {
     let mut compile_opts =
         args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
 
     patch_capi_feature(&mut compile_opts, ws)?;
 
-    compile_opts.filter = ops::CompileFilter::new(
-        ops::LibRule::True,
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
-        ops::FilterRule::none(),
+    compile_opts.filter = CompileFilter::new(
+        LibRule::True,
+        FilterRule::none(),
+        FilterRule::none(),
+        FilterRule::none(),
+        FilterRule::none(),
     );
 
     Ok(compile_opts)
@@ -431,7 +430,13 @@ pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
-) -> anyhow::Result<(BuildTargets, InstallPaths, CApiConfig, String)> {
+) -> anyhow::Result<(
+    BuildTargets,
+    InstallPaths,
+    CApiConfig,
+    String,
+    CompileOptions,
+)> {
     let targets = args.targets();
     let target = match targets.len() {
         0 => None,
@@ -543,7 +548,80 @@ pub fn cbuild(
         }
     }
 
-    Ok((build_targets, install_paths, capi_config, static_libs))
+    Ok((
+        build_targets,
+        install_paths,
+        capi_config,
+        static_libs,
+        compile_opts,
+    ))
+}
+
+pub fn ctest(
+    ws: &Workspace,
+    config: &Config,
+    args: &ArgMatches<'_>,
+    build_targets: BuildTargets,
+    static_libs: String,
+    mut compile_opts: CompileOptions,
+) -> CliResult {
+    compile_opts.build_config.requested_profile =
+        args.get_profile_name(&config, "test", ProfileChecking::Checked)?;
+    compile_opts.build_config.mode = CompileMode::Test;
+
+    compile_opts.filter = ops::CompileFilter::new(
+        LibRule::Default,   // compile the library, so the unit tests can be run filtered
+        FilterRule::none(), // we do not have binaries
+        FilterRule::All,    // compile the tests, so the integration tests can be run filtered
+        FilterRule::none(), // specify --examples to unit test binaries filtered
+        FilterRule::none(), // specify --benches to unit test benchmarks filtered
+    );
+
+    compile_opts.target_rustc_args = None;
+
+    let ops = ops::TestOptions {
+        no_run: args.is_present("no-run"),
+        no_fail_fast: args.is_present("no-fail-fast"),
+        compile_opts,
+    };
+
+    let test_args = args.value_of("TESTNAME").into_iter();
+    let test_args = test_args.chain(args.values_of("args").unwrap_or_default());
+    let test_args = test_args.collect::<Vec<_>>();
+
+    use std::ffi::OsString;
+    let static_lib_path = build_targets.static_lib.unwrap();
+    let builddir = static_lib_path.parent().unwrap();
+    let static_lib = static_lib_path.file_name().unwrap();
+
+    let mut ldflags = OsString::from("-L");
+    ldflags.push(builddir);
+    ldflags.push(" -l:");
+    ldflags.push(static_lib);
+    ldflags.push(" ");
+    ldflags.push(static_libs);
+
+    std::env::set_var("INLINE_C_RS_LDFLAGS", ldflags);
+
+    let mut cflags = OsString::from("-I");
+    cflags.push(builddir);
+
+    std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
+
+    let err = ops::run_tests(&ws, &ops, &test_args)?;
+    match err {
+        None => Ok(()),
+        Some(err) => {
+            let context = anyhow::format_err!("{}", err.hint(&ws, &ops.compile_opts));
+            let e = match err.exit.as_ref().and_then(|e| e.code()) {
+                // Don't show "process didn't exit successfully" for simple errors.
+                Some(i) if errors::is_simple_exit_code(i) => CliError::new(context, i),
+                Some(i) => CliError::new(Error::from(err).context(context), i),
+                None => CliError::new(Error::from(err).context(context), 101),
+            };
+            Err(e)
+        }
+    }
 }
 
 pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
