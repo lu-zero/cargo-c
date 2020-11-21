@@ -183,3 +183,25 @@ jobs:
         with:
           command: test
           args: --no-fail-fast
+
+  mingw-Stable:
+
+    name: mingw-Stable
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install stable-gnu
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable-gnu
+          override: true
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --no-fail-fast
