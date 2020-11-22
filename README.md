@@ -33,6 +33,10 @@ cargo install cargo-c --features=vendored-openssl
 $ cargo cbuild --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
 ``` sh
+# build the library, create the .h header, create the .pc file, build and run the tests
+$ cargo ctest 
+```
+``` sh
 # build the library, create the .h header, create the .pc file and install all of it
 $ cargo cinstall --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
@@ -124,6 +128,7 @@ version = "1.2.3"
 - [x] cli
   - [x] build command
   - [x] install command
+  - [x] test command
   - [x] cargo applet support
 - [x] build targets
   - [x] pkg-config generation
@@ -132,7 +137,7 @@ version = "1.2.3"
 - [x] `cdylib` support
 - [x] Generate version information in the header
   - [ ] Make it tunable
-- [ ] Extra Cargo.toml keys
+- [x] Extra Cargo.toml keys
 - [x] Better status reporting
 
 [dev.to]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn
