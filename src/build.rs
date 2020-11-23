@@ -101,7 +101,7 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
-    let kinds: Vec<_> = libkinds
+    let mut kinds: Vec<_> = libkinds
         .iter()
         .map(|&kind| match kind {
             "staticlib" => CrateType::Staticlib,
@@ -109,6 +109,8 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
             _ => unreachable!(),
         })
         .collect();
+
+    kinds.push(CrateType::Lib);
 
     for target in targets.iter_mut() {
         if target.is_lib() {
