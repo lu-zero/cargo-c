@@ -592,12 +592,9 @@ pub fn ctest(
     use std::ffi::OsString;
     let static_lib_path = build_targets.static_lib.unwrap();
     let builddir = static_lib_path.parent().unwrap();
-    let static_lib = static_lib_path.file_name().unwrap();
 
     let mut ldflags = OsString::from("-L");
     ldflags.push(builddir);
-    ldflags.push(" -l:");
-    ldflags.push(static_lib);
     ldflags.push(" ");
     ldflags.push(static_libs);
 
@@ -605,6 +602,9 @@ pub fn ctest(
 
     let mut cflags = OsString::from("-I");
     cflags.push(builddir);
+    cflags.push(" ");
+    // We push the full path here to work around macos ld not supporting the -l:{filename} syntax
+    cflags.push(static_lib_path);
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
 
