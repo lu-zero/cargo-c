@@ -101,6 +101,10 @@ name = "libfoo"
 description = "some description"
 # Used as the package version in the pkg-config file and defaults to the crate version.
 version = "1.2.3"
+# Used as the Requires field in the pkg-config file, if defined
+requires = "gstreamer-1.0, gstreamer-base-1.0"
+# Used as the Requires.private field in the pkg-config file, if defined
+requires_private = "gobject-2.0, glib-2.0 >= 2.56.0, gmodule-2.0"
 ```
 
 ### Library Generation

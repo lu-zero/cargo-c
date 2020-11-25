@@ -42,6 +42,15 @@ impl PkgConfig {
     /// Libs: -L${libdir} -l$name
     ///
     pub fn new(name: &str, capi_config: &CApiConfig) -> Self {
+        let requires = match &capi_config.pkg_config.requires {
+            Some(reqs) => reqs.split(',').map(|s| s.trim().to_string()).collect(),
+            _ => Vec::new(),
+        };
+        let requires_private = match &capi_config.pkg_config.requires_private {
+            Some(reqs) => reqs.split(',').map(|s| s.trim().to_string()).collect(),
+            _ => Vec::new(),
+        };
+
         PkgConfig {
             name: capi_config.pkg_config.name.clone(),
             description: capi_config.pkg_config.description.clone(),
@@ -55,8 +64,8 @@ impl PkgConfig {
             libs: vec![format!("-L{} -l{}", "${libdir}", capi_config.library.name)],
             libs_private: Vec::new(),
 
-            requires: Vec::new(),
-            requires_private: Vec::new(),
+            requires,
+            requires_private,
 
             cflags: vec![if capi_config.header.subdirectory {
                 format!("-I{}/{}", "${includedir}", name)
@@ -169,9 +178,16 @@ Requires: {}",
                 self.requires.join(", ")
             ));
         }
+
+        if !self.requires_private.is_empty() {
+            base.push_str(&format!(
+                "
+Requires.private: {}",
+                self.requires_private.join(", ")
+            ));
+        }
+
         /*
-        Requires: libavresample >= 4.0.0, libavutil >= 56.8.0
-        Requires.private:
         Conflicts:
         Libs.private:
 
@@ -203,6 +219,8 @@ mod test {
                     name: "foo".into(),
                     description: "".into(),
                     version: "0.1".into(),
+                    requires: Some("somelib, someotherlib".into()),
+                    requires_private: Some("someprivatelib >= 1.0".into()),
                 },
                 library: crate::build::LibraryCApiConfig {
                     name: "foo".into(),
