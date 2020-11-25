@@ -240,6 +240,7 @@ mod test {
                     name: "foo".into(),
                     version: Version::parse("0.1.0").unwrap(),
                     install_subdir: None,
+                    versioning: true,
                 },
             },
         );

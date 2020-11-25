@@ -291,6 +291,7 @@ pub struct LibraryCApiConfig {
     pub name: String,
     pub version: Version,
     pub install_subdir: Option<String>,
+    pub versioning: bool,
 }
 
 fn load_manifest_capi_config(
@@ -405,6 +406,7 @@ fn load_manifest_capi_config(
     let mut lib_name = String::from(name);
     let mut version = pkg.version().clone();
     let mut install_subdir = None;
+    let mut versioning = true;
 
     if let Some(ref library) = library {
         if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
@@ -416,12 +418,17 @@ fn load_manifest_capi_config(
         if let Some(subdir) = library.get("install_subdir").and_then(|v| v.as_str()) {
             install_subdir = Some(String::from(subdir));
         }
+        versioning = library
+            .get("versioning")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
     }
 
     let library = LibraryCApiConfig {
         name: lib_name,
         version,
         install_subdir,
+        versioning,
     };
 
     Ok(CApiConfig {

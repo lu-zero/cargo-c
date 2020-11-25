@@ -158,8 +158,12 @@ pub fn cinstall(
                     "{}.{}.{}",
                     lib_with_major_ver, lib_version.minor, lib_version.patch
                 );
-                copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
-                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+                if capi_config.library.versioning {
+                    copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                    link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+                } else {
+                    copy(shared_lib, install_path_lib.join(lib))?;
+                }
             }
             ("macos", _) => {
                 let lib = &format!("lib{}.dylib", lib_name);
@@ -168,8 +172,12 @@ pub fn cinstall(
                     "lib{}.{}.{}.{}.dylib",
                     lib_name, lib_version.major, lib_version.minor, lib_version.patch
                 );
-                copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
-                link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+                if capi_config.library.versioning {
+                    copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
+                    link_libs(lib, lib_with_major_ver, lib_with_full_ver);
+                } else {
+                    copy(shared_lib, install_path_lib.join(lib))?;
+                }
             }
             ("windows", _) => {
                 let lib_name = shared_lib.file_name().unwrap();

@@ -122,6 +122,8 @@ name = "new_name"
 version = "1.2.3"
 # Used to install the library to a subdirectory of `libdir`.
 install_subdir = "gstreamer-1.0"
+# Used to disable versioning links when installing the dynamic library
+versioning = false
 ```
 
 ## Users
