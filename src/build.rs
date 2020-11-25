@@ -607,18 +607,15 @@ pub fn ctest(
     let static_lib_path = build_targets.static_lib.unwrap();
     let builddir = static_lib_path.parent().unwrap();
 
-    let mut ldflags = OsString::from("-L");
-    ldflags.push(builddir);
-    ldflags.push(" ");
-    ldflags.push(static_libs);
-
-    std::env::set_var("INLINE_C_RS_LDFLAGS", ldflags);
-
     let mut cflags = OsString::from("-I");
     cflags.push(builddir);
     cflags.push(" ");
     // We push the full path here to work around macos ld not supporting the -l:{filename} syntax
     cflags.push(static_lib_path);
+
+    // We push the static_libs as CFLAGS as well to avoid mangling the options on msvc
+    cflags.push(" ");
+    cflags.push(static_libs);
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
 
