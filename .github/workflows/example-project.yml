@@ -53,6 +53,11 @@ jobs:
         run: |
           cargo cbuild --verbose --release
 
+      - name: Run C API tests for example project
+        working-directory: example-project
+        run: |
+          cargo ctest --verbose --release
+
       - name: Install into temporary location
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         working-directory: example-project
