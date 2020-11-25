@@ -117,6 +117,8 @@ name = "new_name"
 # Used as library version and defaults to the crate version. How this is used
 # depends on the target platform.
 version = "1.2.3"
+# Used to install the library to a subdirectory of `libdir`.
+install_subdir = "gstreamer-1.0"
 ```
 
 ## Users

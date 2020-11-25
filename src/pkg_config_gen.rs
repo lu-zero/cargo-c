@@ -51,6 +51,13 @@ impl PkgConfig {
             _ => Vec::new(),
         };
 
+        let mut libdir = PathBuf::new();
+        libdir.push("${libdir}");
+        if let Some(subdir) = &capi_config.library.install_subdir {
+            libdir.push(subdir);
+        }
+        let libs = format!("-L{} -l{}", libdir.display(), capi_config.library.name);
+
         PkgConfig {
             name: capi_config.pkg_config.name.clone(),
             description: capi_config.pkg_config.description.clone(),
@@ -61,7 +68,7 @@ impl PkgConfig {
             includedir: "${prefix}/include".into(),
             libdir: "${exec_prefix}/lib".into(),
 
-            libs: vec![format!("-L{} -l{}", "${libdir}", capi_config.library.name)],
+            libs: vec![libs],
             libs_private: Vec::new(),
 
             requires,
@@ -225,6 +232,7 @@ mod test {
                 library: crate::build::LibraryCApiConfig {
                     name: "foo".into(),
                     version: Version::parse("0.1.0").unwrap(),
+                    install_subdir: None,
                 },
             },
         );

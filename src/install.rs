@@ -88,7 +88,12 @@ pub fn cinstall(
 
     let destdir = &paths.destdir;
 
-    let install_path_lib = append_to_destdir(destdir, &paths.libdir);
+    let mut install_path_lib = paths.libdir.clone();
+    if let Some(subdir) = &capi_config.library.install_subdir {
+        install_path_lib.push(subdir);
+    }
+
+    let install_path_lib = append_to_destdir(destdir, &install_path_lib);
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
     let mut install_path_include = append_to_destdir(destdir, &paths.includedir);
     if let Some(name) = paths.subdir_name {
