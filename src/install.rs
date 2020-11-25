@@ -104,7 +104,6 @@ pub fn cinstall(
 
     fs::create_dir_all(&install_path_lib)?;
     fs::create_dir_all(&install_path_pc)?;
-    fs::create_dir_all(&install_path_include)?;
     fs::create_dir_all(&install_path_bin)?;
 
     ws.config()
@@ -114,11 +113,15 @@ pub fn cinstall(
         &build_targets.pc,
         install_path_pc.join(build_targets.pc.file_name().unwrap()),
     )?;
-    ws.config().shell().status("Installing", "header file")?;
-    fs::copy(
-        &build_targets.include,
-        install_path_include.join(build_targets.include.file_name().unwrap()),
-    )?;
+
+    if capi_config.header.enabled {
+        fs::create_dir_all(&install_path_include)?;
+        ws.config().shell().status("Installing", "header file")?;
+        fs::copy(
+            &build_targets.include,
+            install_path_include.join(build_targets.include.file_name().unwrap()),
+        )?;
+    }
 
     if let Some(ref static_lib) = build_targets.static_lib {
         ws.config().shell().status("Installing", "static library")?;

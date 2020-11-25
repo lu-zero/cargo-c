@@ -58,6 +58,16 @@ impl PkgConfig {
         }
         let libs = format!("-L{} -l{}", libdir.display(), capi_config.library.name);
 
+        let cflags = if capi_config.header.enabled {
+            if capi_config.header.subdirectory {
+                format!("-I{}/{}", "${includedir}", name)
+            } else {
+                String::from("-I${includedir}")
+            }
+        } else {
+            String::from("")
+        };
+
         PkgConfig {
             name: capi_config.pkg_config.name.clone(),
             description: capi_config.pkg_config.description.clone(),
@@ -74,11 +84,7 @@ impl PkgConfig {
             requires,
             requires_private,
 
-            cflags: vec![if capi_config.header.subdirectory {
-                format!("-I{}/{}", "${includedir}", name)
-            } else {
-                String::from("-I${includedir}")
-            }],
+            cflags: vec![cflags],
 
             conflicts: Vec::new(),
         }
@@ -221,6 +227,7 @@ mod test {
                     name: "foo".into(),
                     subdirectory: true,
                     generation: true,
+                    enabled: true,
                 },
                 pkg_config: crate::build::PkgConfigCApiConfig {
                     name: "foo".into(),

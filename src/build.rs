@@ -276,6 +276,7 @@ pub struct HeaderCApiConfig {
     pub name: String,
     pub subdirectory: bool,
     pub generation: bool,
+    pub enabled: bool,
 }
 
 pub struct PkgConfigCApiConfig {
@@ -345,12 +346,18 @@ fn load_manifest_capi_config(
                 .and_then(|h| h.get("generation"))
                 .map(|v| v.clone().try_into())
                 .unwrap_or(Ok(true))?,
+            enabled: header
+                .as_ref()
+                .and_then(|h| h.get("enabled"))
+                .map(|v| v.clone().try_into())
+                .unwrap_or(Ok(true))?,
         }
     } else {
         HeaderCApiConfig {
             name: String::from(name),
             subdirectory: true,
             generation: true,
+            enabled: true,
         }
     };
 
@@ -560,11 +567,13 @@ pub fn cbuild(
             build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
         }
 
-        let header_name = &capi_config.header.name;
-        if capi_config.header.generation {
-            build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
-        } else {
-            copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
+        if capi_config.header.enabled {
+            let header_name = &capi_config.header.name;
+            if capi_config.header.generation {
+                build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
+            } else {
+                copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
+            }
         }
     }
 

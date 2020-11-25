@@ -89,6 +89,9 @@ subdirectory = true
 # Generate the header file with `cbindgen`, or copy a pre-generated header
 # from the `assets` subdirectory. By default a header is generated.
 generation = true
+# Can be use to disable header generation completely.
+# This can be used when generating dynamic modules instead of an actual library.
+enabled = true
 ```
 
 ### `pkg-config` File Generation
