@@ -100,11 +100,8 @@ pub fn cinstall(
         install_path_include = install_path_include.join(name);
     }
 
-    let install_path_bin = append_to_destdir(destdir, &paths.bindir);
-
     fs::create_dir_all(&install_path_lib)?;
     fs::create_dir_all(&install_path_pc)?;
-    fs::create_dir_all(&install_path_bin)?;
 
     ws.config()
         .shell()
@@ -180,6 +177,9 @@ pub fn cinstall(
                 }
             }
             ("windows", _) => {
+                let install_path_bin = append_to_destdir(destdir, &paths.bindir);
+                fs::create_dir_all(&install_path_bin)?;
+
                 let lib_name = shared_lib.file_name().unwrap();
                 copy(shared_lib, install_path_bin.join(lib_name))?;
                 let impl_lib = build_targets.impl_lib.as_ref().unwrap();
