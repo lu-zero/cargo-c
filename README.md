@@ -47,7 +47,7 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 ### The TL;DR:
 
 - [Create][diff-1] a `capi.rs` with the C-API you want to expose and use
-  `#[cfg(cargo_c)]` to hide it when you build a normal rust library.
+  ~~`#[cfg(cargo_c)]`~~`#[cfg(feature="capi")]` to hide it when you build a normal rust library.
 - [Make sure][diff-2] you have a lib target and if you are using a workspace
   the first member is the crate you want to export, that means that you might
   have [to add a "." member at the start of the list][diff-3].
