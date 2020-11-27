@@ -556,9 +556,9 @@ pub fn cbuild(
 
     let cur_hash = fingerprint(&build_targets)?;
 
-    build_pc_file(&ws, &name, &root_output, &pc)?;
-
     if cur_hash.is_none() || prev_hash != cur_hash {
+        build_pc_file(&ws, &name, &root_output, &pc)?;
+
         if !only_staticlib {
             build_def_file(&ws, &name, &rustc_target, &root_output)?;
 
