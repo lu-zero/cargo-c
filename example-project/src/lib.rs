@@ -7,7 +7,7 @@ Example library for [cargo-c].
 #![warn(rust_2018_idioms)]
 #![deny(missing_docs)]
 
-#[cfg(feature = "capi")]
+#[cfg(cargo_c)]
 mod capi;
 
 /// A counter for odd numbers.
