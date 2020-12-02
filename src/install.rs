@@ -114,9 +114,10 @@ pub fn cinstall(
     if capi_config.header.enabled {
         fs::create_dir_all(&install_path_include)?;
         ws.config().shell().status("Installing", "header file")?;
+        let include = &build_targets.include.unwrap();
         fs::copy(
-            &build_targets.include,
-            install_path_include.join(build_targets.include.file_name().unwrap()),
+            include,
+            install_path_include.join(include.file_name().unwrap()),
         )?;
     }
 

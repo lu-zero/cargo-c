@@ -248,7 +248,10 @@ fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
 
     let mut hasher = DefaultHasher::new();
 
-    let mut paths = vec![&build_targets.include];
+    let mut paths: Vec<&PathBuf> = Vec::new();
+    if let Some(include) = &build_targets.include {
+        paths.push(&include);
+    }
     paths.extend(&build_targets.static_lib);
     paths.extend(&build_targets.shared_lib);
 
