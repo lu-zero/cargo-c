@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 
 use cargo::core::profiles::Profiles;
@@ -241,32 +241,86 @@ fn build_implib_file(
     }
 }
 
-fn fingerprint(build_targets: &BuildTargets) -> anyhow::Result<Option<u64>> {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
-    use std::io::Read;
+struct FingerPrint<'a> {
+    name: &'a str,
+    root_output: &'a PathBuf,
+    build_targets: &'a BuildTargets,
+    install_paths: &'a InstallPaths,
+}
 
-    let mut hasher = DefaultHasher::new();
-
-    let mut paths: Vec<&PathBuf> = Vec::new();
-    if let Some(include) = &build_targets.include {
-        paths.push(&include);
-    }
-    paths.extend(&build_targets.static_lib);
-    paths.extend(&build_targets.shared_lib);
-
-    for path in paths.iter() {
-        if let Ok(mut f) = std::fs::File::open(path) {
-            let mut buf = Vec::new();
-            f.read_to_end(&mut buf)?;
-
-            hasher.write(&buf);
-        } else {
-            return Ok(None);
-        };
+impl<'a> FingerPrint<'a> {
+    fn new(
+        name: &'a str,
+        root_output: &'a PathBuf,
+        build_targets: &'a BuildTargets,
+        install_paths: &'a InstallPaths,
+    ) -> Self {
+        Self {
+            name,
+            root_output,
+            build_targets,
+            install_paths,
+        }
     }
 
-    Ok(Some(hasher.finish()))
+    fn hash(&self) -> anyhow::Result<Option<u64>> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.install_paths.hash(&mut hasher);
+
+        let mut paths: Vec<&PathBuf> = Vec::new();
+        if let Some(include) = &self.build_targets.include {
+            paths.push(&include);
+        }
+        paths.extend(&self.build_targets.static_lib);
+        paths.extend(&self.build_targets.shared_lib);
+
+        for path in paths.iter() {
+            if let Ok(mut f) = std::fs::File::open(path) {
+                let mut buf = Vec::new();
+                f.read_to_end(&mut buf)?;
+
+                hasher.write(&buf);
+            } else {
+                return Ok(None);
+            };
+        }
+
+        Ok(Some(hasher.finish()))
+    }
+
+    fn path(&self) -> PathBuf {
+        // Use the crate name in the cache file as the same target dir
+        // may be used to build various libs
+        self.root_output
+            .join(format!("cargo-c-{}.cache", self.name))
+    }
+
+    fn load_previous(&self) -> anyhow::Result<u64> {
+        let mut f = std::fs::File::open(&self.path())?;
+        let mut buf = [0; 8];
+        f.read_exact(&mut buf)?;
+
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    fn is_valid(&self) -> bool {
+        match (self.load_previous(), self.hash()) {
+            (Ok(prev), Ok(Some(current))) => prev == current,
+            _ => false,
+        }
+    }
+
+    fn store(&self) -> anyhow::Result<()> {
+        let mut f = std::fs::File::create(&self.path())?;
+        if let Some(hash) = self.hash()? {
+            f.write_all(&hash.to_le_bytes())?;
+        }
+
+        Ok(())
+    }
 }
 
 pub struct CApiConfig {
@@ -302,7 +356,6 @@ fn load_manifest_capi_config(
     root_path: &PathBuf,
     ws: &Workspace,
 ) -> anyhow::Result<CApiConfig> {
-    use std::io::Read;
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
     manifest.read_to_string(&mut manifest_str)?;
@@ -552,14 +605,12 @@ pub fn cbuild(
     let build_targets =
         BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
 
-    let prev_hash = fingerprint(&build_targets)?;
-
     // TODO: check the root_output
     let _r = ops::compile(ws, &compile_opts)?;
 
-    let cur_hash = fingerprint(&build_targets)?;
+    let finger_print = FingerPrint::new(&name, &root_output, &build_targets, &install_paths);
 
-    if cur_hash.is_none() || prev_hash != cur_hash {
+    if !finger_print.is_valid() {
         build_pc_file(&ws, &name, &root_output, &pc)?;
 
         if !only_staticlib {
@@ -585,6 +636,8 @@ pub fn cbuild(
                 copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
             }
         }
+
+        finger_print.store()?;
     }
 
     Ok((

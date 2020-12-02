@@ -197,7 +197,7 @@ pub fn cinstall(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct InstallPaths {
     pub subdir_name: Option<PathBuf>,
     pub destdir: PathBuf,
