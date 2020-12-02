@@ -5,7 +5,7 @@ use crate::target::Target;
 
 #[derive(Debug)]
 pub struct BuildTargets {
-    pub include: PathBuf,
+    pub include: Option<PathBuf>,
     pub static_lib: Option<PathBuf>,
     pub shared_lib: Option<PathBuf>,
     pub impl_lib: Option<PathBuf>,
@@ -23,9 +23,13 @@ impl BuildTargets {
         capi_config: &CApiConfig,
     ) -> BuildTargets {
         let pc = targetdir.join(&format!("{}.pc", name));
-        let mut header_name = PathBuf::from(&capi_config.header.name);
-        header_name.set_extension("h");
-        let include = targetdir.join(&header_name);
+        let include = if capi_config.header.enabled {
+            let mut header_name = PathBuf::from(&capi_config.header.name);
+            header_name.set_extension("h");
+            Some(targetdir.join(&header_name))
+        } else {
+            None
+        };
 
         let lib_name = &capi_config.library.name;
 
