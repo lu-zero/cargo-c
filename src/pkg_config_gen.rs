@@ -56,7 +56,9 @@ impl PkgConfig {
         if let Some(subdir) = &capi_config.library.install_subdir {
             libdir.push(subdir);
         }
-        let libs = format!("-L{} -l{}", libdir.display(), capi_config.library.name);
+        let mut libs = Vec::new();
+        libs.push(format!("-L{}", libdir.display()));
+        libs.push(format!("-l{}", capi_config.library.name));
 
         let cflags = if capi_config.header.enabled {
             if capi_config.header.subdirectory {
@@ -78,7 +80,7 @@ impl PkgConfig {
             includedir: "${prefix}/include".into(),
             libdir: "${exec_prefix}/lib".into(),
 
-            libs: vec![libs],
+            libs,
             libs_private: Vec::new(),
 
             requires,
@@ -107,6 +109,17 @@ impl PkgConfig {
             pc.libdir = install_paths.libdir.clone();
         }
         pc
+    }
+
+    pub(crate) fn uninstalled(&self, output: &PathBuf) -> Self {
+        let mut uninstalled = self.clone();
+        uninstalled.prefix = output.clone();
+        uninstalled.includedir = "${prefix}".into();
+        uninstalled.libdir = "${prefix}".into();
+        // First libs item is the search path
+        uninstalled.libs[0] = "-L${prefix}".into();
+
+        uninstalled
     }
 
     pub fn set_description<S: AsRef<str>>(&mut self, descr: S) -> &mut Self {

@@ -612,6 +612,13 @@ pub fn cbuild(
 
     if !finger_print.is_valid() {
         build_pc_file(&ws, &name, &root_output, &pc)?;
+        let pc_uninstalled = pc.uninstalled(&root_output);
+        build_pc_file(
+            &ws,
+            &format!("{}-uninstalled", name),
+            &root_output,
+            &pc_uninstalled,
+        )?;
 
         if !only_staticlib {
             build_def_file(&ws, &name, &rustc_target, &root_output)?;
