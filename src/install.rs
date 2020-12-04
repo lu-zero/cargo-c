@@ -2,6 +2,7 @@ use std::path::{Component, Path, PathBuf};
 use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
+use semver::Version;
 
 use crate::build::CApiConfig;
 use crate::build_targets::BuildTargets;
@@ -74,6 +75,98 @@ fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
         .with_context(|| format!("Cannot copy {} to {}.", from.display(), to.display()))
 }
 
+pub(crate) enum LibType {
+    So,
+    Dylib,
+    Windows,
+}
+
+impl LibType {
+    pub(crate) fn from_build_targets(build_targets: &BuildTargets) -> Self {
+        let target = &build_targets.target;
+        let os = &target.os;
+        let env = &target.env;
+
+        match (os.as_str(), env.as_str()) {
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => LibType::So,
+            ("macos", _) => LibType::Dylib,
+            ("windows", _) => LibType::Windows,
+            _ => unimplemented!("The target {}-{} is not supported yet", os, env),
+        }
+    }
+}
+
+pub(crate) struct UnixLibNames {
+    canonical: String,
+    with_major_ver: String,
+    with_full_ver: String,
+}
+
+impl UnixLibNames {
+    pub(crate) fn new(lib_type: LibType, lib_name: &str, lib_version: &Version) -> Option<Self> {
+        match lib_type {
+            LibType::So => {
+                let lib = format!("lib{}.so", lib_name);
+                let lib_with_major_ver = format!("{}.{}", lib, lib_version.major);
+                let lib_with_full_ver = format!(
+                    "{}.{}.{}",
+                    lib_with_major_ver, lib_version.minor, lib_version.patch
+                );
+                Some(Self {
+                    canonical: lib,
+                    with_major_ver: lib_with_major_ver,
+                    with_full_ver: lib_with_full_ver,
+                })
+            }
+            LibType::Dylib => {
+                let lib = format!("lib{}.dylib", lib_name);
+                let lib_with_major_ver = format!("lib{}.{}.dylib", lib_name, lib_version.major);
+                let lib_with_full_ver = format!(
+                    "lib{}.{}.{}.{}.dylib",
+                    lib_name, lib_version.major, lib_version.minor, lib_version.patch
+                );
+                Some(Self {
+                    canonical: lib,
+                    with_major_ver: lib_with_major_ver,
+                    with_full_ver: lib_with_full_ver,
+                })
+            }
+            LibType::Windows => None,
+        }
+    }
+
+    fn links(&self, install_path_lib: &PathBuf) {
+        let mut ln_sf = std::process::Command::new("ln");
+        ln_sf.arg("-sf");
+        ln_sf
+            .arg(&self.with_full_ver)
+            .arg(install_path_lib.join(&self.with_major_ver));
+        let _ = ln_sf.status().unwrap();
+
+        let mut ln_sf = std::process::Command::new("ln");
+        ln_sf.arg("-sf");
+        ln_sf
+            .arg(&self.with_full_ver)
+            .arg(install_path_lib.join(&self.canonical));
+        let _ = ln_sf.status().unwrap();
+    }
+
+    pub(crate) fn install(
+        &self,
+        capi_config: &CApiConfig,
+        shared_lib: &PathBuf,
+        install_path_lib: &PathBuf,
+    ) -> anyhow::Result<()> {
+        if capi_config.library.versioning {
+            copy(shared_lib, install_path_lib.join(&self.with_full_ver))?;
+            self.links(&install_path_lib);
+        } else {
+            copy(shared_lib, install_path_lib.join(&self.canonical))?;
+        }
+        Ok(())
+    }
+}
+
 pub fn cinstall(
     ws: &Workspace,
     capi_config: &CApiConfig,
@@ -81,10 +174,6 @@ pub fn cinstall(
     paths: InstallPaths,
 ) -> anyhow::Result<()> {
     use std::fs;
-
-    let target = &build_targets.target;
-    let os = &target.os;
-    let env = &target.env;
 
     let destdir = &paths.destdir;
 
@@ -114,7 +203,7 @@ pub fn cinstall(
     if capi_config.header.enabled {
         fs::create_dir_all(&install_path_include)?;
         ws.config().shell().status("Installing", "header file")?;
-        let include = &build_targets.include.unwrap();
+        let include = &build_targets.include.clone().unwrap();
         fs::copy(
             include,
             install_path_include.join(include.file_name().unwrap()),
@@ -133,51 +222,14 @@ pub fn cinstall(
         ws.config().shell().status("Installing", "shared library")?;
 
         let lib_name = &capi_config.library.name;
-        let lib_version = &capi_config.library.version;
-
-        let link_libs = |lib: &str, lib_with_major_ver: &str, lib_with_full_ver: &str| {
-            let mut ln_sf = std::process::Command::new("ln");
-            ln_sf.arg("-sf");
-            ln_sf
-                .arg(lib_with_full_ver)
-                .arg(install_path_lib.join(lib_with_major_ver));
-            let _ = ln_sf.status().unwrap();
-            let mut ln_sf = std::process::Command::new("ln");
-            ln_sf.arg("-sf");
-            ln_sf.arg(lib_with_full_ver).arg(install_path_lib.join(lib));
-            let _ = ln_sf.status().unwrap();
-        };
-
-        match (os.as_str(), env.as_str()) {
-            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => {
-                let lib = &format!("lib{}.so", lib_name);
-                let lib_with_major_ver = &format!("{}.{}", lib, lib_version.major);
-                let lib_with_full_ver = &format!(
-                    "{}.{}.{}",
-                    lib_with_major_ver, lib_version.minor, lib_version.patch
-                );
-                if capi_config.library.versioning {
-                    copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
-                    link_libs(lib, lib_with_major_ver, lib_with_full_ver);
-                } else {
-                    copy(shared_lib, install_path_lib.join(lib))?;
-                }
+        let lib_type = LibType::from_build_targets(&build_targets);
+        match lib_type {
+            LibType::So | LibType::Dylib => {
+                let lib =
+                    UnixLibNames::new(lib_type, lib_name, &capi_config.library.version).unwrap();
+                lib.install(&capi_config, &shared_lib, &install_path_lib)?;
             }
-            ("macos", _) => {
-                let lib = &format!("lib{}.dylib", lib_name);
-                let lib_with_major_ver = &format!("lib{}.{}.dylib", lib_name, lib_version.major);
-                let lib_with_full_ver = &format!(
-                    "lib{}.{}.{}.{}.dylib",
-                    lib_name, lib_version.major, lib_version.minor, lib_version.patch
-                );
-                if capi_config.library.versioning {
-                    copy(shared_lib, install_path_lib.join(lib_with_full_ver))?;
-                    link_libs(lib, lib_with_major_ver, lib_with_full_ver);
-                } else {
-                    copy(shared_lib, install_path_lib.join(lib))?;
-                }
-            }
-            ("windows", _) => {
+            LibType::Windows => {
                 let install_path_bin = append_to_destdir(destdir, &paths.bindir);
                 fs::create_dir_all(&install_path_bin)?;
 
@@ -190,7 +242,6 @@ pub fn cinstall(
                 let def_name = def.file_name().unwrap();
                 copy(def, install_path_lib.join(def_name))?;
             }
-            _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         }
     }
 
