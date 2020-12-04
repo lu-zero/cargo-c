@@ -13,7 +13,7 @@ use anyhow::Error;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
-use crate::install::InstallPaths;
+use crate::install::{InstallPaths, LibType, UnixLibNames};
 use crate::pkg_config_gen::PkgConfig;
 use crate::static_libs::get_static_libs_for_target;
 use crate::target;
@@ -641,6 +641,18 @@ pub fn cbuild(
                 build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
             } else {
                 copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
+            }
+        }
+
+        // Generate versioned links in target dir so the lib can be used uninstalled
+        if let Some(ref shared_lib) = build_targets.shared_lib {
+            if capi_config.library.versioning {
+                let lib_name = &capi_config.library.name;
+                let lib_type = LibType::from_build_targets(&build_targets);
+                let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version);
+                if let Some(lib) = lib {
+                    lib.install(&capi_config, &shared_lib, &root_output)?;
+                }
             }
         }
 
