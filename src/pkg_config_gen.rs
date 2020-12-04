@@ -129,8 +129,8 @@ impl PkgConfig {
 
     pub fn set_libs_private<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
-        self.libs.clear();
-        self.libs.push(lib);
+        self.libs_private.clear();
+        self.libs_private.push(lib);
         self
     }
 
@@ -142,14 +142,14 @@ impl PkgConfig {
 
     pub fn set_cflags<S: AsRef<str>>(&mut self, flag: S) -> &mut Self {
         let flag = flag.as_ref().to_owned();
-        self.libs.clear();
-        self.libs.push(flag);
+        self.cflags.clear();
+        self.cflags.push(flag);
         self
     }
 
     pub fn add_cflag<S: AsRef<str>>(&mut self, flag: S) -> &mut Self {
         let flag = flag.as_ref();
-        self.libs.push(flag.to_owned());
+        self.cflags.push(flag.to_owned());
         self
     }
 
