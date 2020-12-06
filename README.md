@@ -1,7 +1,7 @@
 # Cargo C-ABI helpers
 
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Crates.io](https://img.shields.io/crates/v/cargo-c.svg)
+[![Crates.io](https://img.shields.io/crates/v/cargo-c.svg)](https://crates.io/crates/cargo-c)
 [![Build Status](https://github.com/lu-zero/cargo-c/workflows/Rust/badge.svg)](https://github.com/lu-zero/cargo-c/actions?query=workflow:Rust)
 [![cargo-c chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://rust-av.zulipchat.com/#narrow/stream/254255-cargo-c)
 
