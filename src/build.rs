@@ -148,7 +148,13 @@ fn build_def_file(
             .status("Building", ".def file using dumpbin")?;
 
         let txt_path = targetdir.join(format!("{}.txt", name));
-        let mut dumpbin = std::process::Command::new("dumpbin");
+
+        let target_str = format!("{}-pc-windows-msvc", &target.arch);
+        let mut dumpbin = match cc::windows_registry::find(&target_str, "dumpbin.exe") {
+            Some(command) => command,
+            None => std::process::Command::new("dumpbin"),
+        };
+
         dumpbin
             .arg("/EXPORTS")
             .arg(targetdir.join(format!("{}.dll", name)));
