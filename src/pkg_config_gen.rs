@@ -118,6 +118,10 @@ impl PkgConfig {
         uninstalled.libdir = "${prefix}".into();
         // First libs item is the search path
         uninstalled.libs[0] = "-L${prefix}".into();
+        // First cflags item is the in include dir, if lib provides headers
+        if uninstalled.cflags[0].starts_with("-I") {
+            uninstalled.cflags[0] = "-I{prefix}".into();
+        }
 
         uninstalled
     }
