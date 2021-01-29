@@ -582,7 +582,7 @@ pub fn cbuild(
         ws.profiles(),
         config,
         compile_opts.build_config.requested_profile,
-        ws.features(),
+        ws.unstable_features(),
     )?;
 
     // TODO: there must be a simpler way to get the right path.
