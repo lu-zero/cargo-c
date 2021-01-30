@@ -154,3 +154,7 @@ versioning = false
 
 [dev.to]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn
 [using]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn#using-cargoc
+
+## Sponsors
+
+- [@Darkspirit](https://github.com/Darkspirit) is sponsoring [@lu-zero](https://github.com/lu-zero).
