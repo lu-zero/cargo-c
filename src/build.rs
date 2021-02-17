@@ -95,7 +95,11 @@ fn build_pc_file(
     Ok(())
 }
 
-fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Result<()> {
+fn patch_target(
+    ws: &mut Workspace,
+    libkinds: &[&str],
+    capi_config: &CApiConfig,
+) -> anyhow::Result<()> {
     use cargo::core::compiler::CrateType;
 
     let pkg = ws.current_mut()?;
@@ -116,6 +120,7 @@ fn patch_lib_kind_in_target(ws: &mut Workspace, libkinds: &[&str]) -> anyhow::Re
     for target in targets.iter_mut() {
         if target.is_lib() {
             target.set_kind(TargetKind::Lib(kinds.clone()));
+            target.set_name(&capi_config.library.name);
         }
     }
 
@@ -620,8 +625,6 @@ pub fn cbuild(
         .map_or_else(|| vec!["staticlib", "cdylib"], |v| v.collect::<Vec<_>>());
     let only_staticlib = !libkinds.contains(&"cdylib");
 
-    patch_lib_kind_in_target(ws, &libkinds)?;
-
     let name = &ws
         .current()?
         .manifest()
@@ -633,6 +636,10 @@ pub fn cbuild(
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
     let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
+
+    patch_target(ws, &libkinds, &capi_config)?;
+
+    let name = &capi_config.library.name;
 
     let install_paths = InstallPaths::new(name, args, &capi_config);
 
