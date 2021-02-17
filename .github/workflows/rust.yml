@@ -46,7 +46,7 @@ jobs:
       - name: Install grcov
         env:
           LINK: https://github.com/mozilla/grcov/releases/download
-          GRCOV_VERSION: 0.5.15
+          GRCOV_VERSION: 0.7.1
         run: |
           curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
           tar xj -C $HOME/.cargo/bin
@@ -57,6 +57,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
+          components: llvm-tools-preview
 
       - name: Run cargo clean
         run: |
@@ -66,23 +67,22 @@ jobs:
         env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: >
-            -Zprofile -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off
-            -Cpanic=abort -Zpanic_abort_tests
+            -Zinstrument-coverage
           RUSTDOCFLAGS: >
-            -Zprofile -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off
-            -Cpanic=abort -Zpanic_abort_tests
+            -Zinstrument-coverage
         run: |
+          cargo build
           cargo test --no-fail-fast --verbose
 
       - name: Run grcov
         id: coverage
-        uses: actions-rs/grcov@v0.1
+        run: grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
 
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ${{ steps.coverage.outputs.report }}
+          path-to-lcov: coverage.lcov
 
   Ubuntu-Stable:
 
