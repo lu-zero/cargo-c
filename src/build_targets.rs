@@ -37,7 +37,12 @@ impl BuildTargets {
         let env = &target.env;
 
         let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
-            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) | ("android", _) => {
+            ("none", _)
+            | ("linux", _)
+            | ("freebsd", _)
+            | ("dragonfly", _)
+            | ("netbsd", _)
+            | ("android", _) => {
                 let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
                 let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)
@@ -70,7 +75,9 @@ impl BuildTargets {
         } else {
             None
         };
-        let shared_lib = if libkinds.contains(&"cdylib") {
+
+        // Bare metal does not support shared objects
+        let shared_lib = if libkinds.contains(&"cdylib") && os.as_str() != "none" {
             Some(shared_lib)
         } else {
             None
