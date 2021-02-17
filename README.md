@@ -34,7 +34,7 @@ $ cargo cbuild --destdir=${D} --prefix=/usr --libdir=/usr/lib64
 ```
 ``` sh
 # build the library, create the .h header, create the .pc file, build and run the tests
-$ cargo ctest 
+$ cargo ctest
 ```
 ``` sh
 # build the library, create the .h header, create the .pc file and install all of it
@@ -52,7 +52,7 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
   the first member is the crate you want to export, that means that you might
   have [to add a "." member at the start of the list][diff-3].
 - ~~Since Rust 1.38, also add "staticlib" to the "lib" `crate-type`.~~ Do not specify the `crate-type`, cargo-c will add the correct library target by itself.
-- You may use the feature `capi` to add C-API-specific optional dependencies. 
+- You may use the feature `capi` to add C-API-specific optional dependencies.
   > **NOTE**: It must be always present in `Cargo.toml`
 - Remember to [add][diff-4] a [`cbindgen.toml`][cbindgen-toml] and fill it with
   at least the include guard and probably you want to set the language to C (it
@@ -158,3 +158,7 @@ versioning = false
 ## Sponsors
 
 - [@Darkspirit](https://github.com/Darkspirit) is sponsoring [@lu-zero](https://github.com/lu-zero).
+
+## Acknowledgements
+
+This software has been partially developed in the scope of the H2020 project SIFIS-Home with GA n. 952652.
