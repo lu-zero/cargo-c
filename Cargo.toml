@@ -1,6 +1,6 @@
 [package]
 name = "cargo-c"
-version = "0.7.2+cargo-0.50"
+version = "0.7.2+cargo-0.51"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
 license = "MIT"
@@ -27,12 +27,12 @@ name = "cargo-ctest"
 path = "src/bin/ctest.rs"
 
 [dependencies]
-cargo = "0.50"
+cargo = "0.51"
 semver = "0.10"
 log = "0.4"
 structopt = "0.3"
 regex = "1"
-cbindgen = "0.16"
+cbindgen = "0.17"
 toml = "0.5"
 serde = "=1.0.121"
 serde_derive = "1.0"
