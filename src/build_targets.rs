@@ -31,7 +31,7 @@ impl BuildTargets {
             None
         };
 
-        let lib_name = &capi_config.library.name;
+        let lib_name = name;
 
         let os = &target.os;
         let env = &target.env;
