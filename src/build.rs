@@ -1,8 +1,10 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-use cargo::core::profiles::Profiles;
+use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
@@ -15,7 +17,6 @@ use semver::Version;
 use crate::build_targets::BuildTargets;
 use crate::install::{InstallPaths, LibType, UnixLibNames};
 use crate::pkg_config_gen::PkgConfig;
-use crate::static_libs::get_static_libs_for_target;
 use crate::target;
 
 /// Build the C header
@@ -252,6 +253,13 @@ struct FingerPrint<'a> {
     root_output: &'a PathBuf,
     build_targets: &'a BuildTargets,
     install_paths: &'a InstallPaths,
+    static_libs: &'a str,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Cache {
+    hash: u64,
+    static_libs: String,
 }
 
 impl<'a> FingerPrint<'a> {
@@ -266,6 +274,7 @@ impl<'a> FingerPrint<'a> {
             root_output,
             build_targets,
             install_paths,
+            static_libs: "",
         }
     }
 
@@ -304,25 +313,32 @@ impl<'a> FingerPrint<'a> {
             .join(format!("cargo-c-{}.cache", self.name))
     }
 
-    fn load_previous(&self) -> anyhow::Result<u64> {
+    fn load_previous(&self) -> anyhow::Result<Cache> {
         let mut f = std::fs::File::open(&self.path())?;
-        let mut buf = [0; 8];
-        f.read_exact(&mut buf)?;
+        let mut cache_str = String::new();
+        f.read_to_string(&mut cache_str)?;
+        let cache = toml::de::from_str(&cache_str)?;
 
-        Ok(u64::from_le_bytes(buf))
+        Ok(cache)
     }
 
     fn is_valid(&self) -> bool {
         match (self.load_previous(), self.hash()) {
-            (Ok(prev), Ok(Some(current))) => prev == current,
+            (Ok(prev), Ok(Some(current))) => prev.hash == current,
             _ => false,
         }
     }
 
     fn store(&self) -> anyhow::Result<()> {
         let mut f = std::fs::File::create(&self.path())?;
+
         if let Some(hash) = self.hash()? {
-            f.write_all(&hash.to_le_bytes())?;
+            let cache = Cache {
+                hash,
+                static_libs: self.static_libs.to_owned(),
+            };
+            let buf = toml::ser::to_vec(&cache)?;
+            f.write_all(&buf)?;
         }
 
         Ok(())
@@ -519,7 +535,63 @@ pub fn compile_options(
         FilterRule::none(),
     );
 
+    compile_opts.build_config.unit_graph = false;
+
     Ok(compile_opts)
+}
+
+#[derive(Default)]
+struct Exec {
+    ran: AtomicBool,
+    link_line: Mutex<String>,
+}
+
+use cargo::core::*;
+use cargo::util::ProcessBuilder;
+use cargo::CargoResult;
+
+impl Executor for Exec {
+    fn exec(
+        &self,
+        cmd: &ProcessBuilder,
+        _id: PackageId,
+        _target: &Target,
+        _mode: CompileMode,
+        on_stdout_line: &mut dyn FnMut(&str) -> CargoResult<()>,
+        on_stderr_line: &mut dyn FnMut(&str) -> CargoResult<()>,
+    ) -> CargoResult<()> {
+        self.ran.store(true, Ordering::Relaxed);
+        cmd.exec_with_streaming(
+            on_stdout_line,
+            &mut |s| {
+                #[derive(serde::Deserialize, Debug)]
+                struct Message {
+                    message: String,
+                    level: String,
+                }
+
+                if let Ok(msg) = serde_json::from_str::<Message>(s) {
+                    // suppress the native-static-libs messages
+                    if msg.level == "note" {
+                        if msg.message.starts_with("Link against the following native artifacts when linking against this static library") {
+                            Ok(())
+                        } else if let Some(link_line) = msg.message.strip_prefix("native-static-libs:") {
+                            *self.link_line.lock().unwrap() = link_line.to_string();
+                            Ok(())
+                        } else {
+                            on_stderr_line(s)
+                        }
+                    } else {
+                        on_stderr_line(s)
+                    }
+                } else {
+                    on_stderr_line(s)
+                }
+            },
+            false,
+        )
+        .map(drop)
+    }
 }
 
 pub fn cbuild(
@@ -564,18 +636,6 @@ pub fn cbuild(
 
     let install_paths = InstallPaths::new(name, args, &capi_config);
 
-    let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &capi_config);
-
-    let static_libs = get_static_libs_for_target(
-        rustc_target.verbatim.as_ref(),
-        &ws.target_dir().as_path_unlocked().to_path_buf(),
-    )?;
-
-    if only_staticlib {
-        pc.add_lib(&static_libs);
-    }
-    pc.add_lib_private(&static_libs);
-
     let mut compile_opts = compile_options(ws, config, args, CompileMode::Build)?;
 
     let profiles = Profiles::new(
@@ -606,17 +666,45 @@ pub fn cbuild(
     link_args.push("--cfg".into());
     link_args.push("cargo_c".into());
 
+    link_args.push("--print".into());
+    link_args.push("native-static-libs".into());
+
     compile_opts.target_rustc_args = Some(link_args);
 
     let build_targets =
         BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
 
-    // TODO: check the root_output
-    let _r = ops::compile(ws, &compile_opts)?;
+    let mut finger_print = FingerPrint::new(&name, &root_output, &build_targets, &install_paths);
 
-    let finger_print = FingerPrint::new(&name, &root_output, &build_targets, &install_paths);
+    let pristine = finger_print.load_previous().is_err();
 
-    if !finger_print.is_valid() {
+    if pristine {
+        // If the cache is somehow missing force a full rebuild;
+        compile_opts.build_config.force_rebuild = true;
+    }
+
+    let exec = Arc::new(Exec::default());
+    let _r = ops::compile_with_exec(ws, &compile_opts, &(exec.clone() as Arc<dyn Executor>))?;
+
+    if pristine {
+        // restore the default to make sure the tests do not trigger a second rebuild.
+        compile_opts.build_config.force_rebuild = false;
+    }
+
+    let new_build = exec.ran.load(Ordering::Relaxed);
+    let mut static_libs = exec.link_line.lock().unwrap().clone();
+
+    // it is a new build, build the additional files and update update the cache
+    // if the hash value does not match.
+    if new_build && !finger_print.is_valid() {
+        finger_print.static_libs = &static_libs;
+
+        let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &capi_config);
+        if only_staticlib {
+            pc.add_lib(&static_libs);
+        }
+        pc.add_lib_private(&static_libs);
+
         build_pc_file(&ws, &name, &root_output, &pc)?;
         let pc_uninstalled = pc.uninstalled(&root_output);
         build_pc_file(
@@ -663,6 +751,9 @@ pub fn cbuild(
         }
 
         finger_print.store()?;
+    } else {
+        // It is not a new build, recover the static_libs value from the cache
+        static_libs = finger_print.load_previous()?.static_libs;
     }
 
     Ok((
