@@ -620,9 +620,13 @@ pub fn cbuild(
     };
 
     let rustc_target = target::Target::new(target.as_ref())?;
-    let libkinds = args
-        .values_of("library-type")
-        .map_or_else(|| vec!["staticlib", "cdylib"], |v| v.collect::<Vec<_>>());
+    let libkinds = args.values_of("library-type").map_or_else(
+        || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
+            ("none", _) | (_, "musl") => vec!["staticlib"],
+            _ => vec!["staticlib", "cdylib"],
+        },
+        |v| v.collect::<Vec<_>>(),
+    );
     let only_staticlib = !libkinds.contains(&"cdylib");
 
     let name = &ws
