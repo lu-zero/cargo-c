@@ -668,19 +668,19 @@ pub fn cbuild(
         )
         .join(&profiles.get_dir_name());
 
-    let mut link_args: Vec<String> = rustc_target
+    let mut rustc_args: Vec<String> = rustc_target
         .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
         .into_iter()
         .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
         .collect();
 
-    link_args.push("--cfg".into());
-    link_args.push("cargo_c".into());
+    rustc_args.push("--cfg".into());
+    rustc_args.push("cargo_c".into());
 
-    link_args.push("--print".into());
-    link_args.push("native-static-libs".into());
+    rustc_args.push("--print".into());
+    rustc_args.push("native-static-libs".into());
 
-    compile_opts.target_rustc_args = Some(link_args);
+    compile_opts.target_rustc_args = Some(rustc_args);
 
     let build_targets =
         BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
