@@ -680,6 +680,11 @@ pub fn cbuild(
     rustc_args.push("--print".into());
     rustc_args.push("native-static-libs".into());
 
+    if args.is_present("crt-static") {
+        rustc_args.push("-C".into());
+        rustc_args.push("target-feature=+crt-static".into());
+    }
+
     compile_opts.target_rustc_args = Some(rustc_args);
 
     let build_targets =
