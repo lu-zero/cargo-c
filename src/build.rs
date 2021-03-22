@@ -521,12 +521,13 @@ fn load_manifest_capi_config(
     })
 }
 
-pub fn compile_options(
+fn compile_options(
     ws: &Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
+    use cargo::core::compiler::CompileKind;
     let mut compile_opts =
         args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
 
@@ -541,6 +542,14 @@ pub fn compile_options(
     );
 
     compile_opts.build_config.unit_graph = false;
+
+    let rustc = config.load_global_rustc(Some(ws))?;
+
+    // Always set the target, requested_kinds is a vec of a single element.
+    if compile_opts.build_config.requested_kinds[0].is_host() {
+        compile_opts.build_config.requested_kinds =
+            CompileKind::from_requested_targets(config, &[rustc.host.to_string()])?
+    }
 
     Ok(compile_opts)
 }
@@ -610,16 +619,17 @@ pub fn cbuild(
     String,
     CompileOptions,
 )> {
+    let rustc = config.load_global_rustc(Some(ws))?;
     let targets = args.targets();
     let target = match targets.len() {
-        0 => None,
-        1 => Some(targets[0].clone()),
+        0 => rustc.host.to_string(),
+        1 => targets[0].to_string(),
         _ => {
             anyhow::bail!("Multiple targets not supported yet");
         }
     };
 
-    let rustc_target = target::Target::new(target.as_ref())?;
+    let rustc_target = target::Target::new(&target)?;
     let libkinds = args.values_of("library-type").map_or_else(
         || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
             ("none", _) | (_, "musl") => vec!["staticlib"],
@@ -661,11 +671,7 @@ pub fn cbuild(
         .target_dir()
         .as_path_unlocked()
         .to_path_buf()
-        .join(
-            target
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(".")),
-        )
+        .join(PathBuf::from(target))
         .join(&profiles.get_dir_name());
 
     let mut rustc_args: Vec<String> = rustc_target

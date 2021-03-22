@@ -17,15 +17,12 @@ pub struct Target {
 }
 
 impl Target {
-    pub fn new<T: AsRef<std::ffi::OsStr>>(target: Option<T>) -> Result<Self, anyhow::Error> {
+    pub fn new<T: AsRef<std::ffi::OsStr>>(target: T) -> Result<Self, anyhow::Error> {
         let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
         let mut cmd = std::process::Command::new(rustc);
 
         cmd.arg("--print").arg("cfg");
-
-        if let Some(t) = target.as_ref() {
-            cmd.arg("--target").arg(t);
-        }
+        cmd.arg("--target").arg(target);
 
         let out = cmd.output()?;
         if out.status.success() {
