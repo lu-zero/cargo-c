@@ -157,7 +157,7 @@ versioning = false
 
 ## Sponsors
 
-- [@Darkspirit](https://github.com/Darkspirit) is sponsoring [@lu-zero](https://github.com/lu-zero).
+- [@Darkspirit](https://github.com/Darkspirit) is sponsored [@lu-zero](https://github.com/lu-zero).
 
 ## Acknowledgements
 
