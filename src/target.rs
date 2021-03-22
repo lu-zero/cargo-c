@@ -14,7 +14,6 @@ pub struct Target {
     // pub vendor: String,
     pub os: String,
     pub env: String,
-    pub verbatim: Option<std::ffi::OsString>,
 }
 
 impl Target {
@@ -48,7 +47,6 @@ impl Target {
                 // vendor: match_re(vendor_re, s),
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
-                verbatim: target.map(|v| v.as_ref().to_os_string()),
             })
         } else {
             Err(anyhow!("Cannot run {:?}", cmd))
