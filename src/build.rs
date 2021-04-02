@@ -674,12 +674,7 @@ pub fn cbuild(
 
     let mut compile_opts = compile_options(ws, config, args, default_profile, CompileMode::Build)?;
 
-    let profiles = Profiles::new(
-        ws.profiles(),
-        config,
-        compile_opts.build_config.requested_profile,
-        ws.unstable_features(),
-    )?;
+    let profiles = Profiles::new(&ws, compile_opts.build_config.requested_profile)?;
 
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
@@ -848,7 +843,7 @@ pub fn ctest(
         None => Ok(()),
         Some(err) => {
             let context = anyhow::format_err!("{}", err.hint(&ws, &ops.compile_opts));
-            let e = match err.exit.as_ref().and_then(|e| e.code()) {
+            let e = match err.code {
                 // Don't show "process didn't exit successfully" for simple errors.
                 Some(i) if errors::is_simple_exit_code(i) => CliError::new(context, i),
                 Some(i) => CliError::new(Error::from(err).context(context), i),
