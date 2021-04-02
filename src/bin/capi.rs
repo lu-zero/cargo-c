@@ -12,8 +12,8 @@ use structopt::clap::*;
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
-    let cli_build = subcommand_cli("build", "Build the crate C-API");
-    let cli_install = subcommand_cli("install", "Install the crate C-API");
+    let cli_build = subcommand_build("build", "Build the crate C-API");
+    let cli_install = subcommand_install("install", "Install the crate C-API");
     let cli_test = subcommand_test("test");
 
     let mut app = app_from_crate!()
@@ -33,9 +33,11 @@ fn main() -> CliResult {
 
     let args = app.clone().get_matches();
 
-    let (cmd, subcommand_args) = match args.subcommand() {
+    let (cmd, subcommand_args, default_profile) = match args.subcommand() {
         ("capi", Some(args)) => match args.subcommand() {
-            (cmd, Some(args)) if cmd == "build" || cmd == "install" || cmd == "test" => (cmd, args),
+            ("build", Some(args)) => ("build", args, "dev"),
+            ("test", Some(args)) => ("test", args, "dev"),
+            ("install", Some(args)) => ("install", args, "release"),
             _ => {
                 // No subcommand provided.
                 app.print_help()?;
@@ -58,7 +60,7 @@ fn main() -> CliResult {
     let mut ws = subcommand_args.workspace(&config)?;
 
     let (build_targets, install_paths, capi_config, static_libs, compile_opts) =
-        cbuild(&mut ws, &config, &subcommand_args)?;
+        cbuild(&mut ws, &config, &subcommand_args, default_profile)?;
 
     if cmd == "install" {
         cinstall(&ws, &capi_config, build_targets, install_paths)?;

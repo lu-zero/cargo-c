@@ -525,11 +525,15 @@ fn compile_options(
     ws: &Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
+    default_profile: &str,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
         args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
+
+    compile_opts.build_config.requested_profile =
+        args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
 
     patch_capi_feature(&mut compile_opts, ws)?;
 
@@ -612,6 +616,7 @@ pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
+    default_profile: &str,
 ) -> anyhow::Result<(
     BuildTargets,
     InstallPaths,
@@ -657,7 +662,7 @@ pub fn cbuild(
 
     let install_paths = InstallPaths::new(name, args, &capi_config);
 
-    let mut compile_opts = compile_options(ws, config, args, CompileMode::Build)?;
+    let mut compile_opts = compile_options(ws, config, args, default_profile, CompileMode::Build)?;
 
     let profiles = Profiles::new(
         ws.profiles(),

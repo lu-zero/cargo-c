@@ -3,14 +3,14 @@ use cargo::CliResult;
 use cargo::Config;
 
 use cargo_c::build::*;
-use cargo_c::cli::subcommand_cli;
+use cargo_c::cli::subcommand_build;
 
 use structopt::clap::*;
 
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
-    let subcommand = subcommand_cli("cbuild", "Build the crate C-API");
+    let subcommand = subcommand_build("cbuild", "Build the crate C-API");
 
     let mut app = app_from_crate!()
         .settings(&[
@@ -40,7 +40,7 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let _ = cbuild(&mut ws, &config, &subcommand_args)?;
+    let _ = cbuild(&mut ws, &config, &subcommand_args, "dev")?;
 
     Ok(())
 }

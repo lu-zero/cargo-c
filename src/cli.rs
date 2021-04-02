@@ -63,7 +63,6 @@ fn base_cli() -> App<'static, 'static> {
                 .hidden(true),
         )
         .arg_jobs()
-        .arg_release("Build artifacts in release mode, with optimizations")
         .arg_profile("Build artifacts with the specified profile")
         .arg_features()
         .arg_target_triple("Build for the target triple")
@@ -73,7 +72,7 @@ fn base_cli() -> App<'static, 'static> {
         .arg_build_plan()
 }
 
-pub fn subcommand_cli(name: &str, about: &'static str) -> App<'static, 'static> {
+pub fn subcommand_build(name: &str, about: &'static str) -> App<'static, 'static> {
     base_cli()
         .name(name)
         .about(about)
@@ -87,11 +86,39 @@ pub fn subcommand_cli(name: &str, about: &'static str) -> App<'static, 'static> 
             .case_insensitive(true)
             .possible_values(&["cdylib", "staticlib"]),
         )
+        .arg_release("Build artifacts in release mode, with optimizations")
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
 the manifest. The default profile for this command is `dev`, but passing
 the --release flag will use the `release` profile instead.
+",
+        )
+}
+
+pub fn subcommand_install(name: &str, about: &'static str) -> App<'static, 'static> {
+    base_cli()
+        .name(name)
+        .about(about)
+        .arg(
+            multi_opt(
+                "library-type",
+                "LIBRARY-TYPE",
+                "Build only a type of library",
+            )
+            .global(true)
+            .case_insensitive(true)
+            .possible_values(&["cdylib", "staticlib"]),
+        )
+        .arg(opt("debug", "Build in debug mode instead of release mode"))
+        .arg_release(
+            "Build artifacts in release mode, with optimizations. This is the default behavior.",
+        )
+        .after_help(
+            "
+Compilation can be configured via the use of profiles which are configured in
+the manifest. The default profile for this command is `release`, but passing
+the --debug flag will use the `dev` profile instead.
 ",
         )
 }
@@ -107,6 +134,7 @@ pub fn subcommand_test(name: &str) -> App<'static, 'static> {
                 .multiple(true)
                 .last(true),
         )
+        .arg_release("Build artifacts in release mode, with optimizations")
         .arg(opt("no-run", "Compile, but don't run tests"))
         .arg(opt("no-fail-fast", "Run all tests regardless of failure"))
 }
