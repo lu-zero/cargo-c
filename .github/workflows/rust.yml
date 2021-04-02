@@ -73,7 +73,8 @@ jobs:
         run: |
           cargo build
           cargo test --no-fail-fast --verbose
-          cargo run --bin cargo-cbuild -- cbuild --manifest-path=example-project/Cargo.toml
+          cargo run --bin cargo-cinstall -- cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
+          cargo run --bin cargo-capi -- capi
 
       - name: Run grcov
         id: coverage
