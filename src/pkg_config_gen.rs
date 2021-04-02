@@ -56,9 +56,11 @@ impl PkgConfig {
         if let Some(subdir) = &capi_config.library.install_subdir {
             libdir.push(subdir);
         }
-        let mut libs = Vec::new();
-        libs.push(format!("-L{}", libdir.display()));
-        libs.push(format!("-l{}", capi_config.library.name));
+
+        let libs = vec![
+            format!("-L{}", libdir.display()),
+            format!("-l{}", capi_config.library.name),
+        ];
 
         let cflags = if capi_config.header.enabled {
             if capi_config.header.subdirectory {
