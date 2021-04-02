@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -24,8 +24,8 @@ fn build_include_file(
     ws: &Workspace,
     name: &str,
     version: &Version,
-    root_output: &PathBuf,
-    root_path: &PathBuf,
+    root_output: &Path,
+    root_path: &Path,
 ) -> anyhow::Result<()> {
     ws.config()
         .shell()
@@ -60,8 +60,8 @@ fn build_include_file(
 fn copy_prebuilt_include_file(
     ws: &Workspace,
     name: &str,
-    root_output: &PathBuf,
-    root_path: &PathBuf,
+    root_output: &Path,
+    root_path: &Path,
 ) -> anyhow::Result<()> {
     ws.config()
         .shell()
@@ -80,7 +80,7 @@ fn copy_prebuilt_include_file(
 fn build_pc_file(
     ws: &Workspace,
     name: &str,
-    root_output: &PathBuf,
+    root_output: &Path,
     pc: &PkgConfig,
 ) -> anyhow::Result<()> {
     ws.config().shell().status("Building", "pkg-config file")?;
@@ -143,7 +143,7 @@ fn build_def_file(
     ws: &Workspace,
     name: &str,
     target: &target::Target,
-    targetdir: &PathBuf,
+    targetdir: &Path,
 ) -> anyhow::Result<()> {
     let os = &target.os;
     let env = &target.env;
@@ -213,8 +213,8 @@ fn build_implib_file(
     ws: &Workspace,
     name: &str,
     target: &target::Target,
-    targetdir: &PathBuf,
-    dlltool: &PathBuf,
+    targetdir: &Path,
+    dlltool: &Path,
 ) -> anyhow::Result<()> {
     let os = &target.os;
     let env = &target.env;
@@ -255,7 +255,7 @@ fn build_implib_file(
 
 struct FingerPrint<'a> {
     name: &'a str,
-    root_output: &'a PathBuf,
+    root_output: &'a Path,
     build_targets: &'a BuildTargets,
     install_paths: &'a InstallPaths,
     static_libs: &'a str,
@@ -270,7 +270,7 @@ struct Cache {
 impl<'a> FingerPrint<'a> {
     fn new(
         name: &'a str,
-        root_output: &'a PathBuf,
+        root_output: &'a Path,
         build_targets: &'a BuildTargets,
         install_paths: &'a InstallPaths,
     ) -> Self {
@@ -380,7 +380,7 @@ pub struct LibraryCApiConfig {
 
 fn load_manifest_capi_config(
     name: &str,
-    root_path: &PathBuf,
+    root_path: &Path,
     ws: &Workspace,
 ) -> anyhow::Result<CApiConfig> {
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;

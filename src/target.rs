@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::*;
 
@@ -54,8 +54,8 @@ impl Target {
     pub fn shared_object_link_args(
         &self,
         capi_config: &CApiConfig,
-        libdir: &PathBuf,
-        target_dir: &PathBuf,
+        libdir: &Path,
+        target_dir: &Path,
     ) -> Vec<String> {
         let mut lines = Vec::new();
 
