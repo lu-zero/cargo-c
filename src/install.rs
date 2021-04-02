@@ -9,8 +9,8 @@ use crate::build_targets::BuildTargets;
 
 use anyhow::Context;
 
-fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
-    let mut joined = destdir.clone();
+fn append_to_destdir(destdir: &Path, path: &Path) -> PathBuf {
+    let mut joined = destdir.to_path_buf();
     for component in path.components() {
         match component {
             Component::Prefix(_) | Component::RootDir => {}
@@ -22,45 +22,45 @@ fn append_to_destdir(destdir: &PathBuf, path: &PathBuf) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn append_to_destdir() {
         assert_eq!(
-            super::append_to_destdir(&PathBuf::from(r"/foo"), &PathBuf::from(r"/bar/./..")),
+            super::append_to_destdir(&Path::new(r"/foo"), &PathBuf::from(r"/bar/./..")),
             PathBuf::from(r"/foo/bar/./..")
         );
 
         assert_eq!(
-            super::append_to_destdir(&PathBuf::from(r"foo"), &PathBuf::from(r"bar")),
+            super::append_to_destdir(&Path::new(r"foo"), &PathBuf::from(r"bar")),
             PathBuf::from(r"foo/bar")
         );
 
         assert_eq!(
-            super::append_to_destdir(&PathBuf::from(r""), &PathBuf::from(r"")),
+            super::append_to_destdir(&Path::new(r""), &PathBuf::from(r"")),
             PathBuf::from(r"")
         );
 
         if cfg!(windows) {
             assert_eq!(
-                super::append_to_destdir(&PathBuf::from(r"X:\foo"), &PathBuf::from(r"Y:\bar")),
+                super::append_to_destdir(&Path::new(r"X:\foo"), &PathBuf::from(r"Y:\bar")),
                 PathBuf::from(r"X:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(&PathBuf::from(r"A:\foo"), &PathBuf::from(r"B:bar")),
+                super::append_to_destdir(&Path::new(r"A:\foo"), &PathBuf::from(r"B:bar")),
                 PathBuf::from(r"A:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(&PathBuf::from(r"\foo"), &PathBuf::from(r"\bar")),
+                super::append_to_destdir(&Path::new(r"\foo"), &PathBuf::from(r"\bar")),
                 PathBuf::from(r"\foo\bar")
             );
 
             assert_eq!(
                 super::append_to_destdir(
-                    &PathBuf::from(r"C:\dest"),
-                    &PathBuf::from(r"\\server\share\foo\bar")
+                    &Path::new(r"C:\dest"),
+                    &Path::new(r"\\server\share\foo\bar")
                 ),
                 PathBuf::from(r"C:\\dest\\foo\\bar")
             );
@@ -135,7 +135,7 @@ impl UnixLibNames {
         }
     }
 
-    fn links(&self, install_path_lib: &PathBuf) {
+    fn links(&self, install_path_lib: &Path) {
         let mut ln_sf = std::process::Command::new("ln");
         ln_sf.arg("-sf");
         ln_sf
@@ -154,12 +154,12 @@ impl UnixLibNames {
     pub(crate) fn install(
         &self,
         capi_config: &CApiConfig,
-        shared_lib: &PathBuf,
-        install_path_lib: &PathBuf,
+        shared_lib: &Path,
+        install_path_lib: &Path,
     ) -> anyhow::Result<()> {
         if capi_config.library.versioning {
             copy(shared_lib, install_path_lib.join(&self.with_full_ver))?;
-            self.links(&install_path_lib);
+            self.links(install_path_lib);
         } else {
             copy(shared_lib, install_path_lib.join(&self.canonical))?;
         }

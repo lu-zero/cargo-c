@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::build::CApiConfig;
 use crate::target::Target;
@@ -18,7 +18,7 @@ impl BuildTargets {
     pub fn new(
         name: &str,
         target: &Target,
-        targetdir: &PathBuf,
+        targetdir: &Path,
         libkinds: &[&str],
         capi_config: &CApiConfig,
     ) -> BuildTargets {

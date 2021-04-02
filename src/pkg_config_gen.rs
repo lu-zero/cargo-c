@@ -2,7 +2,7 @@
 
 use crate::build::CApiConfig;
 use crate::install::InstallPaths;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct PkgConfig {
@@ -111,9 +111,9 @@ impl PkgConfig {
         pc
     }
 
-    pub(crate) fn uninstalled(&self, output: &PathBuf) -> Self {
+    pub(crate) fn uninstalled(&self, output: &Path) -> Self {
         let mut uninstalled = self.clone();
-        uninstalled.prefix = output.clone();
+        uninstalled.prefix = output.to_path_buf();
         uninstalled.includedir = "${prefix}".into();
         uninstalled.libdir = "${prefix}".into();
         // First libs item is the search path
