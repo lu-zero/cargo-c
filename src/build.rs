@@ -77,13 +77,7 @@ fn copy_prebuilt_include_file(
     Ok(())
 }
 
-fn build_pc_file(
-    ws: &Workspace,
-    name: &str,
-    root_output: &Path,
-    pc: &PkgConfig,
-) -> anyhow::Result<()> {
-    ws.config().shell().status("Building", "pkg-config file")?;
+fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Result<()> {
     let pc_path = root_output.join(&format!("{}.pc", name));
 
     let mut out = std::fs::File::create(pc_path)?;
@@ -93,6 +87,22 @@ fn build_pc_file(
     out.write_all(buf.as_ref())?;
 
     Ok(())
+}
+
+fn build_pc_files(
+    ws: &Workspace,
+    name: &str,
+    root_output: &Path,
+    pc: &PkgConfig,
+) -> anyhow::Result<()> {
+    ws.config().shell().status("Building", "pkg-config files")?;
+    build_pc_file(name, root_output, pc)?;
+    let pc_uninstalled = pc.uninstalled(&root_output);
+    build_pc_file(
+        &format!("{}-uninstalled", name),
+        root_output,
+        &pc_uninstalled,
+    )
 }
 
 fn patch_target(
@@ -732,14 +742,7 @@ pub fn cbuild(
         }
         pc.add_lib_private(&static_libs);
 
-        build_pc_file(&ws, &name, &root_output, &pc)?;
-        let pc_uninstalled = pc.uninstalled(&root_output);
-        build_pc_file(
-            &ws,
-            &format!("{}-uninstalled", name),
-            &root_output,
-            &pc_uninstalled,
-        )?;
+        build_pc_files(&ws, &name, &root_output, &pc)?;
 
         if !only_staticlib {
             build_def_file(&ws, &name, &rustc_target, &root_output)?;
