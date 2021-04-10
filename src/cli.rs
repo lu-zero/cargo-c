@@ -38,6 +38,7 @@ struct Common {
 
 fn base_cli() -> App<'static, 'static> {
     Common::clap()
+        .setting(AppSettings::ColoredHelp)
         .arg(opt("version", "Print version info and exit").short("V"))
         .arg(
             opt(

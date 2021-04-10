@@ -30,7 +30,7 @@ path = "src/bin/ctest.rs"
 cargo = "0.52"
 semver = "0.10"
 log = "0.4"
-structopt = "0.3"
+structopt = { version="0.3", features=["color"] }
 regex = "1"
 cbindgen = "0.19"
 toml = "0.5"
