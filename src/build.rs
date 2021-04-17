@@ -364,6 +364,7 @@ pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
     pub library: LibraryCApiConfig,
+    pub data_config: SharedDataCApiConfig,
 }
 
 pub struct HeaderCApiConfig {
@@ -386,6 +387,13 @@ pub struct LibraryCApiConfig {
     pub version: Version,
     pub install_subdir: Option<String>,
     pub versioning: bool,
+}
+
+#[derive(Debug)]
+pub struct SharedDataCApiConfig {
+    pub enabled: bool,
+    pub install_subdir: String,
+    pub data_origin_dir: String,
 }
 
 fn load_manifest_capi_config(
@@ -524,11 +532,55 @@ fn load_manifest_capi_config(
         versioning,
     };
 
+    let data_config = load_manifest_shared_data_capi_config(capi, name);
+    dbg!(&data_config);
+
     Ok(CApiConfig {
         header,
         pkg_config,
         library,
+        data_config,
     })
+}
+
+fn load_manifest_shared_data_capi_config(
+    capi: Option<&toml::Value>,
+    name: &str,
+) -> SharedDataCApiConfig {
+    let shared = capi.and_then(|v| v.get("shared"));
+    let data_config = shared.and_then(|v| v.get("data"));
+    let default_data_origin = "data".to_string();
+
+    if let Some(ref data_config) = data_config {
+        let enabled = data_config
+            .get("enabled")
+            .map(|v| v.clone().try_into())
+            .unwrap_or(Ok(false))
+            .unwrap_or(false);
+        let data_origin_dir = data_config
+            .get("data_origin")
+            .map(|v| v.clone().try_into())
+            .unwrap_or(Ok(default_data_origin.to_owned()))
+            .unwrap_or(default_data_origin);
+        let install_subdir = data_config
+            .get("install_subdir")
+            .map(|v| v.clone().try_into())
+            .unwrap_or(Ok(name.to_string()))
+            .unwrap_or(name.to_string())
+            .map(|v| if v.is_empty() { name.to_string() } else { v });
+
+        return SharedDataCApiConfig {
+            enabled,
+            data_origin_dir,
+            install_subdir,
+        };
+    }
+
+    SharedDataCApiConfig {
+        enabled: false,
+        data_origin_dir: "".to_string(),
+        install_subdir: name.to_string(),
+    }
 }
 
 fn compile_options(
@@ -577,6 +629,7 @@ struct Exec {
 use cargo::core::*;
 use cargo::util::ProcessBuilder;
 use cargo::CargoResult;
+use std::env;
 
 impl Executor for Exec {
     fn exec(
@@ -618,7 +671,7 @@ impl Executor for Exec {
             },
             false,
         )
-        .map(drop)
+            .map(drop)
     }
 }
 

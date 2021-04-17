@@ -127,6 +127,19 @@ install_subdir = "gstreamer-1.0"
 versioning = false
 ```
 
+### Shared Data Install
+```toml
+[package.metadata.capi.shared.data]
+# Can be used to suppress installing shared data files. Defaults to false.
+enabled = false
+# Relative path from the project root where the shared data file is. 
+# Defaults to "shared/data".  
+origin = "src/data"
+# Relative path from `datadir` where the shared data file is installed. Defaults to the crate name. 
+# Empty string is not allowed. Be careful not to use reserved common names like 'man', 'info', 'locale' etc.
+install_dir = "libfoo"
+```
+
 ## Users
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)

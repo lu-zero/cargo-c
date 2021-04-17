@@ -1,0 +1,2 @@
+Example file to be installed under datadir, like /usr/local/share
+Typically default configuration files and supplemental scripts.

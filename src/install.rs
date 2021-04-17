@@ -245,6 +245,16 @@ pub fn cinstall(
         }
     }
 
+    if capi_config.data_config.enabled {
+        ws.config()
+            .shell()
+            .status("Installing", "shared data files")?;
+        let data_origin = &capi_config.data_config.data_origin_dir;
+        let data_dest = paths.datadir.join(&capi_config.data_config.install_subdir);
+        fs::create_dir_all(&data_dest)?;
+        copy(data_origin, data_dest)?;
+    }
+
     Ok(())
 }
 
@@ -257,6 +267,7 @@ pub struct InstallPaths {
     pub includedir: PathBuf,
     pub bindir: PathBuf,
     pub pkgconfigdir: PathBuf,
+    pub datadir: PathBuf,
 }
 
 impl InstallPaths {
@@ -290,6 +301,14 @@ impl InstallPaths {
             .value_of("pkgconfigdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| libdir.join("pkgconfig"));
+        let datarootdir = args
+            .value_of("datarootdir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| prefix.join("share"));
+        let datadir = args
+            .value_of("datadir")
+            .map(PathBuf::from)
+            .unwrap_or(datarootdir.to_owned());
 
         InstallPaths {
             subdir_name,
@@ -299,6 +318,7 @@ impl InstallPaths {
             includedir,
             bindir,
             pkgconfigdir,
+            datadir,
         }
     }
 }
