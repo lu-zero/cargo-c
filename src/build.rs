@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
-use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
+use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule, install};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
 use cargo::util::errors;
 use cargo::{CliError, CliResult, Config};
@@ -562,13 +562,14 @@ fn load_manifest_shared_data_capi_config(
             .map(|v| v.clone().try_into())
             .unwrap_or(Ok(default_data_origin.to_owned()))
             .unwrap_or(default_data_origin);
-        let install_subdir = data_config
+        let mut install_subdir = data_config
             .get("install_subdir")
             .map(|v| v.clone().try_into())
             .unwrap_or(Ok(name.to_string()))
-            .unwrap_or(name.to_string())
-            .map(|v| if v.is_empty() { name.to_string() } else { v });
-
+            .unwrap_or(name.to_string());
+        if install_subdir.is_empty() {
+            install_subdir = name.to_string();
+        }
         return SharedDataCApiConfig {
             enabled,
             data_origin_dir,
