@@ -75,6 +75,20 @@ fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
         .with_context(|| format!("Cannot copy {} to {}.", from.display(), to.display()))
 }
 
+fn copy_directory<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_directory(entry.path(), to.as_ref().join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), to.as_ref().join(entry.file_name()))?;
+        }
+    }
+
+    Ok(0)
+}
+
 pub(crate) enum LibType {
     So,
     Dylib,
@@ -254,9 +268,8 @@ pub fn cinstall(
                 .shell()
                 .status("Installing", "shared data files")?;
             let data_dest = paths.datadir.join(&capi_config.data_config.install_subdir);
-            fs::create_dir_all(&data_dest)?;
 
-            copy(data_origin, data_dest)?;
+            copy_directory(data_origin, data_dest)?;
         } else {
             ws.config()
                 .shell()

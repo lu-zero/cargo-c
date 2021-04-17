@@ -134,7 +134,7 @@ versioning = false
 enabled = false
 # Relative path from the project root where the shared data file is. 
 # Defaults to "shared/data".  
-origin = "src/data"
+origin = "shared/data"
 # Relative path from `datadir` where the shared data file is installed. Defaults to the crate name. 
 # Empty string is not allowed. Be careful not to use reserved common names like 'man', 'info', 'locale' etc.
 install_dir = "libfoo"

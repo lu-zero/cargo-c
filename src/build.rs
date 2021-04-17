@@ -548,7 +548,7 @@ fn load_manifest_shared_data_capi_config(
 ) -> SharedDataCApiConfig {
     let shared = capi.and_then(|v| v.get("shared"));
     let data_config = shared.and_then(|v| v.get("data"));
-    let default_data_origin = "data".to_string();
+    let default_data_origin = "shared/data".to_string();
 
     if let Some(ref data_config) = data_config {
         let enabled = data_config
