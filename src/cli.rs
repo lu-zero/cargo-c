@@ -28,6 +28,12 @@ struct Common {
     /// Path to directory for installing generated pkg-config .pc files
     #[structopt(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
+    /// Path to directory for installing shared read-only architecture-independent data, documentation, manuals. Default is $(prefix)/share.
+    #[structopt(long = "datarootdir", parse(from_os_str))]
+    datarootdir: Option<PathBuf>,
+    /// Path to directory for installing shared read-only architecture-independent data. Default is $(datarootdir)
+    #[structopt(long = "datadir", parse(from_os_str))]
+    datadir: Option<PathBuf>,
     #[structopt(long = "dlltool", parse(from_os_str))]
     /// Use the provided dlltool when building for the windows-gnu targets.
     dlltool: Option<PathBuf>,

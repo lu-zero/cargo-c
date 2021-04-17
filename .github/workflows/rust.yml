@@ -74,7 +74,7 @@ jobs:
           cargo build
           cargo test --no-fail-fast --verbose
           cargo run --bin cargo-cbuild -- cbuild --manifest-path=example-project/Cargo.toml
-          cargo run --bin cargo-cinstall -- cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
+          cargo run --bin cargo-cinstall -- cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install --datarootdir=/tmp/data
           cargo run --bin cargo-ctest -- ctest --manifest-path=example-project/Cargo.toml
           cargo run --bin cargo-capi -- capi
 
