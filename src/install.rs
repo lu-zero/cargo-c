@@ -308,7 +308,7 @@ impl InstallPaths {
         let datadir = args
             .value_of("datadir")
             .map(PathBuf::from)
-            .unwrap_or(datarootdir.to_owned());
+            .unwrap_or_else(|| datarootdir.to_owned());
 
         InstallPaths {
             subdir_name,
