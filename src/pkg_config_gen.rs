@@ -235,6 +235,7 @@ Requires.private: {}",
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::build::SharedDataCApiConfig;
     use semver::Version;
 
     #[test]
@@ -260,6 +261,11 @@ mod test {
                     version: Version::parse("0.1.0").unwrap(),
                     install_subdir: None,
                     versioning: true,
+                },
+                data_config: SharedDataCApiConfig {
+                    enabled: false,
+                    install_subdir: "".to_string(),
+                    data_origin_dir: "".to_string(),
                 },
             },
         );
