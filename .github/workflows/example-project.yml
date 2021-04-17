@@ -55,7 +55,7 @@ jobs:
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         working-directory: example-project
         run: |
-          cargo cinstall --verbose --release --destdir=temp
+          cargo cinstall --verbose --release --destdir=temp --datarootdir=tempdata
 
       - name: Copy installed files to /usr/local
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
