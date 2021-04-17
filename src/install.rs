@@ -268,6 +268,7 @@ pub fn cinstall(
                 .shell()
                 .status("Installing", "shared data files")?;
             let data_dest = paths.datadir.join(&capi_config.data_config.install_subdir);
+            fs::create_dir_all(&data_dest)?;
 
             copy_directory(data_origin, data_dest)?;
         } else {
