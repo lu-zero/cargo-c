@@ -246,13 +246,22 @@ pub fn cinstall(
     }
 
     if capi_config.data_config.enabled {
-        ws.config()
-            .shell()
-            .status("Installing", "shared data files")?;
         let data_origin = &capi_config.data_config.data_origin_dir;
-        let data_dest = paths.datadir.join(&capi_config.data_config.install_subdir);
-        fs::create_dir_all(&data_dest)?;
-        copy(data_origin, data_dest)?;
+        let data_path = PathBuf::from(data_origin);
+
+        if data_path.exists() {
+            ws.config()
+                .shell()
+                .status("Installing", "shared data files")?;
+            let data_dest = paths.datadir.join(&capi_config.data_config.install_subdir);
+            fs::create_dir_all(&data_dest)?;
+
+            copy(data_origin, data_dest)?;
+        } else {
+            ws.config()
+                .shell()
+                .status("Skipping", "shared data files doesn't exist")?;
+        }
     }
 
     Ok(())
