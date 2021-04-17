@@ -533,7 +533,6 @@ fn load_manifest_capi_config(
     };
 
     let data_config = load_manifest_shared_data_capi_config(capi, name);
-    dbg!(&data_config);
 
     Ok(CApiConfig {
         header,
