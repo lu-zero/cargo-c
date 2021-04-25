@@ -76,15 +76,20 @@ jobs:
         run: |
           cargo build
           cargo test --no-fail-fast --verbose
-          cargo run --bin cargo-cbuild -- cbuild --manifest-path=example-project/Cargo.toml
-          cargo run --bin cargo-cinstall -- cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
-          cargo run --bin cargo-ctest -- ctest --manifest-path=example-project/Cargo.toml
-          cargo run --bin cargo-capi -- capi
+
+      - name: Run binaries
+        env:
+          LLVM_PROFILE_FILE: >
+            cargo-c-%p-%m.profraw
+        run: |
+          target/debug/cargo-cinstall cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
+          target/debug/cargo-capi capi test --manifest-path=example-project/Cargo.toml
 
       - name: Run grcov
         id: coverage
         run: |
-          grcov . *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+          grcov *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+          wc -l coverage.lcov
 
       - name: Codecov upload
         uses: codecov/codecov-action@v1
