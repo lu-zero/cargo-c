@@ -125,6 +125,9 @@ version = "1.2.3"
 install_subdir = "gstreamer-1.0"
 # Used to disable versioning links when installing the dynamic library
 versioning = false
+# Add `-Cpanic=abort` to the RUSTFLAGS automatically, it may be useful in case
+# something might panic in the crates used by the library.
+rustflags = "-Cpanic=abort"
 ```
 
 ## Users
