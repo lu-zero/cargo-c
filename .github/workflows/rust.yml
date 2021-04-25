@@ -84,14 +84,12 @@ jobs:
       - name: Run grcov
         id: coverage
         run: |
-          ls -al
           grcov . *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
 
-      - name: Coveralls upload
-        uses: coverallsapp/github-action@master
+      - name: Codecov upload
+        uses: codecov/codecov-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.lcov
+          files: coverage.lcov
 
   Ubuntu-Stable:
 
