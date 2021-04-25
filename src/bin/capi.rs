@@ -67,6 +67,7 @@ fn main() -> CliResult {
     } else if cmd == "test" {
         ctest(
             &ws,
+            &capi_config,
             &config,
             subcommand_args,
             build_targets,

@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -386,6 +387,8 @@ pub struct LibraryCApiConfig {
     pub version: Version,
     pub install_subdir: Option<String>,
     pub versioning: bool,
+    pub original_rustflags: String,
+    pub rustflags: String,
 }
 
 fn load_manifest_capi_config(
@@ -500,6 +503,8 @@ fn load_manifest_capi_config(
     let mut version = pkg.version().clone();
     let mut install_subdir = None;
     let mut versioning = true;
+    let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
+    let original_rustflags = rustflags.clone();
 
     if let Some(ref library) = library {
         if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
@@ -515,6 +520,10 @@ fn load_manifest_capi_config(
             .get("versioning")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
+        if let Some(flags) = library.get("rustflags").and_then(|v| v.as_str()) {
+            rustflags.push(' ');
+            rustflags.push_str(flags);
+        }
     }
 
     let library = LibraryCApiConfig {
@@ -522,6 +531,8 @@ fn load_manifest_capi_config(
         version,
         install_subdir,
         versioning,
+        rustflags,
+        original_rustflags,
     };
 
     Ok(CApiConfig {
@@ -666,6 +677,10 @@ pub fn cbuild(
     let root_path = ws.current()?.root().to_path_buf();
     let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
 
+    if !capi_config.library.rustflags.is_empty() {
+        env::set_var("RUSTFLAGS", &capi_config.library.rustflags);
+    }
+
     patch_target(ws, &libkinds, &capi_config)?;
 
     let name = &capi_config.library.name;
@@ -792,12 +807,14 @@ pub fn cbuild(
 
 pub fn ctest(
     ws: &Workspace,
+    capi_config: &CApiConfig,
     config: &Config,
     args: &ArgMatches<'_>,
     build_targets: BuildTargets,
     static_libs: String,
     mut compile_opts: CompileOptions,
 ) -> CliResult {
+    env::set_var("RUSTFLAGS", &capi_config.library.original_rustflags);
     compile_opts.build_config.requested_profile =
         args.get_profile_name(&config, "test", ProfileChecking::Checked)?;
     compile_opts.build_config.mode = CompileMode::Test;

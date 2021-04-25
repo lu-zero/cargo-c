@@ -260,6 +260,8 @@ mod test {
                     version: Version::parse("0.1.0").unwrap(),
                     install_subdir: None,
                     versioning: true,
+                    rustflags: String::default(),
+                    original_rustflags: String::default(),
                 },
             },
         );
