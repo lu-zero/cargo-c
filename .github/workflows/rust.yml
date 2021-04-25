@@ -82,8 +82,9 @@ jobs:
           LLVM_PROFILE_FILE: >
             cargo-c-%p-%m.profraw
         run: |
+          # cargo clean --manifest-path=example-project/Cargo.toml
+          # target/debug/cargo-capi capi test --manifest-path=example-project/Cargo.toml
           target/debug/cargo-cinstall cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
-          target/debug/cargo-capi capi test --manifest-path=example-project/Cargo.toml
 
       - name: Run grcov
         id: coverage
