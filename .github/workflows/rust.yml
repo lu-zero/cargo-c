@@ -48,9 +48,9 @@ jobs:
           LINK: https://github.com/mozilla/grcov/releases/download
           GRCOV_VERSION: 0.8.0
         run: |
-          # curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
-          # tar xj -C $HOME/.cargo/bin
-          cargo install grcov
+          curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
+          tar xj -C $HOME/.cargo/bin
+          # cargo install grcov
 
       - name: Install nightly
         uses: actions-rs/toolchain@v1
@@ -76,6 +76,7 @@ jobs:
         run: |
           cargo build
           cargo test --no-fail-fast --verbose
+          ls -l *.profraw
 
       - name: Run binaries
         env:
