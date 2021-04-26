@@ -67,11 +67,10 @@ jobs:
         id: coverage
         run: bash coverage.sh
 
-      - name: Coveralls upload
-        uses: coverallsapp/github-action@master
+      - name: Codecov upload
+        uses: codecov/codecov-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.lcov
+          files: coverage.lcov
 
   Ubuntu-Stable:
 
