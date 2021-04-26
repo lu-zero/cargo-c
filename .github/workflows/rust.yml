@@ -50,7 +50,6 @@ jobs:
         run: |
           curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
           tar xj -C $HOME/.cargo/bin
-          # cargo install grcov
 
       - name: Install nightly
         uses: actions-rs/toolchain@v1
@@ -58,7 +57,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
-          components: llvm-tools-preview, rustfmt
+          components: llvm-tools-preview
 
       - name: Run cargo clean
         run: |
@@ -93,7 +92,12 @@ jobs:
         id: coverage
         run: |
           bash grcov.sh
-          #          grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+
+      - name: Coveralls upload
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: coverage.lcov
 
       - name: Codecov upload
         uses: codecov/codecov-action@v1
