@@ -58,7 +58,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
-          components: llvm-tools-preview
+          components: llvm-tools-preview, rustfmt
 
       - name: Run cargo clean
         run: |
