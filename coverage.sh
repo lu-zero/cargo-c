@@ -2,8 +2,9 @@ export LLVM_PROFILE_FILE="cargo-c-%p-%m.profraw"
 export RUSTFLAGS=-Zinstrument-coverage
 export CARGO_INCREMENTAL=0
 
-cargo +nightly build
-cargo +nightly test
+rustup default nightly
+cargo build
+cargo test
 unset RUSTFLAGS
 
 target/debug/cargo-capi capi test --manifest-path=example-project/Cargo.toml
