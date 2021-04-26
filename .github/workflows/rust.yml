@@ -94,6 +94,7 @@ jobs:
       - name: Run grcov
         id: coverage
         run: |
+          ls -l
           grcov . *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
           wc -l coverage.lcov
 
