@@ -78,7 +78,6 @@ jobs:
           cargo build
           cargo test --no-fail-fast --verbose
           ls -l
-          ls -l *.profraw
 
       - name: Run binaries
         env:
@@ -89,14 +88,12 @@ jobs:
           # target/debug/cargo-capi capi test --manifest-path=example-project/Cargo.toml
           target/debug/cargo-cinstall cinstall --manifest-path=example-project/Cargo.toml --destdir=/tmp/install
           ls -l
-          ls -l *.profraw
 
       - name: Run grcov
         id: coverage
         run: |
           ls -l
-          grcov . *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
-          wc -l coverage.lcov
+          grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
 
       - name: Codecov upload
         uses: codecov/codecov-action@v1
