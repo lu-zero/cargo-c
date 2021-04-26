@@ -2,12 +2,12 @@
 #
 # the github actions do not expand globs and somehow `grcov .` does not work as intended
 
-MY_GLOB=`ls -l && ls -l *.profraw`
-echo "Trying the glob ${MY_GLOB}"
+FILES=`find . | grep profraw | xargs`
 
-echo "Trying the find `find . -name \*.profraw`"
+echo $FILES
+
+ls -l $FILES
+ls -l
 
 echo "Trying grcov"
-grcov *.profraw --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
-echo "Trying grcov ."
-grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+grcov $FILES --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
