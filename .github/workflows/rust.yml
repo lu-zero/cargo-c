@@ -74,6 +74,7 @@ jobs:
           LLVM_PROFILE_FILE: >
             cargo-c-%p-%m.profraw
         run: |
+          echo $RUSTFLAGS $LLVM_PROFILE_FILE
           cargo build
           cargo test --no-fail-fast --verbose
           ls -l *.profraw
