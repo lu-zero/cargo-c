@@ -89,6 +89,7 @@ jobs:
           ls -l
 
       - name: Run grcov
+        shell: bash
         id: coverage
         run: |
           bash grcov.sh
