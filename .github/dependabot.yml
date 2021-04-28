@@ -1,0 +1,21 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: cbindgen
+    versions:
+    - 0.17.0
+    - 0.18.0
+    - 0.19.0
+  - dependency-name: cargo
+    versions:
+    - 0.50.0
+    - 0.51.0
+    - 0.52.0
+  - dependency-name: serde
+    versions:
+    - 1.0.123
