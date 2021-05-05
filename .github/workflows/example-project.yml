@@ -80,3 +80,29 @@ jobs:
         working-directory: example-project/usage-from-c
         run: |
           make
+
+      - name: Install into temporary location
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        working-directory: example-project
+        run: |
+          cargo cinstall --verbose --release --prefix=/mingw64 --destdir=temp
+
+      - name: Install MSYS2
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        uses: msys2/setup-msys2@v2
+        with:
+          release: false
+
+      - name: Copy installed files to /mingw64
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        working-directory: example-project
+        run: |
+          cp -r temp/mingw64/* /mingw64/
+        shell: msys2 {0}
+
+      - name: Test usage from C (using Makefile)
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        working-directory: example-project/usage-from-c
+        run: |
+          make
+        shell: msys2 {0}
