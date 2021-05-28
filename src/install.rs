@@ -5,6 +5,7 @@ use cargo::core::Workspace;
 use semver::Version;
 
 use crate::build::CApiConfig;
+use crate::build::CPackage;
 use crate::build_targets::BuildTargets;
 
 use anyhow::Context;
@@ -167,80 +168,81 @@ impl UnixLibNames {
     }
 }
 
-pub fn cinstall(
-    ws: &Workspace,
-    capi_config: &CApiConfig,
-    build_targets: BuildTargets,
-    paths: InstallPaths,
-) -> anyhow::Result<()> {
+pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
     use std::fs;
 
-    let destdir = &paths.destdir;
+    for pkg in packages {
+        let paths = &pkg.install_paths;
+        let capi_config = &pkg.capi_config;
+        let build_targets = &pkg.build_targets;
 
-    let mut install_path_lib = paths.libdir.clone();
-    if let Some(subdir) = &capi_config.library.install_subdir {
-        install_path_lib.push(subdir);
-    }
+        let destdir = &paths.destdir;
 
-    let install_path_lib = append_to_destdir(destdir, &install_path_lib);
-    let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-    let mut install_path_include = append_to_destdir(destdir, &paths.includedir);
-    if let Some(name) = paths.subdir_name {
-        install_path_include = install_path_include.join(name);
-    }
+        let mut install_path_lib = paths.libdir.clone();
+        if let Some(subdir) = &capi_config.library.install_subdir {
+            install_path_lib.push(subdir);
+        }
 
-    fs::create_dir_all(&install_path_lib)?;
-    fs::create_dir_all(&install_path_pc)?;
+        let install_path_lib = append_to_destdir(destdir, &install_path_lib);
+        let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
+        let mut install_path_include = append_to_destdir(destdir, &paths.includedir);
+        if let Some(ref name) = paths.subdir_name {
+            install_path_include = install_path_include.join(name);
+        }
 
-    ws.config()
-        .shell()
-        .status("Installing", "pkg-config file")?;
-    fs::copy(
-        &build_targets.pc,
-        install_path_pc.join(build_targets.pc.file_name().unwrap()),
-    )?;
+        fs::create_dir_all(&install_path_lib)?;
+        fs::create_dir_all(&install_path_pc)?;
 
-    if capi_config.header.enabled {
-        fs::create_dir_all(&install_path_include)?;
-        ws.config().shell().status("Installing", "header file")?;
-        let include = &build_targets.include.clone().unwrap();
+        ws.config()
+            .shell()
+            .status("Installing", "pkg-config file")?;
         fs::copy(
-            include,
-            install_path_include.join(include.file_name().unwrap()),
+            &build_targets.pc,
+            install_path_pc.join(build_targets.pc.file_name().unwrap()),
         )?;
-    }
 
-    if let Some(ref static_lib) = build_targets.static_lib {
-        ws.config().shell().status("Installing", "static library")?;
-        copy(
-            static_lib,
-            install_path_lib.join(static_lib.file_name().unwrap()),
-        )?;
-    }
+        if capi_config.header.enabled {
+            fs::create_dir_all(&install_path_include)?;
+            ws.config().shell().status("Installing", "header file")?;
+            let include = &build_targets.include.clone().unwrap();
+            fs::copy(
+                include,
+                install_path_include.join(include.file_name().unwrap()),
+            )?;
+        }
 
-    if let Some(ref shared_lib) = build_targets.shared_lib {
-        ws.config().shell().status("Installing", "shared library")?;
+        if let Some(ref static_lib) = build_targets.static_lib {
+            ws.config().shell().status("Installing", "static library")?;
+            copy(
+                static_lib,
+                install_path_lib.join(static_lib.file_name().unwrap()),
+            )?;
+        }
 
-        let lib_name = &capi_config.library.name;
-        let lib_type = LibType::from_build_targets(&build_targets);
-        match lib_type {
-            LibType::So | LibType::Dylib => {
-                let lib =
-                    UnixLibNames::new(lib_type, lib_name, &capi_config.library.version).unwrap();
-                lib.install(&capi_config, &shared_lib, &install_path_lib)?;
-            }
-            LibType::Windows => {
-                let install_path_bin = append_to_destdir(destdir, &paths.bindir);
-                fs::create_dir_all(&install_path_bin)?;
+        if let Some(ref shared_lib) = build_targets.shared_lib {
+            ws.config().shell().status("Installing", "shared library")?;
 
-                let lib_name = shared_lib.file_name().unwrap();
-                copy(shared_lib, install_path_bin.join(lib_name))?;
-                let impl_lib = build_targets.impl_lib.as_ref().unwrap();
-                let impl_lib_name = impl_lib.file_name().unwrap();
-                copy(impl_lib, install_path_lib.join(impl_lib_name))?;
-                let def = build_targets.def.as_ref().unwrap();
-                let def_name = def.file_name().unwrap();
-                copy(def, install_path_lib.join(def_name))?;
+            let lib_name = &capi_config.library.name;
+            let lib_type = LibType::from_build_targets(&build_targets);
+            match lib_type {
+                LibType::So | LibType::Dylib => {
+                    let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version)
+                        .unwrap();
+                    lib.install(&capi_config, &shared_lib, &install_path_lib)?;
+                }
+                LibType::Windows => {
+                    let install_path_bin = append_to_destdir(destdir, &paths.bindir);
+                    fs::create_dir_all(&install_path_bin)?;
+
+                    let lib_name = shared_lib.file_name().unwrap();
+                    copy(shared_lib, install_path_bin.join(lib_name))?;
+                    let impl_lib = build_targets.impl_lib.as_ref().unwrap();
+                    let impl_lib_name = impl_lib.file_name().unwrap();
+                    copy(impl_lib, install_path_lib.join(impl_lib_name))?;
+                    let def = build_targets.def.as_ref().unwrap();
+                    let def_name = def.file_name().unwrap();
+                    copy(def, install_path_lib.join(def_name))?;
+                }
             }
         }
     }
@@ -248,7 +250,7 @@ pub fn cinstall(
     Ok(())
 }
 
-#[derive(Debug, Hash)]
+#[derive(Debug, Hash, Clone)]
 pub struct InstallPaths {
     pub subdir_name: Option<PathBuf>,
     pub destdir: PathBuf,

@@ -13,6 +13,7 @@ use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
+use cargo::util::interning::InternedString;
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
@@ -110,13 +111,12 @@ fn build_pc_files(
 }
 
 fn patch_target(
-    ws: &mut Workspace,
+    pkg: &mut Package,
     libkinds: &[&str],
     capi_config: &CApiConfig,
 ) -> anyhow::Result<()> {
     use cargo::core::compiler::CrateType;
 
-    let pkg = ws.current_mut()?;
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
@@ -136,19 +136,6 @@ fn patch_target(
             target.set_kind(TargetKind::Lib(kinds.clone()));
             target.set_name(&capi_config.library.name);
         }
-    }
-
-    Ok(())
-}
-
-fn patch_capi_feature(compile_opts: &mut CompileOptions, ws: &Workspace) -> anyhow::Result<()> {
-    let pkg = ws.current()?;
-    let manifest = pkg.manifest();
-
-    if manifest.summary().features().get("capi").is_some() {
-        std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
-            .unwrap()
-            .insert(FeatureValue::new("capi".into()));
     }
 
     Ok(())
@@ -269,33 +256,35 @@ fn build_implib_file(
     }
 }
 
-struct FingerPrint<'a> {
-    name: &'a str,
-    root_output: &'a Path,
-    build_targets: &'a BuildTargets,
-    install_paths: &'a InstallPaths,
-    static_libs: &'a str,
+#[derive(Debug)]
+struct FingerPrint {
+    id: PackageId,
+    root_output: PathBuf,
+    build_targets: BuildTargets,
+    install_paths: InstallPaths,
+    static_libs: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Cache {
     hash: String,
+    id: PackageId,
     static_libs: String,
 }
 
-impl<'a> FingerPrint<'a> {
+impl<'a> FingerPrint {
     fn new(
-        name: &'a str,
+        id: &PackageId,
         root_output: &'a Path,
         build_targets: &'a BuildTargets,
         install_paths: &'a InstallPaths,
     ) -> Self {
         Self {
-            name,
-            root_output,
-            build_targets,
-            install_paths,
-            static_libs: "",
+            id: id.to_owned(),
+            root_output: root_output.to_owned(),
+            build_targets: build_targets.clone(),
+            install_paths: install_paths.clone(),
+            static_libs: String::new(),
         }
     }
 
@@ -334,7 +323,7 @@ impl<'a> FingerPrint<'a> {
         // Use the crate name in the cache file as the same target dir
         // may be used to build various libs
         self.root_output
-            .join(format!("cargo-c-{}.cache", self.name))
+            .join(format!("cargo-c-{}.cache", self.id.name()))
     }
 
     fn load_previous(&self) -> anyhow::Result<Cache> {
@@ -358,6 +347,7 @@ impl<'a> FingerPrint<'a> {
 
         if let Some(hash) = self.hash()? {
             let cache = Cache {
+                id: self.id,
                 hash,
                 static_libs: self.static_libs.to_owned(),
             };
@@ -369,12 +359,14 @@ impl<'a> FingerPrint<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
     pub library: LibraryCApiConfig,
 }
 
+#[derive(Debug)]
 pub struct HeaderCApiConfig {
     pub name: String,
     pub subdirectory: bool,
@@ -382,6 +374,7 @@ pub struct HeaderCApiConfig {
     pub enabled: bool,
 }
 
+#[derive(Debug)]
 pub struct PkgConfigCApiConfig {
     pub name: String,
     pub description: String,
@@ -390,6 +383,7 @@ pub struct PkgConfigCApiConfig {
     pub requires_private: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct LibraryCApiConfig {
     pub name: String,
     pub version: Version,
@@ -398,10 +392,37 @@ pub struct LibraryCApiConfig {
     pub rustflags: Vec<String>,
 }
 
+fn get_global_rustflags(root_path: &Path) -> anyhow::Result<Vec<String>> {
+    let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
+    let mut manifest_str = String::new();
+    manifest.read_to_string(&mut manifest_str)?;
+
+    let toml = manifest_str.parse::<toml::Value>()?;
+    let mut rustflags = Vec::new();
+
+    if let Some(args) = toml
+        .get("package")
+        .and_then(|v| v.get("metadata"))
+        .and_then(|v| v.get("capi"))
+        .and_then(|v| v.get("library"))
+        .and_then(|v| v.get("rustflags"))
+        .and_then(|v| v.as_str())
+    {
+        let args = args
+            .split(' ')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        rustflags.extend(args);
+    }
+
+    Ok(rustflags)
+}
+
 fn load_manifest_capi_config(
     name: &str,
     root_path: &Path,
-    ws: &Workspace,
+    pkg: &Package,
 ) -> anyhow::Result<CApiConfig> {
     let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
@@ -466,7 +487,6 @@ fn load_manifest_capi_config(
     };
 
     let pc = capi.and_then(|v| v.get("pkg_config"));
-    let pkg = ws.current().unwrap();
     let mut pc_name = String::from(name);
     let mut description = String::from(
         pkg.manifest()
@@ -555,17 +575,18 @@ fn compile_options(
     ws: &Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
-    default_profile: &str,
+    profile: InternedString,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
         args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
 
-    compile_opts.build_config.requested_profile =
-        args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
+    compile_opts.build_config.requested_profile = profile;
 
-    patch_capi_feature(&mut compile_opts, ws)?;
+    std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
+        .unwrap()
+        .insert(FeatureValue::new("capi".into()));
 
     compile_opts.filter = CompileFilter::new(
         LibRule::True,
@@ -591,7 +612,7 @@ fn compile_options(
 #[derive(Default)]
 struct Exec {
     ran: AtomicBool,
-    link_line: Mutex<String>,
+    link_line: Mutex<HashMap<PackageId, String>>,
 }
 
 use cargo::core::*;
@@ -602,7 +623,7 @@ impl Executor for Exec {
     fn exec(
         &self,
         cmd: &ProcessBuilder,
-        _id: PackageId,
+        id: PackageId,
         _target: &Target,
         _mode: CompileMode,
         on_stdout_line: &mut dyn FnMut(&str) -> CargoResult<()>,
@@ -624,7 +645,7 @@ impl Executor for Exec {
                         if msg.message.starts_with("Link against the following native artifacts when linking against this static library") {
                             Ok(())
                         } else if let Some(link_line) = msg.message.strip_prefix("native-static-libs:") {
-                            *self.link_line.lock().unwrap() = link_line.to_string();
+                            self.link_line.lock().unwrap().insert(id, link_line.to_string());
                             Ok(())
                         } else {
                             on_stderr_line(s)
@@ -662,23 +683,70 @@ fn set_deps_args(
     }
 }
 
+fn get_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
+    let name = pkg
+        .manifest()
+        .targets()
+        .iter()
+        .find(|t| t.is_lib())
+        .unwrap()
+        .crate_name();
+    let root_path = pkg.root().to_path_buf();
+    load_manifest_capi_config(&name, &root_path, pkg)
+}
+
 fn compile_with_exec<'a>(
     ws: &Workspace<'a>,
     options: &CompileOptions,
     exec: &Arc<dyn Executor>,
-    leaf_args: &[String],
-    global_args: &[String],
-) -> CargoResult<Compilation<'a>> {
+    rustc_target: &target::Target,
+    root_output: &Path,
+    args: &ArgMatches<'_>,
+) -> anyhow::Result<Compilation<'a>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
     let mut bcx = create_bcx(ws, options, &interner)?;
     let unit_graph = &bcx.unit_graph;
     let extra_compiler_args = &mut bcx.extra_compiler_args;
 
+    let global_args = get_global_rustflags(ws.root())?;
+
     for unit in bcx.roots.iter() {
-        extra_compiler_args.insert(unit.clone(), leaf_args.to_owned());
+        println!("{:?} {:?}", unit.pkg, unit.target);
+        let pkg = &unit.pkg;
+        let capi_config = get_config(pkg)?;
+
+        let name = &capi_config.library.name;
+        let install_paths = InstallPaths::new(name, args, &capi_config);
+
+        let mut leaf_args: Vec<String> = rustc_target
+            .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
+            .into_iter()
+            .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
+            .collect();
+
+        leaf_args.extend(global_args.clone());
+
+        leaf_args.push("--cfg".into());
+        leaf_args.push("cargo_c".into());
+
+        leaf_args.push("--print".into());
+        leaf_args.push("native-static-libs".into());
+
+        if args.is_present("crt-static") {
+            leaf_args.push("-C".into());
+            leaf_args.push("target-feature=+crt-static".into());
+        }
+
+        extra_compiler_args.insert(unit.clone(), leaf_args);
+
         for dep in unit_graph[unit].iter() {
-            set_deps_args(dep, unit_graph, extra_compiler_args, global_args);
+            set_deps_args(
+                dep,
+                unit_graph,
+                extra_compiler_args,
+                &capi_config.library.rustflags,
+            );
         }
     }
 
@@ -691,18 +759,22 @@ fn compile_with_exec<'a>(
     cx.compile(exec)
 }
 
+#[derive(Debug)]
+pub struct CPackage {
+    pub version: Version,
+    pub root_path: PathBuf,
+    pub capi_config: CApiConfig,
+    pub build_targets: BuildTargets,
+    pub install_paths: InstallPaths,
+    finger_print: FingerPrint,
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
     default_profile: &str,
-) -> anyhow::Result<(
-    BuildTargets,
-    InstallPaths,
-    CApiConfig,
-    String,
-    CompileOptions,
-)> {
+) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     let rustc = config.load_global_rustc(Some(ws))?;
     let targets = args.targets();
     let target = match targets.len() {
@@ -723,27 +795,11 @@ pub fn cbuild(
     );
     let only_staticlib = !libkinds.contains(&"cdylib");
 
-    let name = &ws
-        .current()?
-        .manifest()
-        .targets()
-        .iter()
-        .find(|t| t.is_lib())
-        .unwrap()
-        .crate_name();
-    let version = ws.current()?.version().clone();
-    let root_path = ws.current()?.root().to_path_buf();
-    let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
+    let profile = args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
 
-    patch_target(ws, &libkinds, &capi_config)?;
+    let profiles = Profiles::new(&ws, profile)?;
 
-    let name = &capi_config.library.name;
-
-    let install_paths = InstallPaths::new(name, args, &capi_config);
-
-    let mut compile_opts = compile_options(ws, config, args, default_profile, CompileMode::Build)?;
-
-    let profiles = Profiles::new(&ws, compile_opts.build_config.requested_profile)?;
+    let mut compile_opts = compile_options(ws, config, args, profile, CompileMode::Build)?;
 
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
@@ -753,31 +809,43 @@ pub fn cbuild(
         .join(PathBuf::from(target))
         .join(&profiles.get_dir_name());
 
-    let mut leaf_args: Vec<String> = rustc_target
-        .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
-        .into_iter()
-        .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
-        .collect();
+    let capi_feature = InternedString::new("capi");
 
-    leaf_args.extend(capi_config.library.rustflags.clone());
+    let mut members = Vec::new();
+    for m in ws
+        .members_mut()
+        .filter(|m| m.library().is_some() && m.summary().features().contains_key(&capi_feature))
+    {
+        let capi_config = get_config(m)?;
+        let id = m.package_id();
+        patch_target(m, &libkinds, &capi_config)?;
 
-    leaf_args.push("--cfg".into());
-    leaf_args.push("cargo_c".into());
+        let version = m.version().clone();
 
-    leaf_args.push("--print".into());
-    leaf_args.push("native-static-libs".into());
+        let root_path = m.root().to_path_buf();
+        let capi_config = get_config(m)?;
 
-    if args.is_present("crt-static") {
-        leaf_args.push("-C".into());
-        leaf_args.push("target-feature=+crt-static".into());
+        let name = &capi_config.library.name;
+
+        let install_paths = InstallPaths::new(name, args, &capi_config);
+        let build_targets =
+            BuildTargets::new(name, &rustc_target, &root_output, &libkinds, &capi_config);
+
+        let finger_print = FingerPrint::new(&id, &root_output, &build_targets, &install_paths);
+
+        members.push(CPackage {
+            version,
+            root_path,
+            capi_config,
+            build_targets,
+            install_paths,
+            finger_print,
+        });
     }
 
-    let build_targets =
-        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
-
-    let mut finger_print = FingerPrint::new(&name, &root_output, &build_targets, &install_paths);
-
-    let pristine = finger_print.load_previous().is_err();
+    let pristine = members
+        .iter()
+        .any(|p| p.finger_print.load_previous().is_err());
 
     if pristine {
         // If the cache is somehow missing force a full rebuild;
@@ -789,8 +857,9 @@ pub fn cbuild(
         ws,
         &compile_opts,
         &(exec.clone() as Arc<dyn Executor>),
-        &leaf_args,
-        &capi_config.library.rustflags,
+        &rustc_target,
+        &root_output,
+        args,
     )?;
 
     if pristine {
@@ -799,79 +868,80 @@ pub fn cbuild(
     }
 
     let new_build = exec.ran.load(Ordering::Relaxed);
-    let mut static_libs = exec.link_line.lock().unwrap().clone();
 
-    // it is a new build, build the additional files and update update the cache
-    // if the hash value does not match.
-    if new_build && !finger_print.is_valid() {
-        finger_print.static_libs = &static_libs;
+    println!("builds {:?}", exec.link_line.lock().unwrap());
 
-        let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &capi_config);
-        if only_staticlib {
-            pc.add_lib(&static_libs);
-        }
-        pc.add_lib_private(&static_libs);
+    for m in members.iter_mut() {
+        // it is a new build, build the additional files and update update the cache
+        // if the hash value does not match.
+        if new_build && !m.finger_print.is_valid() {
+            let name = &m.capi_config.library.name;
+            let static_libs = exec.link_line.lock().unwrap().clone();
+            let static_libs = static_libs.values().next().unwrap().clone();
+            m.finger_print.static_libs = static_libs.to_owned();
 
-        build_pc_files(&ws, &name, &root_output, &pc)?;
+            let mut pc = PkgConfig::from_workspace(name, &m.install_paths, args, &m.capi_config);
+            if only_staticlib {
+                pc.add_lib(&static_libs);
+            }
+            pc.add_lib_private(&static_libs);
 
-        if !only_staticlib {
-            build_def_file(&ws, &name, &rustc_target, &root_output)?;
+            build_pc_files(&ws, name, &root_output, &pc)?;
 
-            let mut dlltool = std::env::var_os("DLLTOOL")
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("dlltool"));
+            if !only_staticlib {
+                build_def_file(&ws, name, &rustc_target, &root_output)?;
 
-            // dlltool argument overwrites environment var
-            if args.value_of("dlltool").is_some() {
-                dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
+                let mut dlltool = std::env::var_os("DLLTOOL")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from("dlltool"));
+
+                // dlltool argument overwrites environment var
+                if args.value_of("dlltool").is_some() {
+                    dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
+                }
+
+                build_implib_file(&ws, name, &rustc_target, &root_output, &dlltool)?;
             }
 
-            build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
-        }
-
-        if capi_config.header.enabled {
-            let header_name = &capi_config.header.name;
-            if capi_config.header.generation {
-                build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
-            } else {
-                copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
-            }
-        }
-
-        // Generate versioned links in target dir so the lib can be used uninstalled
-        if let Some(ref shared_lib) = build_targets.shared_lib {
-            if capi_config.library.versioning {
-                let lib_name = &capi_config.library.name;
-                let lib_type = LibType::from_build_targets(&build_targets);
-                let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version);
-                if let Some(lib) = lib {
-                    lib.install(&capi_config, &shared_lib, &root_output)?;
+            if m.capi_config.header.enabled {
+                let header_name = &m.capi_config.header.name;
+                if m.capi_config.header.generation {
+                    build_include_file(&ws, header_name, &m.version, &root_output, &m.root_path)?;
+                } else {
+                    copy_prebuilt_include_file(&ws, header_name, &root_output, &m.root_path)?;
                 }
             }
-        }
 
-        finger_print.store()?;
-    } else {
-        // It is not a new build, recover the static_libs value from the cache
-        static_libs = finger_print.load_previous()?.static_libs;
+            // Generate versioned links in target dir so the lib can be used uninstalled
+            if let Some(ref shared_lib) = m.build_targets.shared_lib {
+                if m.capi_config.library.versioning {
+                    let lib_name = &m.capi_config.library.name;
+                    let lib_type = LibType::from_build_targets(&m.build_targets);
+                    let lib = UnixLibNames::new(lib_type, lib_name, &m.capi_config.library.version);
+                    if let Some(lib) = lib {
+                        lib.install(&m.capi_config, &shared_lib, &root_output)?;
+                    }
+                }
+            }
+
+            m.finger_print.store()?;
+        } else {
+            let static_libs = m.finger_print.load_previous()?.static_libs;
+
+            m.finger_print.static_libs = static_libs.clone();
+        };
     }
 
-    Ok((
-        build_targets,
-        install_paths,
-        capi_config,
-        static_libs,
-        compile_opts,
-    ))
+    println!("{:?}", members);
+
+    Ok((members, compile_opts))
 }
 
 pub fn ctest(
     ws: &Workspace,
-    _capi_config: &CApiConfig,
     config: &Config,
     args: &ArgMatches<'_>,
-    build_targets: BuildTargets,
-    static_libs: String,
+    packages: &[CPackage],
     mut compile_opts: CompileOptions,
 ) -> CliResult {
     compile_opts.build_config.requested_profile =
@@ -899,18 +969,24 @@ pub fn ctest(
     let test_args = test_args.collect::<Vec<_>>();
 
     use std::ffi::OsString;
-    let static_lib_path = build_targets.static_lib.unwrap();
-    let builddir = static_lib_path.parent().unwrap();
 
-    let mut cflags = OsString::from("-I");
-    cflags.push(builddir);
-    cflags.push(" ");
-    // We push the full path here to work around macos ld not supporting the -l:{filename} syntax
-    cflags.push(static_lib_path);
+    let mut cflags = OsString::new();
 
-    // We push the static_libs as CFLAGS as well to avoid mangling the options on msvc
-    cflags.push(" ");
-    cflags.push(static_libs);
+    for pkg in packages {
+        let static_lib_path = pkg.build_targets.static_lib.as_ref().unwrap();
+        let builddir = static_lib_path.parent().unwrap();
+
+        cflags.push("-I");
+        cflags.push(&builddir);
+        cflags.push(" ");
+
+        // We push the full path here to work around macos ld not supporting the -l:{filename} syntax
+        cflags.push(static_lib_path);
+
+        // We push the static_libs as CFLAGS as well to avoid mangling the options on msvc
+        cflags.push(" ");
+        cflags.push(&pkg.finger_print.static_libs);
+    }
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
 

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::build::CApiConfig;
 use crate::target::Target;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BuildTargets {
     pub include: Option<PathBuf>,
     pub static_lib: Option<PathBuf>,
