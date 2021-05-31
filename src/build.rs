@@ -390,8 +390,7 @@ pub struct LibraryCApiConfig {
     pub version: Version,
     pub install_subdir: Option<String>,
     pub versioning: bool,
-    pub original_rustflags: String,
-    pub rustflags: String,
+    pub rustflags: Vec<String>,
 }
 
 fn load_manifest_capi_config(
@@ -506,8 +505,7 @@ fn load_manifest_capi_config(
     let mut version = pkg.version().clone();
     let mut install_subdir = None;
     let mut versioning = true;
-    let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
-    let original_rustflags = rustflags.clone();
+    let mut rustflags = Vec::new();
 
     if let Some(ref library) = library {
         if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
@@ -523,9 +521,13 @@ fn load_manifest_capi_config(
             .get("versioning")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
-        if let Some(flags) = library.get("rustflags").and_then(|v| v.as_str()) {
-            rustflags.push(' ');
-            rustflags.push_str(flags);
+        if let Some(args) = library.get("rustflags").and_then(|v| v.as_str()) {
+            let args = args
+                .split(' ')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+            rustflags.extend(args);
         }
     }
 
@@ -535,7 +537,6 @@ fn load_manifest_capi_config(
         install_subdir,
         versioning,
         rustflags,
-        original_rustflags,
     };
 
     Ok(CApiConfig {
@@ -644,14 +645,21 @@ fn compile_with_exec<'a>(
     ws: &Workspace<'a>,
     options: &CompileOptions,
     exec: &Arc<dyn Executor>,
-    leaf_args: Vec<String>,
+    leaf_args: &[String],
+    global_args: &[String],
 ) -> CargoResult<Compilation<'a>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
     let mut bcx = create_bcx(ws, options, &interner)?;
     for unit in bcx.roots.iter() {
         bcx.extra_compiler_args
-            .insert(unit.clone(), leaf_args.clone());
+            .insert(unit.clone(), leaf_args.to_owned());
+    }
+
+    for unit in bcx.unit_graph.keys().filter(|u| u.target.is_lib()) {
+        bcx.extra_compiler_args
+            .entry(unit.clone())
+            .or_insert_with(|| global_args.to_owned());
     }
 
     if options.build_config.unit_graph {
@@ -707,10 +715,6 @@ pub fn cbuild(
     let root_path = ws.current()?.root().to_path_buf();
     let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
 
-    if !capi_config.library.rustflags.is_empty() {
-        env::set_var("RUSTFLAGS", &capi_config.library.rustflags);
-    }
-
     patch_target(ws, &libkinds, &capi_config)?;
 
     let name = &capi_config.library.name;
@@ -734,6 +738,8 @@ pub fn cbuild(
         .into_iter()
         .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
         .collect();
+
+    leaf_args.extend(capi_config.library.rustflags.clone());
 
     leaf_args.push("--cfg".into());
     leaf_args.push("cargo_c".into());
@@ -763,7 +769,8 @@ pub fn cbuild(
         ws,
         &compile_opts,
         &(exec.clone() as Arc<dyn Executor>),
-        leaf_args,
+        &leaf_args,
+        &capi_config.library.rustflags,
     )?;
 
     if pristine {
@@ -840,14 +847,13 @@ pub fn cbuild(
 
 pub fn ctest(
     ws: &Workspace,
-    capi_config: &CApiConfig,
+    _capi_config: &CApiConfig,
     config: &Config,
     args: &ArgMatches<'_>,
     build_targets: BuildTargets,
     static_libs: String,
     mut compile_opts: CompileOptions,
 ) -> CliResult {
-    env::set_var("RUSTFLAGS", &capi_config.library.original_rustflags);
     compile_opts.build_config.requested_profile =
         args.get_profile_name(&config, "test", ProfileChecking::Checked)?;
     compile_opts.build_config.mode = CompileMode::Test;
