@@ -636,6 +636,33 @@ impl Executor for Exec {
     }
 }
 
+use cargo::core::compiler::{unit_graph, Compilation, UnitInterner};
+use cargo::ops::create_bcx;
+use cargo::util::profile;
+
+fn compile_with_exec<'a>(
+    ws: &Workspace<'a>,
+    options: &CompileOptions,
+    exec: &Arc<dyn Executor>,
+    leaf_args: Vec<String>,
+) -> CargoResult<Compilation<'a>> {
+    ws.emit_warnings()?;
+    let interner = UnitInterner::new();
+    let mut bcx = create_bcx(ws, options, &interner)?;
+    for unit in bcx.roots.iter() {
+        bcx.extra_compiler_args
+            .insert(unit.clone(), leaf_args.clone());
+    }
+
+    if options.build_config.unit_graph {
+        unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.config())?;
+        return Compilation::new(&bcx);
+    }
+    let _p = profile::start("compiling");
+    let cx = cargo::core::compiler::Context::new(&bcx)?;
+    cx.compile(exec)
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
@@ -702,24 +729,22 @@ pub fn cbuild(
         .join(PathBuf::from(target))
         .join(&profiles.get_dir_name());
 
-    let mut rustc_args: Vec<String> = rustc_target
+    let mut leaf_args: Vec<String> = rustc_target
         .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
         .into_iter()
         .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
         .collect();
 
-    rustc_args.push("--cfg".into());
-    rustc_args.push("cargo_c".into());
+    leaf_args.push("--cfg".into());
+    leaf_args.push("cargo_c".into());
 
-    rustc_args.push("--print".into());
-    rustc_args.push("native-static-libs".into());
+    leaf_args.push("--print".into());
+    leaf_args.push("native-static-libs".into());
 
     if args.is_present("crt-static") {
-        rustc_args.push("-C".into());
-        rustc_args.push("target-feature=+crt-static".into());
+        leaf_args.push("-C".into());
+        leaf_args.push("target-feature=+crt-static".into());
     }
-
-    compile_opts.target_rustc_args = Some(rustc_args);
 
     let build_targets =
         BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
@@ -734,7 +759,12 @@ pub fn cbuild(
     }
 
     let exec = Arc::new(Exec::default());
-    let _r = ops::compile_with_exec(ws, &compile_opts, &(exec.clone() as Arc<dyn Executor>))?;
+    let _r = compile_with_exec(
+        ws,
+        &compile_opts,
+        &(exec.clone() as Arc<dyn Executor>),
+        leaf_args,
+    )?;
 
     if pristine {
         // restore the default to make sure the tests do not trigger a second rebuild.
