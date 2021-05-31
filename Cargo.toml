@@ -27,8 +27,9 @@ name = "cargo-ctest"
 path = "src/bin/ctest.rs"
 
 [dependencies]
-cargo = "0.53"
-semver = "0.10"
+cargo = "0.55"
+cargo-util = "0.1"
+semver = "1.0"
 log = "0.4"
 structopt = { version="0.3", features=["color"] }
 regex = "1"
