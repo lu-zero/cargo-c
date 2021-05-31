@@ -9,7 +9,6 @@ use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
-use cargo::util::errors;
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
@@ -143,7 +142,9 @@ fn patch_capi_feature(compile_opts: &mut CompileOptions, ws: &Workspace) -> anyh
     let manifest = pkg.manifest();
 
     if manifest.summary().features().get("capi").is_some() {
-        compile_opts.features.push("capi".to_string());
+        std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
+            .unwrap()
+            .insert(FeatureValue::new("capi".into()));
     }
 
     Ok(())
@@ -590,8 +591,8 @@ struct Exec {
 }
 
 use cargo::core::*;
-use cargo::util::ProcessBuilder;
 use cargo::CargoResult;
+use cargo_util::{is_simple_exit_code, ProcessBuilder};
 
 impl Executor for Exec {
     fn exec(
@@ -901,7 +902,7 @@ pub fn ctest(
             let context = anyhow::format_err!("{}", err.hint(&ws, &ops.compile_opts));
             let e = match err.code {
                 // Don't show "process didn't exit successfully" for simple errors.
-                Some(i) if errors::is_simple_exit_code(i) => CliError::new(context, i),
+                Some(i) if is_simple_exit_code(i) => CliError::new(context, i),
                 Some(i) => CliError::new(Error::from(err).context(context), i),
                 None => CliError::new(Error::from(err).context(context), 101),
             };
