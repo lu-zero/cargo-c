@@ -274,7 +274,7 @@ struct FingerPrint<'a> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Cache {
-    hash: u64,
+    hash: String,
     static_libs: String,
 }
 
@@ -294,7 +294,7 @@ impl<'a> FingerPrint<'a> {
         }
     }
 
-    fn hash(&self) -> anyhow::Result<Option<u64>> {
+    fn hash(&self) -> anyhow::Result<Option<String>> {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
@@ -319,7 +319,10 @@ impl<'a> FingerPrint<'a> {
             };
         }
 
-        Ok(Some(hasher.finish()))
+        let hash = hasher.finish();
+        // the hash is stored in a toml file which does not support u64 so store
+        // it as a string to prevent overflows.
+        Ok(Some(hash.to_string()))
     }
 
     fn path(&self) -> PathBuf {
