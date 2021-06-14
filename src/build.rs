@@ -402,6 +402,7 @@ fn get_global_rustflags(root_path: &Path) -> anyhow::Result<Vec<String>> {
 
     if let Some(args) = toml
         .get("package")
+        .or_else(|| toml.get("workspace"))
         .and_then(|v| v.get("metadata"))
         .and_then(|v| v.get("capi"))
         .and_then(|v| v.get("library"))
