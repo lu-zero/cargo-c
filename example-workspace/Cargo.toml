@@ -3,3 +3,6 @@ members = [
     "api-a",
     "api-b",
 ]
+
+[workspace.metadata.capi.library]
+rustflags = "-Cpanic=abort"
