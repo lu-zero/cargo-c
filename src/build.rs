@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -5,6 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use cargo::core::compiler::unit_graph::UnitDep;
+use cargo::core::compiler::unit_graph::UnitGraph;
+use cargo::core::compiler::Unit;
 use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
@@ -642,6 +646,22 @@ use cargo::core::compiler::{unit_graph, Compilation, UnitInterner};
 use cargo::ops::create_bcx;
 use cargo::util::profile;
 
+fn set_deps_args(
+    dep: &UnitDep,
+    graph: &UnitGraph,
+    extra_compiler_args: &mut HashMap<Unit, Vec<String>>,
+    global_args: &[String],
+) {
+    if !dep.unit_for.is_for_host() {
+        for dep in graph[&dep.unit].iter() {
+            set_deps_args(dep, graph, extra_compiler_args, global_args);
+        }
+        extra_compiler_args
+            .entry(dep.unit.clone())
+            .or_insert_with(|| global_args.to_owned());
+    }
+}
+
 fn compile_with_exec<'a>(
     ws: &Workspace<'a>,
     options: &CompileOptions,
@@ -652,15 +672,14 @@ fn compile_with_exec<'a>(
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
     let mut bcx = create_bcx(ws, options, &interner)?;
-    for unit in bcx.roots.iter() {
-        bcx.extra_compiler_args
-            .insert(unit.clone(), leaf_args.to_owned());
-    }
+    let unit_graph = &bcx.unit_graph;
+    let extra_compiler_args = &mut bcx.extra_compiler_args;
 
-    for unit in bcx.unit_graph.keys().filter(|u| u.target.is_lib()) {
-        bcx.extra_compiler_args
-            .entry(unit.clone())
-            .or_insert_with(|| global_args.to_owned());
+    for unit in bcx.roots.iter() {
+        extra_compiler_args.insert(unit.clone(), leaf_args.to_owned());
+        for dep in unit_graph[unit].iter() {
+            set_deps_args(dep, unit_graph, extra_compiler_args, global_args);
+        }
     }
 
     if options.build_config.unit_graph {
