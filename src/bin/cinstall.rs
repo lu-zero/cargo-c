@@ -3,6 +3,7 @@ use cargo::CliResult;
 use cargo::Config;
 
 use cargo_c::build::{cbuild, config_configure};
+use cargo_c::cli::run_cargo_fallback;
 use cargo_c::cli::subcommand_install;
 use cargo_c::install::cinstall;
 
@@ -17,6 +18,7 @@ fn main() -> CliResult {
             AppSettings::UnifiedHelpMessage,
             AppSettings::DeriveDisplayOrder,
             AppSettings::VersionlessSubcommands,
+            AppSettings::AllowExternalSubcommands,
         ])
         .subcommand(subcommand);
 
@@ -24,6 +26,9 @@ fn main() -> CliResult {
 
     let subcommand_args = match args.subcommand() {
         ("cinstall", Some(args)) => args,
+        (cmd, Some(args)) => {
+            return run_cargo_fallback(cmd, args);
+        }
         _ => {
             // No subcommand provided.
             app.print_help()?;

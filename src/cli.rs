@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use cargo::util::command_prelude::AppExt;
 use cargo::util::command_prelude::{multi_opt, opt};
+use cargo::util::{CliError, CliResult};
 
+use cargo_util::{ProcessBuilder, ProcessError};
 use structopt::clap::*;
 use structopt::StructOpt;
 
@@ -138,4 +140,22 @@ pub fn subcommand_test(name: &str) -> App<'static, 'static> {
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg(opt("no-run", "Compile, but don't run tests"))
         .arg(opt("no-fail-fast", "Run all tests regardless of failure"))
+}
+
+pub fn run_cargo_fallback(subcommand: &str, subcommand_args: &ArgMatches) -> CliResult {
+    let cargo = std::env::var("CARGO_C_CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let mut args = vec![subcommand];
+
+    args.extend(subcommand_args.values_of("").unwrap_or_default());
+    let err = match ProcessBuilder::new(&cargo).args(&args).exec_replace() {
+        Ok(()) => return Ok(()),
+        Err(e) => e,
+    };
+
+    if let Some(perr) = err.downcast_ref::<ProcessError>() {
+        if let Some(code) = perr.code {
+            return Err(CliError::code(code));
+        }
+    }
+    Err(CliError::new(err, 101))
 }
