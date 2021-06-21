@@ -911,6 +911,15 @@ pub fn ctest(
     }
 }
 
+// Take the original cargo instance and save it as a separate env var if not already set.
+fn setup_env() {
+    if env::var("CARGO_C_CARGO").is_err() {
+        let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+
+        std::env::set_var("CARGO_C_CARGO", cargo);
+    }
+}
+
 pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
     let arg_target_dir = &args.value_of_path("target-dir", config);
     let config_args: Vec<_> = args
@@ -931,5 +940,8 @@ pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult
             .unwrap_or_default(),
         &config_args,
     )?;
+
+    // Make sure that the env-vars are correctly set at this point.
+    setup_env();
     Ok(())
 }

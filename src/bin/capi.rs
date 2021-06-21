@@ -21,6 +21,7 @@ fn main() -> CliResult {
             AppSettings::UnifiedHelpMessage,
             AppSettings::DeriveDisplayOrder,
             AppSettings::VersionlessSubcommands,
+            AppSettings::AllowExternalSubcommands,
         ])
         .subcommand(
             SubCommand::with_name("capi")
@@ -38,6 +39,9 @@ fn main() -> CliResult {
             ("build", Some(args)) => ("build", args, "dev"),
             ("test", Some(args)) => ("test", args, "dev"),
             ("install", Some(args)) => ("install", args, "release"),
+            (cmd, Some(args)) => {
+                return run_cargo_fallback(cmd, args);
+            }
             _ => {
                 // No subcommand provided.
                 app.print_help()?;
