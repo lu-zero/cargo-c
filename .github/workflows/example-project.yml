@@ -80,23 +80,37 @@ jobs:
         run: |
           make
 
+  example-project-msys2:
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Clone Git repository
+        uses: actions/checkout@v2
+
       - name: Install MSYS2
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
         uses: msys2/setup-msys2@v2
         with:
           release: false
+          install: >-
+            mingw-w64-x86_64-rust
 
-      - name: Copy installed files to /mingw64
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+      # cargo-c is available from the package mingw-w64-x86_64-cargo-c,
+      # but we install the latest version from the git repository here:
+
+      - name: Install cargo-c applet
+        run: |
+          cargo install --path .
+
+      - name: Install C API for example project
         working-directory: example-project
         run: |
-          # NB: --prefix doesn't seem to matter on Windows
-          cp -r temp/usr/local/* /mingw64/
-        shell: msys2 {0}
+          cargo cinstall --verbose --release
 
       - name: Test usage from C (using Makefile)
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
         working-directory: example-project/usage-from-c
         run: |
           make
-        shell: msys2 {0}
