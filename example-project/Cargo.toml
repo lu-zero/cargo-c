@@ -21,3 +21,4 @@ subdirectory = false
 
 [package.metadata.capi.library]
 rustflags = "-Cpanic=abort"
+name = "example-project"

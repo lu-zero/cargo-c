@@ -16,6 +16,7 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
+use cargo_util::paths::copy;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -179,7 +180,7 @@ fn build_def_file(
 
         dumpbin
             .arg("/EXPORTS")
-            .arg(targetdir.join(format!("{}.dll", name)));
+            .arg(targetdir.join(format!("{}.dll", name.replace("-", "_"))));
         dumpbin.arg(format!("/OUT:{}", txt_path.to_str().unwrap()));
 
         let out = dumpbin.output()?;
@@ -235,34 +236,65 @@ fn build_implib_file(
     let os = &target.os;
     let env = &target.env;
 
-    if os == "windows" && env == "gnu" {
-        ws.config()
-            .shell()
-            .status("Building", "implib using dlltool")?;
-
+    if os == "windows" {
         let arch = &target.arch;
+        if env == "gnu" {
+            ws.config()
+                .shell()
+                .status("Building", "implib using dlltool")?;
 
-        let binutils_arch = match arch.as_str() {
-            "x86_64" => "i386:x86-64",
-            "x86" => "i386",
-            _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
-        };
+            let binutils_arch = match arch.as_str() {
+                "x86_64" => "i386:x86-64",
+                "x86" => "i386",
+                _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
+            };
 
-        let mut dlltool_command = std::process::Command::new(dlltool.to_str().unwrap_or("dlltool"));
-        dlltool_command.arg("-m").arg(binutils_arch);
-        dlltool_command.arg("-D").arg(format!("{}.dll", name));
-        dlltool_command
-            .arg("-l")
-            .arg(targetdir.join(format!("{}.dll.a", name)));
-        dlltool_command
-            .arg("-d")
-            .arg(targetdir.join(format!("{}.def", name)));
+            let mut dlltool_command =
+                std::process::Command::new(dlltool.to_str().unwrap_or("dlltool"));
+            dlltool_command.arg("-m").arg(binutils_arch);
+            dlltool_command.arg("-D").arg(format!("{}.dll", name));
+            dlltool_command
+                .arg("-l")
+                .arg(targetdir.join(format!("{}.dll.a", name)));
+            dlltool_command
+                .arg("-d")
+                .arg(targetdir.join(format!("{}.def", name)));
 
-        let out = dlltool_command.output()?;
-        if out.status.success() {
-            Ok(())
+            let out = dlltool_command.output()?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Command failed {:?}", dlltool_command))
+            }
         } else {
-            Err(anyhow::anyhow!("Command failed {:?}", dlltool_command))
+            ws.config().shell().status("Building", "implib using lib")?;
+            let target_str = format!("{}-pc-windows-msvc", &target.arch);
+            let mut lib = match cc::windows_registry::find(&target_str, "lib.exe") {
+                Some(command) => command,
+                None => std::process::Command::new("lib"),
+            };
+            let lib_arch = match arch.as_str() {
+                "x86_64" => "X64",
+                "x86" => "IX86",
+                _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
+            };
+            lib.arg(format!(
+                "/DEF:{}",
+                targetdir.join(format!("{}.def", name)).display()
+            ));
+            lib.arg(format!("/MACHINE:{}", lib_arch));
+            lib.arg(format!("/NAME:{}.dll", name));
+            lib.arg(format!(
+                "/OUT:{}",
+                targetdir.join(format!("{}.dll.lib", name)).display()
+            ));
+
+            let out = lib.output()?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Command failed {:?}", lib))
+            }
         }
     } else {
         Ok(())
@@ -821,7 +853,8 @@ pub fn cbuild(
         build_pc_files(&ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
         if !only_staticlib {
-            build_def_file(&ws, &name, &rustc_target, &root_output)?;
+            let lib_name = name;
+            build_def_file(&ws, &lib_name, &rustc_target, &root_output)?;
 
             let mut dlltool = std::env::var_os("DLLTOOL")
                 .map(PathBuf::from)
@@ -832,7 +865,7 @@ pub fn cbuild(
                 dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
             }
 
-            build_implib_file(&ws, &name, &rustc_target, &root_output, &dlltool)?;
+            build_implib_file(&ws, &lib_name, &rustc_target, &root_output, &dlltool)?;
         }
 
         if capi_config.header.enabled {
@@ -841,6 +874,28 @@ pub fn cbuild(
                 build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
             } else {
                 copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
+            }
+        }
+
+        if name.contains('-') {
+            let from_build_targets = BuildTargets::new(
+                &name.replace("-", "_"),
+                &rustc_target,
+                &root_output,
+                &libkinds,
+                &capi_config,
+            );
+            if let (Some(from_static_lib), Some(to_static_lib)) = (
+                from_build_targets.static_lib.as_ref(),
+                build_targets.static_lib.as_ref(),
+            ) {
+                copy(from_static_lib, to_static_lib)?;
+            }
+            if let (Some(from_shared_lib), Some(to_shared_lib)) = (
+                from_build_targets.shared_lib.as_ref(),
+                build_targets.shared_lib.as_ref(),
+            ) {
+                copy(from_shared_lib, to_shared_lib)?;
             }
         }
 
