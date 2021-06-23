@@ -1,4 +1,4 @@
-LDLIBS = -lexample_project
+LDLIBS = -lexample-project
 
 test: run_tests
 	./run_tests
