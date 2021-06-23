@@ -250,6 +250,7 @@ mod test {
                 },
                 pkg_config: crate::build::PkgConfigCApiConfig {
                     name: "foo".into(),
+                    filename: "foo".into(),
                     description: "".into(),
                     version: "0.1".into(),
                     requires: Some("somelib, someotherlib".into()),

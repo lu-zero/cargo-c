@@ -95,15 +95,15 @@ fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Resu
 
 fn build_pc_files(
     ws: &Workspace,
-    name: &str,
+    filename: &str,
     root_output: &Path,
     pc: &PkgConfig,
 ) -> anyhow::Result<()> {
     ws.config().shell().status("Building", "pkg-config files")?;
-    build_pc_file(name, root_output, pc)?;
+    build_pc_file(filename, root_output, pc)?;
     let pc_uninstalled = pc.uninstalled(&root_output);
     build_pc_file(
-        &format!("{}-uninstalled", name),
+        &format!("{}-uninstalled", filename),
         root_output,
         &pc_uninstalled,
     )
@@ -384,6 +384,7 @@ pub struct HeaderCApiConfig {
 
 pub struct PkgConfigCApiConfig {
     pub name: String,
+    pub filename: String,
     pub description: String,
     pub version: String,
     pub requires: Option<String>,
@@ -468,6 +469,7 @@ fn load_manifest_capi_config(
     let pc = capi.and_then(|v| v.get("pkg_config"));
     let pkg = ws.current().unwrap();
     let mut pc_name = String::from(name);
+    let mut pc_filename = String::from(name);
     let mut description = String::from(
         pkg.manifest()
             .metadata()
@@ -482,6 +484,9 @@ fn load_manifest_capi_config(
     if let Some(ref pc) = pc {
         if let Some(override_name) = pc.get("name").and_then(|v| v.as_str()) {
             pc_name = String::from(override_name);
+        }
+        if let Some(override_filename) = pc.get("filename").and_then(|v| v.as_str()) {
+            pc_filename = String::from(override_filename);
         }
         if let Some(override_description) = pc.get("description").and_then(|v| v.as_str()) {
             description = String::from(override_description);
@@ -499,6 +504,7 @@ fn load_manifest_capi_config(
 
     let pkg_config = PkgConfigCApiConfig {
         name: pc_name,
+        filename: pc_filename,
         description,
         version,
         requires,
@@ -812,7 +818,7 @@ pub fn cbuild(
         }
         pc.add_lib_private(&static_libs);
 
-        build_pc_files(&ws, &name, &root_output, &pc)?;
+        build_pc_files(&ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
         if !only_staticlib {
             build_def_file(&ws, &name, &rustc_target, &root_output)?;

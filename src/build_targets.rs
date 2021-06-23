@@ -22,7 +22,7 @@ impl BuildTargets {
         libkinds: &[&str],
         capi_config: &CApiConfig,
     ) -> BuildTargets {
-        let pc = targetdir.join(&format!("{}.pc", name));
+        let pc = targetdir.join(&format!("{}.pc", &capi_config.pkg_config.filename));
         let include = if capi_config.header.enabled {
             let mut header_name = PathBuf::from(&capi_config.header.name);
             header_name.set_extension("h");
