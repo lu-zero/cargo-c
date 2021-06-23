@@ -20,7 +20,7 @@ use cargo_util::paths::copy;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
-use crate::install::{InstallPaths, LibType, UnixLibNames};
+use crate::install::InstallPaths;
 use crate::pkg_config_gen::PkgConfig;
 use crate::target;
 
@@ -896,18 +896,6 @@ pub fn cbuild(
                 build_targets.shared_lib.as_ref(),
             ) {
                 copy(from_shared_lib, to_shared_lib)?;
-            }
-        }
-
-        // Generate versioned links in target dir so the lib can be used uninstalled
-        if let Some(ref shared_lib) = build_targets.shared_lib {
-            if capi_config.library.versioning {
-                let lib_name = &capi_config.library.name;
-                let lib_type = LibType::from_build_targets(&build_targets);
-                let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version);
-                if let Some(lib) = lib {
-                    lib.install(&capi_config, &shared_lib, &root_output)?;
-                }
             }
         }
 
