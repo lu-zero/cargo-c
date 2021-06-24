@@ -101,6 +101,8 @@ enabled = true
 [package.metadata.capi.pkg_config]
 # Used as the package name in the pkg-config file and defaults to the crate name.
 name = "libfoo"
+# Used as the pkg-config file name and defaults to the crate name.
+filename = "libfoo-2.0"
 # Used as the package description in the pkg-config file and defaults to the crate description.
 description = "some description"
 # Used as the package version in the pkg-config file and defaults to the crate version.
