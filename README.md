@@ -85,8 +85,8 @@ min_version = "0.6.10"
 # The name can be with or without the header filename extension `.h`
 name = "new_name"
 # Install the header into a subdirectory with the name of the crate. This
-# is enabled by default
-subdirectory = true
+# is enabled by default, pass `false` or "" to disable it.
+subdirectory = "libfoo-2.0/foo"
 # Generate the header file with `cbindgen`, or copy a pre-generated header
 # from the `assets` subdirectory. By default a header is generated.
 generation = true
