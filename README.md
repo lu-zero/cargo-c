@@ -111,6 +111,10 @@ version = "1.2.3"
 requires = "gstreamer-1.0, gstreamer-base-1.0"
 # Used as the Requires.private field in the pkg-config file, if defined
 requires_private = "gobject-2.0, glib-2.0 >= 2.56.0, gmodule-2.0"
+# Strip the include search path from the last n components, useful to support installing in a
+# subdirectory but then include with the path. By default it is 0.
+strip_include_path_components = 1
+
 ```
 
 ### Library Generation
