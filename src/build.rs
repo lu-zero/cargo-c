@@ -409,7 +409,7 @@ pub struct CApiConfig {
 
 pub struct HeaderCApiConfig {
     pub name: String,
-    pub subdirectory: bool,
+    pub subdirectory: String,
     pub generation: bool,
     pub enabled: bool,
 }
@@ -465,6 +465,22 @@ fn load_manifest_capi_config(
 
     let header = capi.and_then(|v| v.get("header"));
 
+    let subdirectory = header
+        .as_ref()
+        .and_then(|h| h.get("subdirectory"))
+        .map(|v| {
+            if let Ok(b) = v.clone().try_into::<bool>() {
+                Ok(if b {
+                    String::from(name)
+                } else {
+                    String::from("")
+                })
+            } else {
+                v.clone().try_into::<String>()
+            }
+        })
+        .unwrap_or_else(|| Ok(String::from(name)))?;
+
     let header = if let Some(ref capi) = capi {
         HeaderCApiConfig {
             name: header
@@ -473,11 +489,7 @@ fn load_manifest_capi_config(
                 .or_else(|| capi.get("header_name"))
                 .map(|v| v.clone().try_into())
                 .unwrap_or_else(|| Ok(String::from(name)))?,
-            subdirectory: header
-                .as_ref()
-                .and_then(|h| h.get("subdirectory"))
-                .map(|v| v.clone().try_into())
-                .unwrap_or(Ok(true))?,
+            subdirectory,
             generation: header
                 .as_ref()
                 .and_then(|h| h.get("generation"))
@@ -492,7 +504,7 @@ fn load_manifest_capi_config(
     } else {
         HeaderCApiConfig {
             name: String::from(name),
-            subdirectory: true,
+            subdirectory: String::from(name),
             generation: true,
             enabled: true,
         }

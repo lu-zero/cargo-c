@@ -41,7 +41,7 @@ impl PkgConfig {
     /// Cflags: -I${includedir}/$name
     /// Libs: -L${libdir} -l$name
     ///
-    pub fn new(name: &str, capi_config: &CApiConfig) -> Self {
+    pub fn new(_name: &str, capi_config: &CApiConfig) -> Self {
         let requires = match &capi_config.pkg_config.requires {
             Some(reqs) => reqs.split(',').map(|s| s.trim().to_string()).collect(),
             _ => Vec::new(),
@@ -63,11 +63,10 @@ impl PkgConfig {
         ];
 
         let cflags = if capi_config.header.enabled {
-            if capi_config.header.subdirectory {
-                format!("-I{}/{}", "${includedir}", name)
-            } else {
-                String::from("-I${includedir}")
-            }
+            let mut includedir = PathBuf::from("${includedir}");
+            includedir.push(&capi_config.header.subdirectory);
+
+            format!("-I{}", includedir.display())
         } else {
             String::from("")
         };
@@ -244,7 +243,7 @@ mod test {
             &CApiConfig {
                 header: crate::build::HeaderCApiConfig {
                     name: "foo".into(),
-                    subdirectory: true,
+                    subdirectory: "".into(),
                     generation: true,
                     enabled: true,
                 },

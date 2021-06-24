@@ -184,10 +184,8 @@ pub fn cinstall(
 
     let install_path_lib = append_to_destdir(destdir, &install_path_lib);
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-    let mut install_path_include = append_to_destdir(destdir, &paths.includedir);
-    if let Some(name) = paths.subdir_name {
-        install_path_include = install_path_include.join(name);
-    }
+    let install_path_include =
+        append_to_destdir(destdir, &paths.includedir).join(&paths.subdir_name);
 
     fs::create_dir_all(&install_path_lib)?;
     fs::create_dir_all(&install_path_pc)?;
@@ -250,7 +248,7 @@ pub fn cinstall(
 
 #[derive(Debug, Hash)]
 pub struct InstallPaths {
-    pub subdir_name: Option<PathBuf>,
+    pub subdir_name: PathBuf,
     pub destdir: PathBuf,
     pub prefix: PathBuf,
     pub libdir: PathBuf,
@@ -260,7 +258,7 @@ pub struct InstallPaths {
 }
 
 impl InstallPaths {
-    pub fn new(name: &str, args: &ArgMatches<'_>, capi_config: &CApiConfig) -> Self {
+    pub fn new(_name: &str, args: &ArgMatches<'_>, capi_config: &CApiConfig) -> Self {
         let destdir = args
             .value_of("destdir")
             .map(PathBuf::from)
@@ -277,11 +275,8 @@ impl InstallPaths {
             .value_of("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
-        let subdir_name = if capi_config.header.subdirectory {
-            Some(PathBuf::from(name))
-        } else {
-            None
-        };
+        let subdir_name = PathBuf::from(&capi_config.header.subdirectory);
+
         let bindir = args
             .value_of("bindir")
             .map(PathBuf::from)
