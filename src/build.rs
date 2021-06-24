@@ -421,6 +421,7 @@ pub struct PkgConfigCApiConfig {
     pub version: String,
     pub requires: Option<String>,
     pub requires_private: Option<String>,
+    pub strip_include_path_components: usize,
 }
 
 pub struct LibraryCApiConfig {
@@ -524,6 +525,7 @@ fn load_manifest_capi_config(
     let mut version = pkg.version().to_string();
     let mut requires = None;
     let mut requires_private = None;
+    let mut strip_include_path_components = 0;
 
     if let Some(ref pc) = pc {
         if let Some(override_name) = pc.get("name").and_then(|v| v.as_str()) {
@@ -544,6 +546,10 @@ fn load_manifest_capi_config(
         if let Some(req) = pc.get("requires_private").and_then(|v| v.as_str()) {
             requires_private = Some(String::from(req));
         }
+        strip_include_path_components = pc
+            .get("strip_include_path_components")
+            .map(|v| v.clone().try_into())
+            .unwrap_or_else(|| Ok(0))?
     }
 
     let pkg_config = PkgConfigCApiConfig {
@@ -553,6 +559,7 @@ fn load_manifest_capi_config(
         version,
         requires,
         requires_private,
+        strip_include_path_components,
     };
 
     let library = capi.and_then(|v| v.get("library"));

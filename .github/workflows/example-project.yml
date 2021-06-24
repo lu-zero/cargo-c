@@ -66,7 +66,7 @@ jobs:
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         run: |
           set -x
-          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include"
+          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example-project-0.1"
           test "$(pkg-config --libs example_project)" = "-L/usr/local/lib -lexample-project"
 
       - name: Update dynamic linker cache
@@ -86,12 +86,13 @@ jobs:
         with:
           release: false
 
-      - name: Copy installed files to /mingw64
+      - name: Copy installed files
         if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
         working-directory: example-project
         run: |
           # NB: --prefix doesn't seem to matter on Windows
-          cp -r temp/usr/local/* /mingw64/
+          cp -r temp/usr/local/include /usr/local/
+          cp -r temp/usr/local/{lib,bin} /mingw64/
         shell: msys2 {0}
 
       - name: Test usage from C (using Makefile)

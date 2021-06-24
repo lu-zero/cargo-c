@@ -17,7 +17,10 @@ inline-c = "0.1"
 cargo_metadata = "0.13.1"
 
 [package.metadata.capi.header]
-subdirectory = false
+subdirectory = "example-project-0.1/example_project"
+
+[package.metadata.capi.pkg_config]
+strip_include_path_components = 1
 
 [package.metadata.capi.library]
 rustflags = "-Cpanic=abort"

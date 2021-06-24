@@ -64,7 +64,11 @@ impl PkgConfig {
 
         let cflags = if capi_config.header.enabled {
             let mut includedir = PathBuf::from("${includedir}");
-            includedir.push(&capi_config.header.subdirectory);
+            let subdirectory = Path::new(&capi_config.header.subdirectory)
+                .ancestors()
+                .nth(capi_config.pkg_config.strip_include_path_components)
+                .unwrap_or_else(|| Path::new(""));
+            includedir.push(&subdirectory);
 
             format!("-I{}", includedir.display())
         } else {
@@ -254,6 +258,7 @@ mod test {
                     version: "0.1".into(),
                     requires: Some("somelib, someotherlib".into()),
                     requires_private: Some("someprivatelib >= 1.0".into()),
+                    strip_include_path_components: 0,
                 },
                 library: crate::build::LibraryCApiConfig {
                     name: "foo".into(),
