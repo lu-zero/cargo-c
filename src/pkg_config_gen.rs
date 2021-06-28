@@ -4,6 +4,13 @@ use crate::build::CApiConfig;
 use crate::install::InstallPaths;
 use std::path::{Path, PathBuf};
 
+use path_absolutize::*;
+
+// Rebuild the path from its components to make sure they are uniform on Windows
+fn canonicalize<P: AsRef<Path>>(path: P) -> PathBuf {
+    path.as_ref().absolutize().unwrap().iter().collect()
+}
+
 #[derive(Debug, Clone)]
 pub struct PkgConfig {
     prefix: PathBuf,
@@ -63,14 +70,13 @@ impl PkgConfig {
         ];
 
         let cflags = if capi_config.header.enabled {
-            let mut includedir = PathBuf::from("${includedir}");
-            let subdirectory = Path::new(&capi_config.header.subdirectory)
+            let subdirectory = Path::new("${includedir}").join(&capi_config.header.subdirectory);
+            let subdirectory = subdirectory
                 .ancestors()
                 .nth(capi_config.pkg_config.strip_include_path_components)
                 .unwrap_or_else(|| Path::new(""));
-            includedir.push(&subdirectory);
 
-            format!("-I{}", includedir.display())
+            format!("-I{}", subdirectory.display())
         } else {
             String::from("")
         };
@@ -105,13 +111,13 @@ impl PkgConfig {
     ) -> Self {
         let mut pc = PkgConfig::new(name, capi_config);
 
-        pc.prefix = install_paths.prefix.clone();
+        pc.prefix = canonicalize(&install_paths.prefix);
         // TODO: support exec_prefix
         if args.is_present("includedir") {
-            pc.includedir = install_paths.includedir.clone();
+            pc.includedir = canonicalize(&install_paths.includedir);
         }
         if args.is_present("libdir") {
-            pc.libdir = install_paths.libdir.clone();
+            pc.libdir = canonicalize(&install_paths.libdir);
         }
         pc
     }
