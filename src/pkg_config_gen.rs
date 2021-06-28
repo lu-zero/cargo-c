@@ -88,8 +88,8 @@ impl PkgConfig {
 
             prefix: "/usr/local".into(),
             exec_prefix: "${prefix}".into(),
-            includedir: "${prefix}/include".into(),
-            libdir: "${exec_prefix}/lib".into(),
+            includedir: ["${prefix}", "include"].iter().collect(),
+            libdir: ["${exec_prefix}", "lib"].iter().collect(),
 
             libs,
             libs_private: Vec::new(),
