@@ -2,7 +2,32 @@
 
 use crate::build::CApiConfig;
 use crate::install::InstallPaths;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+
+fn canonicalize<P: AsRef<Path>>(path: P) -> String {
+    let mut separator = "";
+    let out = path
+        .as_ref()
+        .components()
+        .map(|p| match p {
+            Component::RootDir => {
+                separator = "/";
+                String::new()
+            }
+            Component::Prefix(_) => p.as_os_str().to_string_lossy().to_string(),
+            _ => {
+                let c = format!("{}{}", separator, p.as_os_str().to_string_lossy());
+                separator = "/";
+                c
+            }
+        })
+        .collect::<String>();
+    if out.is_empty() {
+        "/".to_string()
+    } else {
+        out
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PkgConfig {
@@ -63,14 +88,13 @@ impl PkgConfig {
         ];
 
         let cflags = if capi_config.header.enabled {
-            let mut includedir = PathBuf::from("${includedir}");
-            let subdirectory = Path::new(&capi_config.header.subdirectory)
+            let includedir = Path::new("${includedir}").join(&capi_config.header.subdirectory);
+            let includedir = includedir
                 .ancestors()
                 .nth(capi_config.pkg_config.strip_include_path_components)
                 .unwrap_or_else(|| Path::new(""));
-            includedir.push(&subdirectory);
 
-            format!("-I{}", includedir.display())
+            format!("-I{}", canonicalize(includedir))
         } else {
             String::from("")
         };
@@ -187,10 +211,10 @@ Description: {}
 Version: {}
 Libs: {}
 Cflags: {}",
-            self.prefix.display(),
-            self.exec_prefix.display(),
-            self.libdir.display(),
-            self.includedir.display(),
+            canonicalize(&self.prefix),
+            canonicalize(&self.exec_prefix),
+            canonicalize(&self.libdir),
+            canonicalize(&self.includedir),
             self.name,
             self.description,
             self.version,
