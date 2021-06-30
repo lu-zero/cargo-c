@@ -25,3 +25,7 @@ strip_include_path_components = 1
 [package.metadata.capi.library]
 rustflags = "-Cpanic=abort"
 name = "example-project"
+
+[package.metadata.capi.install.include]
+asset = [{from = "include/file.h", to = "otherplace" }]
+generated = [{from = "include/other_file.h", to = "otherplace" }]
