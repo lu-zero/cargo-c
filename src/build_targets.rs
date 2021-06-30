@@ -1,9 +1,43 @@
 use std::path::{Path, PathBuf};
 
-use crate::build::CApiConfig;
+use crate::build::{CApiConfig, InstallTarget};
 use crate::target::Target;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
+pub struct ExtraTargets {
+    pub include: Vec<(PathBuf, PathBuf)>,
+}
+
+impl ExtraTargets {
+    pub fn setup(
+        &mut self,
+        capi_config: &CApiConfig,
+        root_dir: &Path,
+        out_dir: &Path,
+    ) -> anyhow::Result<()> {
+        self.include = extra_targets(&capi_config.install.include, root_dir, out_dir)?;
+
+        Ok(())
+    }
+}
+
+fn extra_targets(
+    targets: &[InstallTarget],
+    root_path: &Path,
+    root_output: &Path,
+) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
+    use itertools::*;
+    targets
+        .iter()
+        .map(|t| match t {
+            InstallTarget::Asset(paths) => paths.install_paths(root_path),
+            InstallTarget::Generated(paths) => paths.install_paths(root_output),
+        })
+        .flatten_ok()
+        .collect()
+}
+
+#[derive(Debug, Clone)]
 pub struct BuildTargets {
     pub include: Option<PathBuf>,
     pub static_lib: Option<PathBuf>,
@@ -12,6 +46,7 @@ pub struct BuildTargets {
     pub def: Option<PathBuf>,
     pub pc: PathBuf,
     pub target: Target,
+    pub extra: ExtraTargets,
 }
 
 impl BuildTargets {
@@ -21,7 +56,7 @@ impl BuildTargets {
         targetdir: &Path,
         libkinds: &[&str],
         capi_config: &CApiConfig,
-    ) -> BuildTargets {
+    ) -> anyhow::Result<BuildTargets> {
         let pc = targetdir.join(&format!("{}.pc", &capi_config.pkg_config.filename));
         let include = if capi_config.header.enabled {
             let mut header_name = PathBuf::from(&capi_config.header.name);
@@ -83,7 +118,7 @@ impl BuildTargets {
             None
         };
 
-        BuildTargets {
+        Ok(BuildTargets {
             pc,
             include,
             static_lib,
@@ -91,6 +126,7 @@ impl BuildTargets {
             impl_lib,
             def,
             target: target.clone(),
-        }
+            extra: Default::default(),
+        })
     }
 }

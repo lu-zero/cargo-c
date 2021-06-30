@@ -291,6 +291,9 @@ mod test {
                     versioning: true,
                     rustflags: Vec::default(),
                 },
+                install: crate::build::InstallCApiConfig {
+                    include: Vec::new(),
+                },
             },
         );
         pkg.add_lib("-lbar").add_cflag("-DFOO");

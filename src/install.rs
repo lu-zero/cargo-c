@@ -4,7 +4,7 @@ use structopt::clap::ArgMatches;
 use cargo::core::Workspace;
 use semver::Version;
 
-use crate::build::CApiConfig;
+use crate::build::*;
 use crate::build_targets::BuildTargets;
 
 use anyhow::Context;
@@ -184,8 +184,7 @@ pub fn cinstall(
 
     let install_path_lib = append_to_destdir(destdir, &install_path_lib);
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-    let install_path_include =
-        append_to_destdir(destdir, &paths.includedir).join(&paths.subdir_name);
+    let install_path_include = append_to_destdir(destdir, &paths.includedir);
 
     fs::create_dir_all(&install_path_lib)?;
     fs::create_dir_all(&install_path_pc)?;
@@ -199,6 +198,7 @@ pub fn cinstall(
     )?;
 
     if capi_config.header.enabled {
+        let install_path_include = install_path_include.join(&paths.subdir_name);
         fs::create_dir_all(&install_path_include)?;
         ws.config().shell().status("Installing", "header file")?;
         let include = &build_targets.include.clone().unwrap();
@@ -206,6 +206,12 @@ pub fn cinstall(
             include,
             install_path_include.join(include.file_name().unwrap()),
         )?;
+    }
+
+    for (from, to) in build_targets.extra.include.iter() {
+        let to = install_path_include.join(to);
+        fs::create_dir_all(to.parent().unwrap())?;
+        copy(from, to)?;
     }
 
     if let Some(ref static_lib) = build_targets.static_lib {

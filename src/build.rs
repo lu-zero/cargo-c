@@ -304,7 +304,7 @@ fn build_implib_file(
 struct FingerPrint<'a> {
     name: &'a str,
     root_output: &'a Path,
-    build_targets: &'a BuildTargets,
+    build_targets: BuildTargets,
     install_paths: &'a InstallPaths,
     static_libs: &'a str,
 }
@@ -319,7 +319,7 @@ impl<'a> FingerPrint<'a> {
     fn new(
         name: &'a str,
         root_output: &'a Path,
-        build_targets: &'a BuildTargets,
+        build_targets: BuildTargets,
         install_paths: &'a InstallPaths,
     ) -> Self {
         Self {
@@ -405,6 +405,7 @@ pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
     pub library: LibraryCApiConfig,
+    pub install: InstallCApiConfig,
 }
 
 pub struct HeaderCApiConfig {
@@ -430,6 +431,77 @@ pub struct LibraryCApiConfig {
     pub install_subdir: Option<String>,
     pub versioning: bool,
     pub rustflags: Vec<String>,
+}
+
+pub struct InstallCApiConfig {
+    pub include: Vec<InstallTarget>,
+}
+
+pub enum InstallTarget {
+    Asset(InstallTargetPaths),
+    Generated(InstallTargetPaths),
+}
+
+#[derive(Clone)]
+pub struct InstallTargetPaths {
+    /// pattern to feed to glob::glob()
+    ///
+    /// if the InstallTarget is Asset its root is the the root_path
+    /// if the InstallTarget is Generated its root is the root_output
+    pub from: String,
+    /// The path to be joined to the canonical directory to install the files discovered by the
+    /// glob, e.g. `{includedir}/{to}` for includes.
+    pub to: String,
+}
+
+impl InstallTargetPaths {
+    pub fn from_value(value: &toml::value::Value, default_to: &str) -> anyhow::Result<Self> {
+        let from = value
+            .get("from")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("a from field is required"))?;
+        let to = value
+            .get("to")
+            .and_then(|v| v.as_str())
+            .unwrap_or(default_to);
+
+        Ok(InstallTargetPaths {
+            from: from.to_string(),
+            to: to.to_string(),
+        })
+    }
+
+    pub fn install_paths(
+        &self,
+        root: &Path,
+    ) -> anyhow::Result<impl Iterator<Item = (PathBuf, PathBuf)>> {
+        let pattern = root.join(&self.from);
+        let base_pattern = if self.from.contains("/**") {
+            pattern
+                .iter()
+                .take_while(|&c| c != std::ffi::OsStr::new("**"))
+                .collect()
+        } else {
+            pattern.parent().unwrap().to_path_buf()
+        };
+        let pattern = pattern.to_str().unwrap();
+        let to = PathBuf::from(&self.to);
+        let g = glob::glob(pattern)?.filter_map(move |p| {
+            if let Ok(p) = p {
+                if p.is_file() {
+                    let from = p;
+                    let to = to.join(from.strip_prefix(&base_pattern).unwrap());
+                    Some((from, to))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+
+        Ok(g)
+    }
 }
 
 fn load_manifest_capi_config(
@@ -601,10 +673,49 @@ fn load_manifest_capi_config(
         rustflags,
     };
 
+    let default_assets_include = InstallTargetPaths {
+        from: "assets/capi/include/**/*".to_string(),
+        to: header.subdirectory.clone(),
+    };
+
+    let default_generated_include = InstallTargetPaths {
+        from: "capi/include/**/*".to_string(),
+        to: header.subdirectory.clone(),
+    };
+
+    let mut include_targets = vec![
+        InstallTarget::Asset(default_assets_include),
+        InstallTarget::Generated(default_generated_include),
+    ];
+
+    let install = capi.and_then(|v| v.get("install"));
+    if let Some(ref install) = install {
+        if let Some(includes) = install.get("include") {
+            if let Some(assets) = includes.get("asset").and_then(|v| v.as_array()) {
+                for asset in assets {
+                    let target_paths = InstallTargetPaths::from_value(asset, &header.subdirectory)?;
+                    include_targets.push(InstallTarget::Asset(target_paths));
+                }
+            }
+
+            if let Some(generated) = includes.get("generated").and_then(|v| v.as_array()) {
+                for gen in generated {
+                    let target_paths = InstallTargetPaths::from_value(gen, &header.subdirectory)?;
+                    include_targets.push(InstallTarget::Generated(target_paths));
+                }
+            }
+        }
+    }
+
+    let install = InstallCApiConfig {
+        include: include_targets,
+    };
+
     Ok(CApiConfig {
         header,
         pkg_config,
         library,
+        install,
     })
 }
 
@@ -699,7 +810,7 @@ impl Executor for Exec {
     }
 }
 
-use cargo::core::compiler::{unit_graph, Compilation, UnitInterner};
+use cargo::core::compiler::{unit_graph, UnitInterner};
 use cargo::ops::create_bcx;
 use cargo::util::profile;
 
@@ -725,7 +836,7 @@ fn compile_with_exec<'a>(
     exec: &Arc<dyn Executor>,
     leaf_args: &[String],
     global_args: &[String],
-) -> CargoResult<Compilation<'a>> {
+) -> CargoResult<String> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
     let mut bcx = create_bcx(ws, options, &interner)?;
@@ -741,11 +852,33 @@ fn compile_with_exec<'a>(
 
     if options.build_config.unit_graph {
         unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.config())?;
-        return Compilation::new(&bcx);
+        return Ok(String::new());
     }
     let _p = profile::start("compiling");
     let cx = cargo::core::compiler::Context::new(&bcx)?;
-    cx.compile(exec)
+
+    let r = cx.compile(exec)?;
+
+    // NOTE: right now we have only a single cdylib since we have a single package to build.
+    let out_dir = r
+        .cdylibs
+        .iter()
+        .filter_map(|l| {
+            l.script_meta.map(|m| {
+                r.extra_env.get(&m).unwrap().iter().filter_map(|e| {
+                    if e.0 == "OUT_DIR" {
+                        Some(e.1.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+        })
+        .flatten()
+        .next()
+        .unwrap();
+
+    Ok(out_dir)
 }
 
 pub fn cbuild(
@@ -829,10 +962,11 @@ pub fn cbuild(
         leaf_args.push("target-feature=+crt-static".into());
     }
 
-    let build_targets =
-        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config);
+    let mut build_targets =
+        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config)?;
 
-    let mut finger_print = FingerPrint::new(&name, &root_output, &build_targets, &install_paths);
+    let mut finger_print =
+        FingerPrint::new(&name, &root_output, build_targets.clone(), &install_paths);
 
     let pristine = finger_print.load_previous().is_err();
 
@@ -842,13 +976,19 @@ pub fn cbuild(
     }
 
     let exec = Arc::new(Exec::default());
-    let _r = compile_with_exec(
+    let out_dir = compile_with_exec(
         ws,
         &compile_opts,
         &(exec.clone() as Arc<dyn Executor>),
         &leaf_args,
         &capi_config.library.rustflags,
     )?;
+
+    let out_dir = Path::new(&out_dir);
+
+    build_targets
+        .extra
+        .setup(&capi_config, &root_path, &out_dir)?;
 
     if pristine {
         // restore the default to make sure the tests do not trigger a second rebuild.
@@ -903,7 +1043,8 @@ pub fn cbuild(
                 &root_output,
                 &libkinds,
                 &capi_config,
-            );
+            )?;
+
             if let (Some(from_static_lib), Some(to_static_lib)) = (
                 from_build_targets.static_lib.as_ref(),
                 build_targets.static_lib.as_ref(),
