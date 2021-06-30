@@ -131,7 +131,7 @@ rustflags = "-Cpanic=abort"
 [workspace.metadata.capi.library]
 # Add `-Cpanic=abort` to the RUSTFLAGS automatically, it may be useful in case
 # something might panic in the crates used by the library.
-# This is workspace-wide, and overrides any setting in the member crates.
+# This is workspace-wide, the setting in the member crates overrides it.
 rustflags = "-Cpanic=abort"
 ```
 

@@ -741,13 +741,14 @@ fn compile_with_exec<'a>(
 
         extra_compiler_args.insert(unit.clone(), leaf_args);
 
+        let dep_args = if capi_config.library.rustflags.is_empty() {
+            &global_args
+        } else {
+            &capi_config.library.rustflags
+        };
+
         for dep in unit_graph[unit].iter() {
-            set_deps_args(
-                dep,
-                unit_graph,
-                extra_compiler_args,
-                &capi_config.library.rustflags,
-            );
+            set_deps_args(dep, unit_graph, extra_compiler_args, dep_args);
         }
     }
 
