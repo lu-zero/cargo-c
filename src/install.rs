@@ -198,20 +198,12 @@ pub fn cinstall(
     )?;
 
     if capi_config.header.enabled {
-        let install_path_include = install_path_include.join(&paths.subdir_name);
-        fs::create_dir_all(&install_path_include)?;
         ws.config().shell().status("Installing", "header file")?;
-        let include = &build_targets.include.clone().unwrap();
-        fs::copy(
-            include,
-            install_path_include.join(include.file_name().unwrap()),
-        )?;
-    }
-
-    for (from, to) in build_targets.extra.include.iter() {
-        let to = install_path_include.join(to);
-        fs::create_dir_all(to.parent().unwrap())?;
-        copy(from, to)?;
+        for (from, to) in build_targets.extra.include.iter() {
+            let to = install_path_include.join(to);
+            fs::create_dir_all(to.parent().unwrap())?;
+            copy(from, to)?;
+        }
     }
 
     if let Some(ref static_lib) = build_targets.static_lib {

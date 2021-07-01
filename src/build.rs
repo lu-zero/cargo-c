@@ -61,23 +61,20 @@ fn build_include_file(
     Ok(())
 }
 
-/// Copy the pre-built C header from the asset directory
+/// Copy the pre-built C header from the asset directory to the root_dir
 fn copy_prebuilt_include_file(
     ws: &Workspace,
-    name: &str,
+    build_targets: &BuildTargets,
     root_output: &Path,
-    root_path: &Path,
 ) -> anyhow::Result<()> {
     ws.config()
         .shell()
-        .status("Building", "pre-built header file")?;
-    let mut header_name = PathBuf::from(name);
-    header_name.set_extension("h");
-
-    let source_path = root_path.join("assets").join(&header_name);
-    let target_path = root_output.join(header_name);
-
-    std::fs::copy(source_path, target_path)?;
+        .status("Copying", "pre-built header files")?;
+    for (from, to) in build_targets.extra.include.iter() {
+        let to = root_output.join(to);
+        std::fs::create_dir_all(to.parent().unwrap())?;
+        copy(from, to)?;
+    }
 
     Ok(())
 }
@@ -678,6 +675,11 @@ fn load_manifest_capi_config(
         to: header.subdirectory.clone(),
     };
 
+    let default_legacy_asset_include = InstallTargetPaths {
+        from: format!("assets/{}.h", header.name),
+        to: header.subdirectory.clone(),
+    };
+
     let default_generated_include = InstallTargetPaths {
         from: "capi/include/**/*".to_string(),
         to: header.subdirectory.clone(),
@@ -685,6 +687,7 @@ fn load_manifest_capi_config(
 
     let mut include_targets = vec![
         InstallTarget::Asset(default_assets_include),
+        InstallTarget::Asset(default_legacy_asset_include),
         InstallTarget::Generated(default_generated_include),
     ];
 
@@ -836,7 +839,7 @@ fn compile_with_exec<'a>(
     exec: &Arc<dyn Executor>,
     leaf_args: &[String],
     global_args: &[String],
-) -> CargoResult<String> {
+) -> CargoResult<Option<PathBuf>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
     let mut bcx = create_bcx(ws, options, &interner)?;
@@ -852,7 +855,7 @@ fn compile_with_exec<'a>(
 
     if options.build_config.unit_graph {
         unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.config())?;
-        return Ok(String::new());
+        return Ok(None);
     }
     let _p = profile::start("compiling");
     let cx = cargo::core::compiler::Context::new(&bcx)?;
@@ -867,7 +870,7 @@ fn compile_with_exec<'a>(
             l.script_meta.map(|m| {
                 r.extra_env.get(&m).unwrap().iter().filter_map(|e| {
                     if e.0 == "OUT_DIR" {
-                        Some(e.1.clone())
+                        Some(PathBuf::from(&e.1))
                     } else {
                         None
                     }
@@ -875,8 +878,7 @@ fn compile_with_exec<'a>(
             })
         })
         .flatten()
-        .next()
-        .unwrap();
+        .next();
 
     Ok(out_dir)
 }
@@ -984,11 +986,17 @@ pub fn cbuild(
         &capi_config.library.rustflags,
     )?;
 
-    let out_dir = Path::new(&out_dir);
-
     build_targets
         .extra
-        .setup(&capi_config, &root_path, &out_dir)?;
+        .setup(&capi_config, &root_path, out_dir.as_deref())?;
+
+    if capi_config.header.generation {
+        let mut header_name = PathBuf::from(&capi_config.header.name);
+        header_name.set_extension("h");
+        let from = root_output.join(&header_name);
+        let to = Path::new(&capi_config.header.subdirectory).join(&header_name);
+        build_targets.extra.include.push((from, to));
+    }
 
     if pristine {
         // restore the default to make sure the tests do not trigger a second rebuild.
@@ -1031,9 +1039,9 @@ pub fn cbuild(
             let header_name = &capi_config.header.name;
             if capi_config.header.generation {
                 build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
-            } else {
-                copy_prebuilt_include_file(&ws, header_name, &root_output, &root_path)?;
             }
+
+            copy_prebuilt_include_file(&ws, &build_targets, &root_output)?;
         }
 
         if name.contains('-') {

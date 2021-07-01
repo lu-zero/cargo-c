@@ -13,7 +13,7 @@ impl ExtraTargets {
         &mut self,
         capi_config: &CApiConfig,
         root_dir: &Path,
-        out_dir: &Path,
+        out_dir: Option<&Path>,
     ) -> anyhow::Result<()> {
         self.include = extra_targets(&capi_config.install.include, root_dir, out_dir)?;
 
@@ -24,14 +24,16 @@ impl ExtraTargets {
 fn extra_targets(
     targets: &[InstallTarget],
     root_path: &Path,
-    root_output: &Path,
+    root_output: Option<&Path>,
 ) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
     use itertools::*;
     targets
         .iter()
-        .map(|t| match t {
-            InstallTarget::Asset(paths) => paths.install_paths(root_path),
-            InstallTarget::Generated(paths) => paths.install_paths(root_output),
+        .filter_map(|t| match t {
+            InstallTarget::Asset(paths) => Some(paths.install_paths(root_path)),
+            InstallTarget::Generated(paths) => {
+                root_output.map(|root_output| paths.install_paths(root_output))
+            }
         })
         .flatten_ok()
         .collect()
