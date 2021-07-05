@@ -675,8 +675,14 @@ fn load_manifest_capi_config(
         to: header.subdirectory.clone(),
     };
 
+    let header_name = if header.name.ends_with(".h") {
+        format!("assets/{}", header.name)
+    } else {
+        format!("assets/{}.h", header.name)
+    };
+
     let default_legacy_asset_include = InstallTargetPaths {
-        from: format!("assets/{}.h", header.name),
+        from: header_name,
         to: header.subdirectory.clone(),
     };
 
