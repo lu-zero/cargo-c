@@ -223,7 +223,7 @@ pub fn cinstall(
             LibType::So | LibType::Dylib => {
                 let lib =
                     UnixLibNames::new(lib_type, lib_name, &capi_config.library.version).unwrap();
-                lib.install(&capi_config, &shared_lib, &install_path_lib)?;
+                lib.install(capi_config, shared_lib, &install_path_lib)?;
             }
             LibType::Windows => {
                 let install_path_bin = append_to_destdir(destdir, &paths.bindir);

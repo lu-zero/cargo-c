@@ -99,7 +99,7 @@ fn build_pc_files(
 ) -> anyhow::Result<()> {
     ws.config().shell().status("Building", "pkg-config files")?;
     build_pc_file(filename, root_output, pc)?;
-    let pc_uninstalled = pc.uninstalled(&root_output);
+    let pc_uninstalled = pc.uninstalled(root_output);
     build_pc_file(
         &format!("{}-uninstalled", filename),
         root_output,
@@ -337,7 +337,7 @@ impl<'a> FingerPrint<'a> {
 
         let mut paths: Vec<&PathBuf> = Vec::new();
         if let Some(include) = &self.build_targets.include {
-            paths.push(&include);
+            paths.push(include);
         }
         paths.extend(&self.build_targets.static_lib);
         paths.extend(&self.build_targets.shared_lib);
@@ -551,7 +551,7 @@ fn load_manifest_capi_config(
         })
         .unwrap_or_else(|| Ok(String::from(name)))?;
 
-    let header = if let Some(ref capi) = capi {
+    let header = if let Some(capi) = capi {
         HeaderCApiConfig {
             name: header
                 .as_ref()
@@ -596,7 +596,7 @@ fn load_manifest_capi_config(
     let mut requires_private = None;
     let mut strip_include_path_components = 0;
 
-    if let Some(ref pc) = pc {
+    if let Some(pc) = pc {
         if let Some(override_name) = pc.get("name").and_then(|v| v.as_str()) {
             pc_name = String::from(override_name);
         }
@@ -638,7 +638,7 @@ fn load_manifest_capi_config(
     let mut versioning = true;
     let mut rustflags = Vec::new();
 
-    if let Some(ref library) = library {
+    if let Some(library) = library {
         if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
             lib_name = String::from(override_name);
         }
@@ -698,7 +698,7 @@ fn load_manifest_capi_config(
     ];
 
     let install = capi.and_then(|v| v.get("install"));
-    if let Some(ref install) = install {
+    if let Some(install) = install {
         if let Some(includes) = install.get("include") {
             if let Some(assets) = includes.get("asset").and_then(|v| v.as_array()) {
                 for asset in assets {
@@ -931,7 +931,7 @@ pub fn cbuild(
         .crate_name();
     let version = ws.current()?.version().clone();
     let root_path = ws.current()?.root().to_path_buf();
-    let capi_config = load_manifest_capi_config(name, &root_path, &ws)?;
+    let capi_config = load_manifest_capi_config(name, &root_path, ws)?;
 
     patch_target(ws, &libkinds, &capi_config)?;
 
@@ -941,7 +941,7 @@ pub fn cbuild(
 
     let mut compile_opts = compile_options(ws, config, args, default_profile, CompileMode::Build)?;
 
-    let profiles = Profiles::new(&ws, compile_opts.build_config.requested_profile)?;
+    let profiles = Profiles::new(ws, compile_opts.build_config.requested_profile)?;
 
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
@@ -971,10 +971,10 @@ pub fn cbuild(
     }
 
     let mut build_targets =
-        BuildTargets::new(&name, &rustc_target, &root_output, &libkinds, &capi_config)?;
+        BuildTargets::new(name, &rustc_target, &root_output, &libkinds, &capi_config)?;
 
     let mut finger_print =
-        FingerPrint::new(&name, &root_output, build_targets.clone(), &install_paths);
+        FingerPrint::new(name, &root_output, build_targets.clone(), &install_paths);
 
     let pristine = finger_print.load_previous().is_err();
 
@@ -1023,11 +1023,11 @@ pub fn cbuild(
         }
         pc.add_lib_private(&static_libs);
 
-        build_pc_files(&ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
+        build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
         if !only_staticlib {
             let lib_name = name;
-            build_def_file(&ws, &lib_name, &rustc_target, &root_output)?;
+            build_def_file(ws, lib_name, &rustc_target, &root_output)?;
 
             let mut dlltool = std::env::var_os("DLLTOOL")
                 .map(PathBuf::from)
@@ -1038,16 +1038,16 @@ pub fn cbuild(
                 dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
             }
 
-            build_implib_file(&ws, &lib_name, &rustc_target, &root_output, &dlltool)?;
+            build_implib_file(ws, lib_name, &rustc_target, &root_output, &dlltool)?;
         }
 
         if capi_config.header.enabled {
             let header_name = &capi_config.header.name;
             if capi_config.header.generation {
-                build_include_file(&ws, header_name, &version, &root_output, &root_path)?;
+                build_include_file(ws, header_name, &version, &root_output, &root_path)?;
             }
 
-            copy_prebuilt_include_file(&ws, &build_targets, &root_output)?;
+            copy_prebuilt_include_file(ws, &build_targets, &root_output)?;
         }
 
         if name.contains('-') {
@@ -1098,7 +1098,7 @@ pub fn ctest(
     mut compile_opts: CompileOptions,
 ) -> CliResult {
     compile_opts.build_config.requested_profile =
-        args.get_profile_name(&config, "test", ProfileChecking::Checked)?;
+        args.get_profile_name(config, "test", ProfileChecking::Checked)?;
     compile_opts.build_config.mode = CompileMode::Test;
 
     compile_opts.filter = ops::CompileFilter::new(
@@ -1137,11 +1137,11 @@ pub fn ctest(
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
 
-    let err = ops::run_tests(&ws, &ops, &test_args)?;
+    let err = ops::run_tests(ws, &ops, &test_args)?;
     match err {
         None => Ok(()),
         Some(err) => {
-            let context = anyhow::format_err!("{}", err.hint(&ws, &ops.compile_opts));
+            let context = anyhow::format_err!("{}", err.hint(ws, &ops.compile_opts));
             let e = match err.code {
                 // Don't show "process didn't exit successfully" for simple errors.
                 Some(i) if is_simple_exit_code(i) => CliError::new(context, i),
