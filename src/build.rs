@@ -719,7 +719,7 @@ fn compile_options(
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
-        args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
+        args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Custom)?;
 
     compile_opts.build_config.requested_profile = profile;
 
@@ -942,7 +942,7 @@ pub fn cbuild(
     );
     let only_staticlib = !libkinds.contains(&"cdylib");
 
-    let profile = args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
+    let profile = args.get_profile_name(config, default_profile, ProfileChecking::Custom)?;
 
     let profiles = Profiles::new(ws, profile)?;
 
@@ -1102,7 +1102,7 @@ pub fn ctest(
     mut compile_opts: CompileOptions,
 ) -> CliResult {
     compile_opts.build_config.requested_profile =
-        args.get_profile_name(config, "test", ProfileChecking::Checked)?;
+        args.get_profile_name(config, "test", ProfileChecking::Custom)?;
     compile_opts.build_config.mode = CompileMode::Test;
 
     compile_opts.filter = ops::CompileFilter::new(
