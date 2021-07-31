@@ -1,8 +1,6 @@
-/*!
-Example library for [cargo-c].
-
-[cargo-c]: https://crates.io/crates/cargo-c
-*/
+//!  Example library for [cargo-c].
+//!
+//! [cargo-c]: https://crates.io/crates/cargo-c
 
 #![warn(rust_2018_idioms)]
 #![deny(missing_docs)]

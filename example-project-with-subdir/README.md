@@ -2,7 +2,7 @@ Example project using `cargo-c`
 ===============================
 
 For detailed usage instructions, have a look at the
-[Github workflow configuration](../.github/workflows/example-project.yml).
+[Github workflow configuration](../.github/workflows/example-project-with-subdir.yml).
 
 Note that `cargo install --path .` is used to install `cargo-c`
 from the locally cloned Git repository.
@@ -12,8 +12,10 @@ you should use this instead:
 
     cargo install cargo-c
 
-Running `cargo cinstall` will create the C header file
-`example_project.h` in the default directory (e.g. `/usr/local/include`).
+Running `cargo cinstall` will create the C header file `example_project_with_subdir.h`.
 This file will contain the comments from the file [`capi.rs`](src/capi.rs).
+It will be installed in a subdirectory (as specified in [`Cargo.toml`](Cargo.toml))
+of the default directory (e.g. `/usr/local/include`),
+together with additional files specified in [`build.rs`](build.rs).
 
 Run `cargo doc --open` to view the documentation of the Rust code.

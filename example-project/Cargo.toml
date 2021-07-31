@@ -4,28 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
 capi = ["libc"]
 
 [dependencies]
 libc = { version = "0.2", optional = true }
 
-[dev-dependencies]
-inline-c = "0.1"
-
-[build-dependencies]
-cargo_metadata = "0.13.1"
-
 [package.metadata.capi.header]
-subdirectory = "example-project-0.1/example_project"
-
-[package.metadata.capi.pkg_config]
-strip_include_path_components = 1
-
-[package.metadata.capi.library]
-rustflags = "-Cpanic=abort"
-name = "example-project"
-
-[package.metadata.capi.install.include]
-asset = [{from = "include/file.h", to = "otherplace" }]
-generated = [{from = "include/other_file.h", to = "otherplace" }]
+subdirectory = false

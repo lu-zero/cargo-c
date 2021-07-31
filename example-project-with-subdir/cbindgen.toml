@@ -1,0 +1,4 @@
+include_guard = "EXAMPLE_PROJECT_WITH_SUBDIR_H"
+include_version = true
+language = "C"
+cpp_compat = true

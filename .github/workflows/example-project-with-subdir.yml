@@ -1,4 +1,4 @@
-name: Build example project
+name: Build example project (with sub-directory)
 
 on: [push, pull_request]
 
@@ -7,7 +7,7 @@ env:
 
 jobs:
 
-  example-project:
+  example-project-with-subdir:
 
     strategy:
       matrix:
@@ -37,18 +37,23 @@ jobs:
           cargo install --path .
 
       - name: Test Rust code of example project
-        working-directory: example-project
+        working-directory: example-project-with-subdir
         run: |
           cargo test --verbose
 
+      - name: Run C API tests for example project
+        working-directory: example-project-with-subdir
+        run: |
+          cargo ctest --verbose
+
       - name: Install into temporary location
-        working-directory: example-project
+        working-directory: example-project-with-subdir
         run: |
           cargo cinstall --verbose --destdir=temp
 
       - name: Copy installed files to /usr/local
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
-        working-directory: example-project
+        working-directory: example-project-with-subdir
         run: |
           sudo cp -r temp/usr/local/* /usr/local/
 
@@ -56,8 +61,8 @@ jobs:
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
         run: |
           set -x
-          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include"
-          test "$(pkg-config --libs example_project)" = "-L/usr/local/lib -lexample_project"
+          test "$(pkg-config --cflags example_project_with_subdir)" = "-I/usr/local/include/example-project-with-subdir-0.1"
+          test "$(pkg-config --libs example_project_with_subdir)" = "-L/usr/local/lib -lexample-project-with-subdir"
 
       - name: Update dynamic linker cache
         if: startsWith(matrix.os, 'ubuntu')
@@ -66,46 +71,28 @@ jobs:
 
       - name: Test usage from C (using Makefile)
         if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
-        working-directory: example-project/usage-from-c
+        working-directory: example-project-with-subdir/usage-from-c
         run: |
           make
-
-  example-project-msys2:
-
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
-
-    steps:
-      - name: Clone Git repository
-        uses: actions/checkout@v2
 
       - name: Install MSYS2
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
         uses: msys2/setup-msys2@v2
         with:
-          install: >-
-            make
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-rust
-      #      mingw-w64-x86_64-cargo-c
+          release: false
 
-      # NB: cargo-c is available from the package mingw-w64-x86_64-cargo-c
-      # (https://packages.msys2.org/base/mingw-w64-cargo-c),
-      # which is the recommended way to use cargo-c on MSYS2.
-      # For testing purposes, we compile and install the latest version from the Git repo
-      # (which takes much longer than installing the MSYS2 package!):
-
-      - name: Install cargo-c applet
+      - name: Copy installed files
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        working-directory: example-project-with-subdir
         run: |
-          cargo install --path .
-
-      - name: Install C API for example project
-        working-directory: example-project
-        run: |
-          cargo cinstall --verbose --release --prefix /mingw64 --target x86_64-pc-windows-gnu
+          # NB: --prefix doesn't seem to matter on Windows
+          cp -r temp/usr/local/include /usr/local/
+          cp -r temp/usr/local/{lib,bin} /mingw64/
+        shell: msys2 {0}
 
       - name: Test usage from C (using Makefile)
-        working-directory: example-project/usage-from-c
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
+        working-directory: example-project-with-subdir/usage-from-c
         run: |
           make
+        shell: msys2 {0}
