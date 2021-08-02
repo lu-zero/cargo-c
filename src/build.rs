@@ -69,9 +69,9 @@ fn copy_prebuilt_include_file(
 ) -> anyhow::Result<()> {
     ws.config()
         .shell()
-        .status("Copying", "pre-built header files")?;
+        .status("Populating", "uninstalled header directory")?;
     for (from, to) in build_targets.extra.include.iter() {
-        let to = root_output.join(to);
+        let to = root_output.join("include").join(to);
         std::fs::create_dir_all(to.parent().unwrap())?;
         copy(from, to)?;
     }
