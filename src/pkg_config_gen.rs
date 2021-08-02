@@ -143,7 +143,7 @@ impl PkgConfig {
     pub(crate) fn uninstalled(&self, output: &Path) -> Self {
         let mut uninstalled = self.clone();
         uninstalled.prefix = output.to_path_buf();
-        uninstalled.includedir = "${prefix}".into();
+        uninstalled.includedir = "${prefix}/include".into();
         uninstalled.libdir = "${prefix}".into();
         // First libs item is the search path
         uninstalled.libs[0] = "-L${prefix}".into();
