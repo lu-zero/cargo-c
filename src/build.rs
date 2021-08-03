@@ -12,6 +12,7 @@ use cargo::core::{compiler::Executor, profiles::Profiles};
 use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
+use cargo::util::interning::InternedString;
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
@@ -102,13 +103,12 @@ fn build_pc_files(
 }
 
 fn patch_target(
-    ws: &mut Workspace,
+    pkg: &mut Package,
     libkinds: &[&str],
     capi_config: &CApiConfig,
 ) -> anyhow::Result<()> {
     use cargo::core::compiler::CrateType;
 
-    let pkg = ws.current_mut()?;
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
@@ -128,19 +128,6 @@ fn patch_target(
             target.set_kind(TargetKind::Lib(kinds.clone()));
             target.set_name(&capi_config.library.name);
         }
-    }
-
-    Ok(())
-}
-
-fn patch_capi_feature(compile_opts: &mut CompileOptions, ws: &Workspace) -> anyhow::Result<()> {
-    let pkg = ws.current()?;
-    let manifest = pkg.manifest();
-
-    if manifest.summary().features().get("capi").is_some() {
-        std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
-            .unwrap()
-            .insert(FeatureValue::new("capi".into()));
     }
 
     Ok(())
@@ -491,9 +478,9 @@ impl InstallTargetPaths {
 }
 
 fn load_manifest_capi_config(
+    pkg: &Package,
     name: &str,
     root_path: &Path,
-    ws: &Workspace,
 ) -> anyhow::Result<CApiConfig> {
     let manifest_str = read(&root_path.join("Cargo.toml"))?;
     let toml = manifest_str.parse::<toml::Value>()?;
@@ -567,7 +554,6 @@ fn load_manifest_capi_config(
     };
 
     let pc = capi.and_then(|v| v.get("pkg_config"));
-    let pkg = ws.current().unwrap();
     let mut pc_name = String::from(name);
     let mut pc_filename = String::from(name);
     let mut description = String::from(
@@ -718,17 +704,18 @@ fn compile_options(
     ws: &Workspace,
     config: &Config,
     args: &ArgMatches<'_>,
-    default_profile: &str,
+    profile: InternedString,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
         args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Checked)?;
 
-    compile_opts.build_config.requested_profile =
-        args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
+    compile_opts.build_config.requested_profile = profile;
 
-    patch_capi_feature(&mut compile_opts, ws)?;
+    std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
+        .unwrap()
+        .insert(FeatureValue::new("capi".into()));
 
     compile_opts.filter = CompileFilter::new(
         LibRule::True,
@@ -907,27 +894,30 @@ pub fn cbuild(
     );
     let only_staticlib = !libkinds.contains(&"cdylib");
 
-    let name = &ws
-        .current()?
+    let profile = args.get_profile_name(config, default_profile, ProfileChecking::Checked)?;
+
+    let profiles = Profiles::new(ws, profile)?;
+
+    let mut compile_opts = compile_options(ws, config, args, profile, CompileMode::Build)?;
+
+    let pkg = ws.current_mut()?;
+
+    let name = &pkg
         .manifest()
         .targets()
         .iter()
         .find(|t| t.is_lib())
         .unwrap()
         .crate_name();
-    let version = ws.current()?.version().clone();
-    let root_path = ws.current()?.root().to_path_buf();
-    let capi_config = load_manifest_capi_config(name, &root_path, ws)?;
+    let version = pkg.version().clone();
+    let root_path = pkg.root().to_path_buf();
+    let capi_config = load_manifest_capi_config(pkg, name, &root_path)?;
 
-    patch_target(ws, &libkinds, &capi_config)?;
+    patch_target(pkg, &libkinds, &capi_config)?;
 
     let name = &capi_config.library.name;
 
     let install_paths = InstallPaths::new(name, args, &capi_config);
-
-    let mut compile_opts = compile_options(ws, config, args, default_profile, CompileMode::Build)?;
-
-    let profiles = Profiles::new(ws, compile_opts.build_config.requested_profile)?;
 
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
