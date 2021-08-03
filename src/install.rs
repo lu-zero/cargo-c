@@ -2,12 +2,11 @@ use std::path::{Component, Path, PathBuf};
 use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
+use cargo_util::paths::{copy, create_dir_all};
 use semver::Version;
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
-
-use anyhow::Context;
 
 fn append_to_destdir(destdir: &Path, path: &Path) -> PathBuf {
     let mut joined = destdir.to_path_buf();
@@ -66,13 +65,6 @@ mod tests {
             );
         }
     }
-}
-
-fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u64> {
-    let from = from.as_ref();
-    let to = to.as_ref();
-    std::fs::copy(from, to)
-        .with_context(|| format!("Cannot copy {} to {}.", from.display(), to.display()))
 }
 
 pub(crate) enum LibType {
@@ -173,8 +165,6 @@ pub fn cinstall(
     build_targets: BuildTargets,
     paths: InstallPaths,
 ) -> anyhow::Result<()> {
-    use std::fs;
-
     let destdir = &paths.destdir;
 
     let mut install_path_lib = paths.libdir.clone();
@@ -186,13 +176,14 @@ pub fn cinstall(
     let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
     let install_path_include = append_to_destdir(destdir, &paths.includedir);
 
-    fs::create_dir_all(&install_path_lib)?;
-    fs::create_dir_all(&install_path_pc)?;
+    create_dir_all(&install_path_lib)?;
+    create_dir_all(&install_path_pc)?;
 
     ws.config()
         .shell()
         .status("Installing", "pkg-config file")?;
-    fs::copy(
+
+    copy(
         &build_targets.pc,
         install_path_pc.join(build_targets.pc.file_name().unwrap()),
     )?;
@@ -201,7 +192,7 @@ pub fn cinstall(
         ws.config().shell().status("Installing", "header file")?;
         for (from, to) in build_targets.extra.include.iter() {
             let to = install_path_include.join(to);
-            fs::create_dir_all(to.parent().unwrap())?;
+            create_dir_all(to.parent().unwrap())?;
             copy(from, to)?;
         }
     }
@@ -227,7 +218,7 @@ pub fn cinstall(
             }
             LibType::Windows => {
                 let install_path_bin = append_to_destdir(destdir, &paths.bindir);
-                fs::create_dir_all(&install_path_bin)?;
+                create_dir_all(&install_path_bin)?;
 
                 let lib_name = shared_lib.file_name().unwrap();
                 copy(shared_lib, install_path_bin.join(lib_name))?;

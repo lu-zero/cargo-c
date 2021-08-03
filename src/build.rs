@@ -16,7 +16,7 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
-use cargo_util::paths::copy;
+use cargo_util::paths::{copy, create_dir_all};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -72,7 +72,7 @@ fn copy_prebuilt_include_file(
         .status("Populating", "uninstalled header directory")?;
     for (from, to) in build_targets.extra.include.iter() {
         let to = root_output.join("include").join(to);
-        std::fs::create_dir_all(to.parent().unwrap())?;
+        create_dir_all(to.parent().unwrap())?;
         copy(from, to)?;
     }
 
