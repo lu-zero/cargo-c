@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,7 +15,7 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
-use cargo_util::paths::{copy, create, create_dir_all, open};
+use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -343,10 +342,7 @@ impl<'a> FingerPrint<'a> {
         paths.extend(&self.build_targets.shared_lib);
 
         for path in paths.iter() {
-            if let Ok(mut f) = open(path) {
-                let mut buf = Vec::new();
-                f.read_to_end(&mut buf)?;
-
+            if let Ok(buf) = read_bytes(path) {
                 hasher.write(&buf);
             } else {
                 return Ok(None);
@@ -506,10 +502,7 @@ fn load_manifest_capi_config(
     root_path: &Path,
     ws: &Workspace,
 ) -> anyhow::Result<CApiConfig> {
-    let mut manifest = open(root_path.join("Cargo.toml"))?;
-    let mut manifest_str = String::new();
-    manifest.read_to_string(&mut manifest_str)?;
-
+    let manifest_str = read(&root_path.join("Cargo.toml"))?;
     let toml = manifest_str.parse::<toml::Value>()?;
 
     let capi = toml
