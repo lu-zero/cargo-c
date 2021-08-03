@@ -15,7 +15,7 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
-use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes};
+use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes, write};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -80,14 +80,9 @@ fn copy_prebuilt_include_file(
 
 fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Result<()> {
     let pc_path = root_output.join(&format!("{}.pc", name));
-
-    let mut out = create(pc_path)?;
-
     let buf = pc.render();
 
-    out.write_all(buf.as_ref())?;
-
-    Ok(())
+    write(pc_path, buf)
 }
 
 fn build_pc_files(
@@ -379,15 +374,13 @@ impl<'a> FingerPrint<'a> {
     }
 
     fn store(&self) -> anyhow::Result<()> {
-        let mut f = create(&self.path())?;
-
         if let Some(hash) = self.hash()? {
             let cache = Cache {
                 hash,
                 static_libs: self.static_libs.to_owned(),
             };
             let buf = toml::ser::to_vec(&cache)?;
-            f.write_all(&buf)?;
+            write(&self.path(), buf)?;
         }
 
         Ok(())
