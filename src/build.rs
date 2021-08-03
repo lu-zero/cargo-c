@@ -900,6 +900,14 @@ pub fn cbuild(
 
     let mut compile_opts = compile_options(ws, config, args, profile, CompileMode::Build)?;
 
+    // TODO: there must be a simpler way to get the right path.
+    let root_output = ws
+        .target_dir()
+        .as_path_unlocked()
+        .to_path_buf()
+        .join(PathBuf::from(target))
+        .join(&profiles.get_dir_name());
+
     let pkg = ws.current_mut()?;
 
     let name = &pkg
@@ -918,14 +926,6 @@ pub fn cbuild(
     let name = &capi_config.library.name;
 
     let install_paths = InstallPaths::new(name, args, &capi_config);
-
-    // TODO: there must be a simpler way to get the right path.
-    let root_output = ws
-        .target_dir()
-        .as_path_unlocked()
-        .to_path_buf()
-        .join(PathBuf::from(target))
-        .join(&profiles.get_dir_name());
 
     let mut leaf_args: Vec<String> = rustc_target
         .shared_object_link_args(&capi_config, &install_paths.libdir, &root_output)
