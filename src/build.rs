@@ -16,7 +16,7 @@ use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, Profi
 use cargo::{CliError, CliResult, Config};
 
 use anyhow::Error;
-use cargo_util::paths::{copy, create_dir_all};
+use cargo_util::paths::{copy, create, create_dir_all, open};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -82,7 +82,7 @@ fn copy_prebuilt_include_file(
 fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Result<()> {
     let pc_path = root_output.join(&format!("{}.pc", name));
 
-    let mut out = std::fs::File::create(pc_path)?;
+    let mut out = create(pc_path)?;
 
     let buf = pc.render();
 
@@ -182,9 +182,9 @@ fn build_def_file(
 
         let out = dumpbin.output()?;
         if out.status.success() {
-            let txt_file = File::open(txt_path)?;
+            let txt_file = open(txt_path)?;
             let buf_reader = BufReader::new(txt_file);
-            let mut def_file = File::create(targetdir.join(format!("{}.def", name)))?;
+            let mut def_file = create(targetdir.join(format!("{}.def", name)))?;
             writeln!(def_file, "{}", "EXPORTS".to_string())?;
 
             // The Rust loop below is analogue to the following loop.
@@ -343,7 +343,7 @@ impl<'a> FingerPrint<'a> {
         paths.extend(&self.build_targets.shared_lib);
 
         for path in paths.iter() {
-            if let Ok(mut f) = std::fs::File::open(path) {
+            if let Ok(mut f) = open(path) {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
 
@@ -367,7 +367,7 @@ impl<'a> FingerPrint<'a> {
     }
 
     fn load_previous(&self) -> anyhow::Result<Cache> {
-        let mut f = std::fs::File::open(&self.path())?;
+        let mut f = open(&self.path())?;
         let mut cache_str = String::new();
         f.read_to_string(&mut cache_str)?;
         let cache = toml::de::from_str(&cache_str)?;
@@ -383,7 +383,7 @@ impl<'a> FingerPrint<'a> {
     }
 
     fn store(&self) -> anyhow::Result<()> {
-        let mut f = std::fs::File::create(&self.path())?;
+        let mut f = create(&self.path())?;
 
         if let Some(hash) = self.hash()? {
             let cache = Cache {
@@ -506,7 +506,7 @@ fn load_manifest_capi_config(
     root_path: &Path,
     ws: &Workspace,
 ) -> anyhow::Result<CApiConfig> {
-    let mut manifest = std::fs::File::open(root_path.join("Cargo.toml"))?;
+    let mut manifest = open(root_path.join("Cargo.toml"))?;
     let mut manifest_str = String::new();
     manifest.read_to_string(&mut manifest_str)?;
 
