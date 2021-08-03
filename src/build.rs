@@ -476,11 +476,15 @@ impl InstallTargetPaths {
     }
 }
 
-fn load_manifest_capi_config(
-    pkg: &Package,
-    name: &str,
-    root_path: &Path,
-) -> anyhow::Result<CApiConfig> {
+fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
+    let name = &pkg
+        .manifest()
+        .targets()
+        .iter()
+        .find(|t| t.is_lib())
+        .unwrap()
+        .crate_name();
+    let root_path = pkg.root().to_path_buf();
     let manifest_str = read(&root_path.join("Cargo.toml"))?;
     let toml = manifest_str.parse::<toml::Value>()?;
 
@@ -909,16 +913,9 @@ pub fn cbuild(
 
     let pkg = ws.current_mut()?;
 
-    let name = &pkg
-        .manifest()
-        .targets()
-        .iter()
-        .find(|t| t.is_lib())
-        .unwrap()
-        .crate_name();
     let version = pkg.version().clone();
     let root_path = pkg.root().to_path_buf();
-    let capi_config = load_manifest_capi_config(pkg, name, &root_path)?;
+    let capi_config = load_manifest_capi_config(pkg)?;
 
     patch_target(pkg, &libkinds, &capi_config)?;
 
