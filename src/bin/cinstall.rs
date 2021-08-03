@@ -2,9 +2,10 @@ use cargo::util::command_prelude::ArgMatchesExt;
 use cargo::CliResult;
 use cargo::Config;
 
-use cargo_c::build::{cbuild, config_configure};
+use cargo_c::build::cbuild;
 use cargo_c::cli::run_cargo_fallback;
 use cargo_c::cli::subcommand_install;
+use cargo_c::config::config_configure;
 use cargo_c::install::cinstall;
 
 use structopt::clap::*;

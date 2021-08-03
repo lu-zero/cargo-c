@@ -5,6 +5,7 @@ use cargo::Config;
 use cargo_c::build::*;
 use cargo_c::cli::run_cargo_fallback;
 use cargo_c::cli::subcommand_build;
+use cargo_c::config::*;
 
 use structopt::clap::*;
 

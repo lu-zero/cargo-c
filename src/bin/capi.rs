@@ -1,5 +1,6 @@
-use cargo_c::build::{cbuild, config_configure, ctest};
+use cargo_c::build::{cbuild, ctest};
 use cargo_c::cli::*;
+use cargo_c::config::*;
 use cargo_c::install::cinstall;
 
 use cargo::util::command_prelude::opt;
