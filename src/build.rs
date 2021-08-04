@@ -278,12 +278,13 @@ fn build_implib_file(
     }
 }
 
-struct FingerPrint<'a> {
-    name: &'a str,
-    root_output: &'a Path,
+#[derive(Debug)]
+struct FingerPrint {
+    id: PackageId,
+    root_output: PathBuf,
     build_targets: BuildTargets,
-    install_paths: &'a InstallPaths,
-    static_libs: &'a str,
+    install_paths: InstallPaths,
+    static_libs: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -292,19 +293,19 @@ struct Cache {
     static_libs: String,
 }
 
-impl<'a> FingerPrint<'a> {
+impl FingerPrint {
     fn new(
-        name: &'a str,
-        root_output: &'a Path,
-        build_targets: BuildTargets,
-        install_paths: &'a InstallPaths,
+        id: &PackageId,
+        root_output: &Path,
+        build_targets: &BuildTargets,
+        install_paths: &InstallPaths,
     ) -> Self {
         Self {
-            name,
-            root_output,
-            build_targets,
-            install_paths,
-            static_libs: "",
+            id: id.to_owned(),
+            root_output: root_output.to_owned(),
+            build_targets: build_targets.clone(),
+            install_paths: install_paths.clone(),
+            static_libs: String::new(),
         }
     }
 
@@ -340,7 +341,7 @@ impl<'a> FingerPrint<'a> {
         // Use the crate name in the cache file as the same target dir
         // may be used to build various libs
         self.root_output
-            .join(format!("cargo-c-{}.cache", self.name))
+            .join(format!("cargo-c-{}.cache", self.id.name()))
     }
 
     fn load_previous(&self) -> anyhow::Result<Cache> {
@@ -922,6 +923,7 @@ pub fn cbuild(
     let version = pkg.version().clone();
     let root_path = pkg.root().to_path_buf();
     let capi_config = load_manifest_capi_config(pkg)?;
+    let id = pkg.package_id();
 
     patch_target(pkg, &libkinds, &capi_config)?;
 
@@ -951,8 +953,7 @@ pub fn cbuild(
     let mut build_targets =
         BuildTargets::new(name, &rustc_target, &root_output, &libkinds, &capi_config)?;
 
-    let mut finger_print =
-        FingerPrint::new(name, &root_output, build_targets.clone(), &install_paths);
+    let mut finger_print = FingerPrint::new(&id, &root_output, &build_targets, &install_paths);
 
     let pristine = finger_print.load_previous().is_err();
 
@@ -993,7 +994,7 @@ pub fn cbuild(
     // it is a new build, build the additional files and update update the cache
     // if the hash value does not match.
     if new_build && !finger_print.is_valid() {
-        finger_print.static_libs = &static_libs;
+        finger_print.static_libs = static_libs.to_owned();
 
         let mut pc = PkgConfig::from_workspace(name, &install_paths, args, &capi_config);
         if only_staticlib {
