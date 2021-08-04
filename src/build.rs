@@ -373,6 +373,7 @@ impl<'a> FingerPrint<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
@@ -380,6 +381,7 @@ pub struct CApiConfig {
     pub install: InstallCApiConfig,
 }
 
+#[derive(Debug)]
 pub struct HeaderCApiConfig {
     pub name: String,
     pub subdirectory: String,
@@ -387,6 +389,7 @@ pub struct HeaderCApiConfig {
     pub enabled: bool,
 }
 
+#[derive(Debug)]
 pub struct PkgConfigCApiConfig {
     pub name: String,
     pub filename: String,
@@ -397,6 +400,7 @@ pub struct PkgConfigCApiConfig {
     pub strip_include_path_components: usize,
 }
 
+#[derive(Debug)]
 pub struct LibraryCApiConfig {
     pub name: String,
     pub version: Version,
@@ -405,16 +409,18 @@ pub struct LibraryCApiConfig {
     pub rustflags: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct InstallCApiConfig {
     pub include: Vec<InstallTarget>,
 }
 
+#[derive(Debug)]
 pub enum InstallTarget {
     Asset(InstallTargetPaths),
     Generated(InstallTargetPaths),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InstallTargetPaths {
     /// pattern to feed to glob::glob()
     ///
