@@ -32,6 +32,11 @@ jobs:
           toolchain: stable${{ matrix.toolchain-suffix }}
           override: true
 
+      # cargo-c will typically be installed with
+      #
+      #    cargo install cargo-c
+      #
+      # For testing purposes, we compile and install the latest version from the Git repo
       - name: Install cargo-c applet
         run: |
           cargo install --path .
@@ -75,24 +80,42 @@ jobs:
         run: |
           make
 
-      - name: Install MSYS2
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
-        uses: msys2/setup-msys2@v2
-        with:
-          release: false
+  example-project-with-subdir-msys2:
 
-      - name: Copy installed files
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
-        working-directory: example-project-with-subdir
-        run: |
-          # NB: --prefix doesn't seem to matter on Windows
-          cp -r temp/usr/local/include /usr/local/
-          cp -r temp/usr/local/{lib,bin} /mingw64/
+    runs-on: windows-latest
+    defaults:
+      run:
         shell: msys2 {0}
 
+    steps:
+      - name: Clone Git repository
+        uses: actions/checkout@v2
+
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          install: >-
+            make
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-rust
+      #      mingw-w64-x86_64-cargo-c
+
+      # NB: cargo-c is available from the package mingw-w64-x86_64-cargo-c
+      # (https://packages.msys2.org/base/mingw-w64-cargo-c),
+      # which is the recommended way to use cargo-c on MSYS2.
+      # For testing purposes, we compile and install the latest version from the Git repo
+      # (which takes much longer than installing the MSYS2 package!):
+
+      - name: Install cargo-c applet
+        run: |
+          cargo install --path .
+
+      - name: Install C API for example project
+        working-directory: example-project-with-subdir
+        run: |
+          cargo cinstall --verbose --release --prefix /mingw64 --target x86_64-pc-windows-gnu
+
       - name: Test usage from C (using Makefile)
-        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-gnu'
         working-directory: example-project-with-subdir/usage-from-c
         run: |
           make
-        shell: msys2 {0}

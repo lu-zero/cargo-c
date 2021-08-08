@@ -2,7 +2,6 @@
 //!
 //! [cargo-c]: https://crates.io/crates/cargo-c
 
-#![warn(rust_2018_idioms)]
 #![deny(missing_docs)]
 
 #[cfg(feature = "capi")]
@@ -39,7 +38,7 @@ impl OddCounter {
     }
 }
 
-/// Error type for [OddCounter::new].
+/// Error type for [`OddCounter::new()`].
 ///
 /// In a "real" library, there would probably be more error variants.
 #[derive(Debug)]

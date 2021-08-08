@@ -32,6 +32,11 @@ jobs:
           toolchain: stable${{ matrix.toolchain-suffix }}
           override: true
 
+      # cargo-c will typically be installed with
+      #
+      #    cargo install cargo-c
+      #
+      # For testing purposes, we compile and install the latest version from the Git repo
       - name: Install cargo-c applet
         run: |
           cargo install --path .
@@ -86,7 +91,6 @@ jobs:
         with:
           install: >-
             make
-            mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-rust
       #      mingw-w64-x86_64-cargo-c
 
