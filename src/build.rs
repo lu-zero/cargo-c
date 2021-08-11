@@ -723,10 +723,6 @@ fn compile_options(
 
     compile_opts.build_config.requested_profile = profile;
 
-    std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
-        .unwrap()
-        .insert(FeatureValue::new("capi".into()));
-
     compile_opts.filter = CompileFilter::new(
         LibRule::True,
         FilterRule::none(),
@@ -955,6 +951,23 @@ pub fn cbuild(
         .to_path_buf()
         .join(PathBuf::from(target))
         .join(&profiles.get_dir_name());
+
+    if ws
+        .current()?
+        .manifest()
+        .summary()
+        .features()
+        .get("capi")
+        .is_some()
+    {
+        std::rc::Rc::get_mut(&mut compile_opts.cli_features.features)
+            .unwrap()
+            .insert(FeatureValue::new("capi".into()));
+    } else {
+        ws.config().shell().warn(
+            "The crate must contain a `capi` feature. It will become an error in the next release.",
+        )?;
+    }
 
     let pkg = ws.current_mut()?;
 
