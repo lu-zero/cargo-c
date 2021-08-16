@@ -149,6 +149,10 @@ assets = [{from="pattern/with/or/without/**/*", to="destination"}]
 generated = [{from="pattern/with/or/without/**/*", to="destination"]
 ```
 
+### Notes
+
+Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g. the flags driven by `[profiles]` or the flags driven by `[target.<>]`), cargo-c effectively builds as if the *target* is always explicitly passed.
+
 ## Users
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
