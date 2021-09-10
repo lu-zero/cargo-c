@@ -751,7 +751,7 @@ fn compile_options(
 #[derive(Default)]
 struct Exec {
     ran: AtomicBool,
-    link_line: Mutex<String>,
+    link_line: Mutex<HashMap<PackageId, String>>,
 }
 
 use cargo::core::*;
@@ -762,7 +762,7 @@ impl Executor for Exec {
     fn exec(
         &self,
         cmd: &ProcessBuilder,
-        _id: PackageId,
+        id: PackageId,
         _target: &Target,
         _mode: CompileMode,
         on_stdout_line: &mut dyn FnMut(&str) -> CargoResult<()>,
@@ -784,7 +784,7 @@ impl Executor for Exec {
                         if msg.message.starts_with("Link against the following native artifacts when linking against this static library") {
                             Ok(())
                         } else if let Some(link_line) = msg.message.strip_prefix("native-static-libs:") {
-                            *self.link_line.lock().unwrap() = link_line.to_string();
+                            self.link_line.lock().unwrap().insert(id, link_line.to_string());
                             Ok(())
                         } else {
                             on_stderr_line(s)
@@ -1015,15 +1015,21 @@ pub fn cbuild(
     }
 
     let new_build = exec.ran.load(Ordering::Relaxed);
-    let static_libs = exec.link_line.lock().unwrap().clone();
 
     // it is a new build, build the additional files and update update the cache
     // if the hash value does not match.
     if new_build && !cpkg.finger_print.is_valid() {
         let name = &cpkg.capi_config.library.name;
+        let static_libs = exec
+            .link_line
+            .lock()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap()
+            .to_string();
         let capi_config = &cpkg.capi_config;
         let build_targets = &cpkg.build_targets;
-        cpkg.finger_print.static_libs = static_libs.to_owned();
 
         let mut pc = PkgConfig::from_workspace(name, &cpkg.install_paths, args, capi_config);
         if only_staticlib {
@@ -1087,6 +1093,7 @@ pub fn cbuild(
             }
         }
 
+        cpkg.finger_print.static_libs = static_libs;
         cpkg.finger_print.store()?;
     } else {
         // It is not a new build, recover the static_libs value from the cache
