@@ -948,6 +948,8 @@ pub fn cbuild(
 
     let mut compile_opts = compile_options(ws, config, args, profile, CompileMode::Build)?;
 
+    println!("{:?}", compile_opts.spec.to_package_id_specs(ws)?);
+
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
         .target_dir()
