@@ -90,6 +90,11 @@ pub fn subcommand_build(name: &str, about: &'static str) -> App<'static, 'static
             .possible_values(&["cdylib", "staticlib"]),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
+        .arg_package_spec_no_all(
+            "Package to build (see `cargo help pkgid`)",
+            "Build all packages in the workspace",
+            "Exclude packages from the build",
+        )
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
@@ -117,6 +122,11 @@ pub fn subcommand_install(name: &str, about: &'static str) -> App<'static, 'stat
         .arg_release(
             "Build artifacts in release mode, with optimizations. This is the default behavior.",
         )
+        .arg_package_spec_no_all(
+            "Package to install (see `cargo help pkgid`)",
+            "Install all packages in the workspace",
+            "Exclude packages from being installed",
+        )
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
@@ -138,6 +148,11 @@ pub fn subcommand_test(name: &str) -> App<'static, 'static> {
                 .last(true),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
+        .arg_package_spec_no_all(
+            "Package to run tests for",
+            "Test all packages in the workspace",
+            "Exclude packages from the test",
+        )
         .arg(opt("no-run", "Compile, but don't run tests"))
         .arg(opt("no-fail-fast", "Run all tests regardless of failure"))
 }
