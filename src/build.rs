@@ -973,6 +973,7 @@ pub fn cbuild(
         |v| v.collect::<Vec<_>>(),
     );
     let only_staticlib = !libkinds.contains(&"cdylib");
+    let only_cdylib = !libkinds.contains(&"staticlib");
 
     let profile = args.get_profile_name(config, default_profile, ProfileChecking::Custom)?;
 
@@ -1056,14 +1057,17 @@ pub fn cbuild(
         // if the hash value does not match.
         if new_build && !cpkg.finger_print.is_valid() {
             let name = &cpkg.capi_config.library.name;
-            let static_libs = exec
-                .link_line
-                .lock()
-                .unwrap()
-                .values()
-                .next()
-                .unwrap()
-                .to_string();
+            let static_libs = if only_cdylib {
+                "".to_string()
+            } else {
+                exec.link_line
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .next()
+                    .unwrap()
+                    .to_string()
+            };
             let capi_config = &cpkg.capi_config;
             let build_targets = &cpkg.build_targets;
 
