@@ -6,6 +6,7 @@ use crate::target::Target;
 #[derive(Debug, Default, Clone)]
 pub struct ExtraTargets {
     pub include: Vec<(PathBuf, PathBuf)>,
+    pub data: Vec<(PathBuf, PathBuf)>,
 }
 
 impl ExtraTargets {
@@ -16,6 +17,7 @@ impl ExtraTargets {
         out_dir: Option<&Path>,
     ) -> anyhow::Result<()> {
         self.include = extra_targets(&capi_config.install.include, root_dir, out_dir)?;
+        self.data = extra_targets(&capi_config.install.data, root_dir, out_dir)?;
 
         Ok(())
     }

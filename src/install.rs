@@ -175,6 +175,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         let install_path_lib = append_to_destdir(destdir, &install_path_lib);
         let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
         let install_path_include = append_to_destdir(destdir, &paths.includedir);
+        let install_path_data = append_to_destdir(destdir, &paths.datadir);
 
         create_dir_all(&install_path_lib)?;
         create_dir_all(&install_path_pc)?;
@@ -192,6 +193,15 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             ws.config().shell().status("Installing", "header file")?;
             for (from, to) in build_targets.extra.include.iter() {
                 let to = install_path_include.join(to);
+                create_dir_all(to.parent().unwrap())?;
+                copy(from, to)?;
+            }
+        }
+
+        if !build_targets.extra.data.is_empty() {
+            ws.config().shell().status("Installing", "data file")?;
+            for (from, to) in build_targets.extra.data.iter() {
+                let to = install_path_data.join(to);
                 create_dir_all(to.parent().unwrap())?;
                 copy(from, to)?;
             }
@@ -243,6 +253,7 @@ pub struct InstallPaths {
     pub prefix: PathBuf,
     pub libdir: PathBuf,
     pub includedir: PathBuf,
+    pub datadir: PathBuf,
     pub bindir: PathBuf,
     pub pkgconfigdir: PathBuf,
 }
@@ -265,6 +276,15 @@ impl InstallPaths {
             .value_of("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
+        let datarootdir = args
+            .value_of("datarootdir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| prefix.join("share"));
+        let datadir = args
+            .value_of("datadir")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| datarootdir.clone());
+
         let subdir_name = PathBuf::from(&capi_config.header.subdirectory);
 
         let bindir = args
@@ -282,6 +302,7 @@ impl InstallPaths {
             prefix,
             libdir,
             includedir,
+            datadir,
             bindir,
             pkgconfigdir,
         }

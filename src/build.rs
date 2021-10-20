@@ -410,9 +410,10 @@ pub struct LibraryCApiConfig {
     pub rustflags: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InstallCApiConfig {
     pub include: Vec<InstallTarget>,
+    pub data: Vec<InstallTarget>,
 }
 
 #[derive(Debug)]
@@ -696,10 +697,27 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
                 }
             }
         }
+        // TODO: Add data paths customizations
     }
+
+    let default_assets_data = InstallTargetPaths {
+        from: "assets/capi/share/**/*".to_string(),
+        to: name.clone(),
+    };
+
+    let default_generated_data = InstallTargetPaths {
+        from: "capi/share/**/*".to_string(),
+        to: name.clone(),
+    };
+
+    let data_targets = vec![
+        InstallTarget::Asset(default_assets_data),
+        InstallTarget::Generated(default_generated_data),
+    ];
 
     let install = InstallCApiConfig {
         include: include_targets,
+        data: data_targets,
     };
 
     Ok(CApiConfig {
