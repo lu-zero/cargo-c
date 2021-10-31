@@ -151,6 +151,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
     - name: Download zip files
       uses: actions/download-artifact@v2
 
