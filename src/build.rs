@@ -711,7 +711,7 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
 
     let default_generated_data = InstallTargetPaths {
         from: "capi/share/**/*".to_string(),
-        to: data_subdirectory.clone(),
+        to: data_subdirectory,
     };
 
     let data_targets = vec![
