@@ -680,8 +680,9 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
         InstallTarget::Generated(default_generated_include),
     ];
 
-    let install = capi.and_then(|v| v.get("install"));
     let mut data_subdirectory = name.clone();
+
+    let install = capi.and_then(|v| v.get("install"));
     if let Some(install) = install {
         if let Some(includes) = install.get("include") {
             if let Some(assets) = includes.get("asset").and_then(|v| v.as_array()) {
@@ -699,8 +700,10 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
             }
         }
         // TODO: Add data paths customizations
-        if let Some(name) = install.get("name").and_then(|v| v.as_str()) {
-            data_subdirectory = String::from(name);
+        if let Some(data) = install.get("data") {
+            if let Some(subdir) = data.get("subdirectory").and_then(|v| v.as_str()) {
+                data_subdirectory = String::from(subdir);
+            }
         }
     }
 
