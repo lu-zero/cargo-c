@@ -9,6 +9,7 @@ use structopt::clap::*;
 use structopt::StructOpt;
 
 // TODO: convert to a function using cargo opt()
+#[allow(dead_code)]
 #[derive(Clone, Debug, StructOpt)]
 struct Common {
     /// Path to directory where target should be copied to
