@@ -679,31 +679,42 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
         InstallTarget::Asset(default_legacy_asset_include),
         InstallTarget::Generated(default_generated_include),
     ];
+    let mut data_targets = Vec::new();
 
     let mut data_subdirectory = name.clone();
+
+    fn custom_install_target_paths(
+        root: &toml::Value,
+        subdirectory: &str,
+        targets: &mut Vec<InstallTarget>,
+    ) -> anyhow::Result<()> {
+        if let Some(assets) = root.get("asset").and_then(|v| v.as_array()) {
+            for asset in assets {
+                let target_paths = InstallTargetPaths::from_value(asset, subdirectory)?;
+                targets.push(InstallTarget::Asset(target_paths));
+            }
+        }
+
+        if let Some(generated) = root.get("generated").and_then(|v| v.as_array()) {
+            for gen in generated {
+                let target_paths = InstallTargetPaths::from_value(gen, subdirectory)?;
+                targets.push(InstallTarget::Generated(target_paths));
+            }
+        }
+
+        Ok(())
+    }
 
     let install = capi.and_then(|v| v.get("install"));
     if let Some(install) = install {
         if let Some(includes) = install.get("include") {
-            if let Some(assets) = includes.get("asset").and_then(|v| v.as_array()) {
-                for asset in assets {
-                    let target_paths = InstallTargetPaths::from_value(asset, &header.subdirectory)?;
-                    include_targets.push(InstallTarget::Asset(target_paths));
-                }
-            }
-
-            if let Some(generated) = includes.get("generated").and_then(|v| v.as_array()) {
-                for gen in generated {
-                    let target_paths = InstallTargetPaths::from_value(gen, &header.subdirectory)?;
-                    include_targets.push(InstallTarget::Generated(target_paths));
-                }
-            }
+            custom_install_target_paths(includes, &header.subdirectory, &mut include_targets)?;
         }
-        // TODO: Add data paths customizations
         if let Some(data) = install.get("data") {
             if let Some(subdir) = data.get("subdirectory").and_then(|v| v.as_str()) {
                 data_subdirectory = String::from(subdir);
             }
+            custom_install_target_paths(data, &data_subdirectory, &mut data_targets)?;
         }
     }
 
@@ -717,10 +728,10 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
         to: data_subdirectory,
     };
 
-    let data_targets = vec![
+    data_targets.extend([
         InstallTarget::Asset(default_assets_data),
         InstallTarget::Generated(default_generated_data),
-    ];
+    ]);
 
     let install = InstallCApiConfig {
         include: include_targets,
