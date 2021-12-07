@@ -34,8 +34,8 @@ struct Common {
     /// Path to directory for installing read-only data (defaults to {prefix}/share)
     #[structopt(long = "datarootdir", parse(from_os_str))]
     datarootdir: Option<PathBuf>,
-    /// Path to directory for installing read-only application-specific data (defaults to
-    /// {datarootdir}/{crate-name})
+    /// Path to directory for installing read-only application-specific data
+    /// (defaults to {datarootdir})
     #[structopt(long = "datadir", parse(from_os_str))]
     datadir: Option<PathBuf>,
     #[structopt(long = "dlltool", parse(from_os_str))]
