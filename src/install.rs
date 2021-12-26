@@ -8,15 +8,19 @@ use semver::Version;
 use crate::build::*;
 use crate::build_targets::BuildTargets;
 
-fn append_to_destdir(destdir: &Path, path: &Path) -> PathBuf {
-    let mut joined = destdir.to_path_buf();
-    for component in path.components() {
-        match component {
-            Component::Prefix(_) | Component::RootDir => {}
-            _ => joined.push(component),
-        };
+fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
+    if let Some(destdir) = destdir {
+        let mut joined = destdir.to_path_buf();
+        for component in path.components() {
+            match component {
+                Component::Prefix(_) | Component::RootDir => {}
+                _ => joined.push(component),
+            };
+        }
+        joined
+    } else {
+        path.to_path_buf()
     }
-    joined
 }
 
 #[cfg(test)]
@@ -26,39 +30,39 @@ mod tests {
     #[test]
     fn append_to_destdir() {
         assert_eq!(
-            super::append_to_destdir(&Path::new(r"/foo"), &PathBuf::from(r"/bar/./..")),
+            super::append_to_destdir(Some(&Path::new(r"/foo")), &PathBuf::from(r"/bar/./..")),
             PathBuf::from(r"/foo/bar/./..")
         );
 
         assert_eq!(
-            super::append_to_destdir(&Path::new(r"foo"), &PathBuf::from(r"bar")),
+            super::append_to_destdir(Some(&Path::new(r"foo")), &PathBuf::from(r"bar")),
             PathBuf::from(r"foo/bar")
         );
 
         assert_eq!(
-            super::append_to_destdir(&Path::new(r""), &PathBuf::from(r"")),
+            super::append_to_destdir(Some(&Path::new(r"")), &PathBuf::from(r"")),
             PathBuf::from(r"")
         );
 
         if cfg!(windows) {
             assert_eq!(
-                super::append_to_destdir(&Path::new(r"X:\foo"), &PathBuf::from(r"Y:\bar")),
+                super::append_to_destdir(Some(&Path::new(r"X:\foo")), &PathBuf::from(r"Y:\bar")),
                 PathBuf::from(r"X:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(&Path::new(r"A:\foo"), &PathBuf::from(r"B:bar")),
+                super::append_to_destdir(Some(&Path::new(r"A:\foo")), &PathBuf::from(r"B:bar")),
                 PathBuf::from(r"A:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(&Path::new(r"\foo"), &PathBuf::from(r"\bar")),
+                super::append_to_destdir(Some(&Path::new(r"\foo")), &PathBuf::from(r"\bar")),
                 PathBuf::from(r"\foo\bar")
             );
 
             assert_eq!(
                 super::append_to_destdir(
-                    &Path::new(r"C:\dest"),
+                    Some(&Path::new(r"C:\dest")),
                     &Path::new(r"\\server\share\foo\bar")
                 ),
                 PathBuf::from(r"C:\\dest\\foo\\bar")
@@ -172,10 +176,10 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             install_path_lib.push(subdir);
         }
 
-        let install_path_lib = append_to_destdir(destdir, &install_path_lib);
-        let install_path_pc = append_to_destdir(destdir, &paths.pkgconfigdir);
-        let install_path_include = append_to_destdir(destdir, &paths.includedir);
-        let install_path_data = append_to_destdir(destdir, &paths.datadir);
+        let install_path_lib = append_to_destdir(destdir.as_deref(), &install_path_lib);
+        let install_path_pc = append_to_destdir(destdir.as_deref(), &paths.pkgconfigdir);
+        let install_path_include = append_to_destdir(destdir.as_deref(), &paths.includedir);
+        let install_path_data = append_to_destdir(destdir.as_deref(), &paths.datadir);
 
         create_dir_all(&install_path_lib)?;
         create_dir_all(&install_path_pc)?;
@@ -227,7 +231,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                     lib.install(capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {
-                    let install_path_bin = append_to_destdir(destdir, &paths.bindir);
+                    let install_path_bin = append_to_destdir(destdir.as_deref(), &paths.bindir);
                     create_dir_all(&install_path_bin)?;
 
                     let lib_name = shared_lib.file_name().unwrap();
@@ -249,7 +253,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
 #[derive(Debug, Hash, Clone)]
 pub struct InstallPaths {
     pub subdir_name: PathBuf,
-    pub destdir: PathBuf,
+    pub destdir: Option<PathBuf>,
     pub prefix: PathBuf,
     pub libdir: PathBuf,
     pub includedir: PathBuf,
@@ -260,10 +264,7 @@ pub struct InstallPaths {
 
 impl InstallPaths {
     pub fn new(_name: &str, args: &ArgMatches<'_>, capi_config: &CApiConfig) -> Self {
-        let destdir = args
-            .value_of("destdir")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/"));
+        let destdir = args.value_of("destdir").map(PathBuf::from);
         let prefix = args
             .value_of("prefix")
             .map(PathBuf::from)
