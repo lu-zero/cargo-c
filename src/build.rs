@@ -66,9 +66,10 @@ fn copy_prebuilt_include_file(
     build_targets: &BuildTargets,
     root_output: &Path,
 ) -> anyhow::Result<()> {
-    ws.config()
-        .shell()
-        .status("Populating", "uninstalled header directory")?;
+    let mut shell = ws.config().shell();
+    shell.status("Populating", "uninstalled header directory")?;
+    let path = &format!("PKG_CONFIG_PATH=\"{}\"", root_output.display());
+    shell.verbose(move |s| s.note(path))?;
     for (from, to) in build_targets.extra.include.iter() {
         let to = root_output.join("include").join(to);
         create_dir_all(to.parent().unwrap())?;
