@@ -213,7 +213,7 @@ Cflags: {}",
             canonicalize(&self.includedir),
             self.name,
             // avoid endlines
-            self.description.replace("\n", " "),
+            self.description.replace('\n', " "),
             self.version,
             self.libs.join(" "),
             self.cflags.join(" "),

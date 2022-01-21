@@ -158,7 +158,7 @@ fn build_def_file(
 
         dumpbin
             .arg("/EXPORTS")
-            .arg(targetdir.join(format!("{}.dll", name.replace("-", "_"))));
+            .arg(targetdir.join(format!("{}.dll", name.replace('-', "_"))));
         dumpbin.arg(format!("/OUT:{}", txt_path.to_str().unwrap()));
 
         let out = dumpbin.output()?;
@@ -1149,7 +1149,7 @@ pub fn cbuild(
 
             if name.contains('-') {
                 let from_build_targets = BuildTargets::new(
-                    &name.replace("-", "_"),
+                    &name.replace('-', "_"),
                     &rustc_target,
                     &root_output,
                     &libkinds,
