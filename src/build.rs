@@ -166,7 +166,7 @@ fn build_def_file(
             let txt_file = open(txt_path)?;
             let buf_reader = BufReader::new(txt_file);
             let mut def_file = create(targetdir.join(format!("{}.def", name)))?;
-            writeln!(def_file, "{}", "EXPORTS".to_string())?;
+            writeln!(def_file, "EXPORTS")?;
 
             // The Rust loop below is analogue to the following loop.
             // for /f "skip=19 tokens=4" %A in (file.txt) do echo %A > file.def
