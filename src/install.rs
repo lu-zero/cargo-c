@@ -116,7 +116,14 @@ impl UnixLibNames {
             }
             LibType::Dylib => {
                 let lib = format!("lib{}.dylib", lib_name);
-                let lib_with_major_ver = format!("lib{}.{}.dylib", lib_name, lib_version.major);
+                let lib_with_major_ver = if lib_version.major == 0 {
+                    format!(
+                        "lib{}.{}.{}.dylib",
+                        lib_name, lib_version.major, lib_version.minor
+                    )
+                } else {
+                    format!("lib{}.{}.dylib", lib_name, lib_version.major)
+                };
                 let lib_with_full_ver = format!(
                     "lib{}.{}.{}.{}.dylib",
                     lib_name, lib_version.major, lib_version.minor, lib_version.patch
