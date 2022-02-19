@@ -84,7 +84,9 @@ impl LibType {
         let env = &target.env;
 
         match (os.as_str(), env.as_str()) {
-            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) => LibType::So,
+            ("linux", _) | ("freebsd", _) | ("dragonfly", _) | ("netbsd", _) | ("android", _) => {
+                LibType::So
+            }
             ("macos", _) | ("ios", _) => LibType::Dylib,
             ("windows", _) => LibType::Windows,
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
