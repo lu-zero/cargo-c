@@ -124,7 +124,7 @@ impl PkgConfig {
     pub(crate) fn from_workspace(
         name: &str,
         install_paths: &InstallPaths,
-        args: &structopt::clap::ArgMatches<'_>,
+        args: &clap::ArgMatches,
         capi_config: &CApiConfig,
     ) -> Self {
         let mut pc = PkgConfig::new(name, capi_config);

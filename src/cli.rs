@@ -5,61 +5,60 @@ use cargo::util::command_prelude::{multi_opt, opt};
 use cargo::util::{CliError, CliResult};
 
 use cargo_util::{ProcessBuilder, ProcessError};
-use structopt::clap::*;
-use structopt::StructOpt;
+
+use clap::{Arg, ArgMatches, Command, CommandFactory, Parser};
 
 // TODO: convert to a function using cargo opt()
 #[allow(dead_code)]
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Clone, Debug, Parser)]
 struct Common {
     /// Path to directory where target should be copied to
-    #[structopt(long = "destdir", parse(from_os_str))]
+    #[clap(long = "destdir", parse(from_os_str))]
     destdir: Option<PathBuf>,
     /// Directory path used to construct default values of
     /// includedir, libdir, bindir, pkgconfigdir
-    #[structopt(long = "prefix", parse(from_os_str))]
+    #[clap(long = "prefix", parse(from_os_str))]
     prefix: Option<PathBuf>,
     /// Path to directory for installing generated library files
-    #[structopt(long = "libdir", parse(from_os_str))]
+    #[clap(long = "libdir", parse(from_os_str))]
     libdir: Option<PathBuf>,
     /// Path to directory for installing generated headers files
-    #[structopt(long = "includedir", parse(from_os_str))]
+    #[clap(long = "includedir", parse(from_os_str))]
     includedir: Option<PathBuf>,
     /// Path to directory for installing generated executable files
-    #[structopt(long = "bindir", parse(from_os_str))]
+    #[clap(long = "bindir", parse(from_os_str))]
     bindir: Option<PathBuf>,
     /// Path to directory for installing generated pkg-config .pc files
-    #[structopt(long = "pkgconfigdir", parse(from_os_str))]
+    #[clap(long = "pkgconfigdir", parse(from_os_str))]
     pkgconfigdir: Option<PathBuf>,
     /// Path to directory for installing read-only data (defaults to {prefix}/share)
-    #[structopt(long = "datarootdir", parse(from_os_str))]
+    #[clap(long = "datarootdir", parse(from_os_str))]
     datarootdir: Option<PathBuf>,
     /// Path to directory for installing read-only application-specific data
     /// (defaults to {datarootdir})
-    #[structopt(long = "datadir", parse(from_os_str))]
+    #[clap(long = "datadir", parse(from_os_str))]
     datadir: Option<PathBuf>,
-    #[structopt(long = "dlltool", parse(from_os_str))]
+    #[clap(long = "dlltool", parse(from_os_str))]
     /// Use the provided dlltool when building for the windows-gnu targets.
     dlltool: Option<PathBuf>,
-    #[structopt(long = "crt-static")]
+    #[clap(long = "crt-static")]
     /// Build the library embedding the C runtime
     crt_static: bool,
 }
 
-fn base_cli() -> App<'static, 'static> {
-    Common::clap()
-        .setting(AppSettings::ColoredHelp)
-        .arg(opt("version", "Print version info and exit").short("V"))
+fn base_cli() -> Command<'static> {
+    Common::command()
+        .arg(opt("version", "Print version info and exit").short('V'))
         .arg(
             opt(
                 "verbose",
                 "Use verbose output (-vv very verbose/build.rs output)",
             )
-            .short("v")
-            .multiple(true)
+            .short('v')
+            .multiple_occurrences(true)
             .global(true),
         )
-        .arg(opt("quiet", "No output printed to stdout").short("q"))
+        .arg(opt("quiet", "No output printed to stdout").short('q'))
         .arg(
             opt("color", "Coloring: auto, always, never")
                 .value_name("WHEN")
@@ -71,9 +70,29 @@ fn base_cli() -> App<'static, 'static> {
         .arg(
             multi_opt("config", "KEY=VALUE", "Override a configuration value")
                 .global(true)
-                .hidden(true),
+                .hide(true),
+        )
+        .arg(
+            Arg::new("unstable-features")
+                .help("Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details")
+                .short('Z')
+                .value_name("FLAG")
+                .multiple_occurrences(true)
+                .global(true),
         )
         .arg_jobs()
+        .arg_targets_all(
+            "Build only this package's library",
+            "Build only the specified binary",
+            "Build all binaries",
+            "Build only the specified example",
+            "Build all examples",
+            "Build only the specified test target",
+            "Build all tests",
+            "Build only the specified bench target",
+            "Build all benches",
+            "Build all targets",
+        )
         .arg_profile("Build artifacts with the specified profile")
         .arg_features()
         .arg_target_triple("Build for the target triple")
@@ -83,7 +102,7 @@ fn base_cli() -> App<'static, 'static> {
         .arg_build_plan()
 }
 
-pub fn subcommand_build(name: &str, about: &'static str) -> App<'static, 'static> {
+pub fn subcommand_build(name: &str, about: &'static str) -> Command<'static> {
     base_cli()
         .name(name)
         .about(about)
@@ -94,7 +113,7 @@ pub fn subcommand_build(name: &str, about: &'static str) -> App<'static, 'static
                 "Build only a type of library",
             )
             .global(true)
-            .case_insensitive(true)
+            .ignore_case(true)
             .possible_values(&["cdylib", "staticlib"]),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
@@ -112,7 +131,7 @@ the --release flag will use the `release` profile instead.
         )
 }
 
-pub fn subcommand_install(name: &str, about: &'static str) -> App<'static, 'static> {
+pub fn subcommand_install(name: &str, about: &'static str) -> Command<'static> {
     base_cli()
         .name(name)
         .about(about)
@@ -123,7 +142,7 @@ pub fn subcommand_install(name: &str, about: &'static str) -> App<'static, 'stat
                 "Build only a type of library",
             )
             .global(true)
-            .case_insensitive(true)
+            .ignore_case(true)
             .possible_values(&["cdylib", "staticlib"]),
         )
         .arg(opt("debug", "Build in debug mode instead of release mode"))
@@ -144,15 +163,15 @@ the --debug flag will use the `dev` profile instead.
         )
 }
 
-pub fn subcommand_test(name: &str) -> App<'static, 'static> {
+pub fn subcommand_test(name: &str) -> Command<'static> {
     base_cli()
-        .settings(&[AppSettings::TrailingVarArg])
+        .trailing_var_arg(true)
         .name(name)
         .about("Test the crate C-API")
         .arg(
-            Arg::with_name("args")
+            Arg::new("args")
                 .help("Arguments for the test binary")
-                .multiple(true)
+                .multiple_values(true)
                 .last(true),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
