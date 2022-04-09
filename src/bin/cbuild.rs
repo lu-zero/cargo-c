@@ -7,27 +7,23 @@ use cargo_c::cli::run_cargo_fallback;
 use cargo_c::cli::subcommand_build;
 use cargo_c::config::*;
 
-use structopt::clap::*;
+use clap::*;
 
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
     let subcommand = subcommand_build("cbuild", "Build the crate C-API");
-
-    let mut app = app_from_crate!()
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::VersionlessSubcommands,
-            AppSettings::AllowExternalSubcommands,
-        ])
+    let mut app = clap::command!()
+        .setting(AppSettings::DeriveDisplayOrder)
+        .dont_collapse_args_in_usage(true)
+        .allow_external_subcommands(true)
         .subcommand(subcommand);
 
     let args = app.clone().get_matches();
 
     let subcommand_args = match args.subcommand() {
-        ("cbuild", Some(args)) => args,
-        (cmd, Some(args)) => {
+        Some(("cbuild", args)) => args,
+        Some((cmd, args)) => {
             return run_cargo_fallback(cmd, args);
         }
         _ => {

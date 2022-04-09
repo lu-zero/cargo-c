@@ -8,26 +8,23 @@ use cargo_c::cli::subcommand_install;
 use cargo_c::config::config_configure;
 use cargo_c::install::cinstall;
 
-use structopt::clap::*;
+use clap::*;
 
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
     let subcommand = subcommand_install("cinstall", "Install the crate C-API");
-    let mut app = app_from_crate!()
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::VersionlessSubcommands,
-            AppSettings::AllowExternalSubcommands,
-        ])
+    let mut app = clap::command!()
+        .setting(AppSettings::DeriveDisplayOrder)
+        .dont_collapse_args_in_usage(true)
+        .allow_external_subcommands(true)
         .subcommand(subcommand);
 
     let args = app.clone().get_matches();
 
     let subcommand_args = match args.subcommand() {
-        ("cinstall", Some(args)) => args,
-        (cmd, Some(args)) => {
+        Some(("cinstall", args)) => args,
+        Some((cmd, args)) => {
             return run_cargo_fallback(cmd, args);
         }
         _ => {

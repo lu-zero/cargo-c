@@ -1,5 +1,5 @@
+use clap::ArgMatches;
 use std::path::{Component, Path, PathBuf};
-use structopt::clap::ArgMatches;
 
 use cargo::core::Workspace;
 use cargo_util::paths::{copy, create_dir_all};
@@ -272,37 +272,37 @@ pub struct InstallPaths {
 }
 
 impl InstallPaths {
-    pub fn new(_name: &str, args: &ArgMatches<'_>, capi_config: &CApiConfig) -> Self {
-        let destdir = args.value_of("destdir").map(PathBuf::from);
+    pub fn new(_name: &str, args: &ArgMatches, capi_config: &CApiConfig) -> Self {
+        let destdir = args.value_of_os("destdir").map(PathBuf::from);
         let prefix = args
-            .value_of("prefix")
+            .value_of_os("prefix")
             .map(PathBuf::from)
             .unwrap_or_else(|| "/usr/local".into());
         let libdir = args
-            .value_of("libdir")
+            .value_of_os("libdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("lib"));
         let includedir = args
-            .value_of("includedir")
+            .value_of_os("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
         let datarootdir = args
-            .value_of("datarootdir")
+            .value_of_os("datarootdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("share"));
         let datadir = args
-            .value_of("datadir")
+            .value_of_os("datadir")
             .map(PathBuf::from)
             .unwrap_or_else(|| datarootdir.clone());
 
         let subdir_name = PathBuf::from(&capi_config.header.subdirectory);
 
         let bindir = args
-            .value_of("bindir")
+            .value_of_os("bindir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("bin"));
         let pkgconfigdir = args
-            .value_of("pkgconfigdir")
+            .value_of_os("pkgconfigdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| libdir.join("pkgconfig"));
 

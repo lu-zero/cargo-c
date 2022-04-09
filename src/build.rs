@@ -750,7 +750,7 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
 fn compile_options(
     ws: &Workspace,
     config: &Config,
-    args: &ArgMatches<'_>,
+    args: &ArgMatches,
     profile: InternedString,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
@@ -865,7 +865,7 @@ fn compile_with_exec<'a>(
     exec: &Arc<dyn Executor>,
     rustc_target: &target::Target,
     root_output: &Path,
-    args: &ArgMatches<'_>,
+    args: &ArgMatches,
 ) -> CargoResult<HashMap<PackageId, PathBuf>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
@@ -954,7 +954,7 @@ pub struct CPackage {
 impl CPackage {
     fn from_package(
         pkg: &mut Package,
-        args: &ArgMatches<'_>,
+        args: &ArgMatches,
         libkinds: &[&str],
         rustc_target: &target::Target,
         root_output: &Path,
@@ -988,7 +988,7 @@ impl CPackage {
 pub fn cbuild(
     ws: &mut Workspace,
     config: &Config,
-    args: &ArgMatches<'_>,
+    args: &ArgMatches,
     default_profile: &str,
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     let rustc = config.load_global_rustc(Some(ws))?;
@@ -1002,13 +1002,18 @@ pub fn cbuild(
     };
 
     let rustc_target = target::Target::new(&target)?;
-    let libkinds = args.values_of("library-type").map_or_else(
-        || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
-            ("none", _) | (_, "musl") => vec!["staticlib"],
-            _ => vec!["staticlib", "cdylib"],
-        },
-        |v| v.collect::<Vec<_>>(),
-    );
+
+    let default_kind = || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
+        ("none", _) | (_, "musl") => vec!["staticlib"],
+        _ => vec!["staticlib", "cdylib"],
+    };
+
+    let libkinds = if args._is_valid_arg("library-type") {
+        args.values_of("library-type")
+            .map_or_else(default_kind, |v| v.collect::<Vec<_>>())
+    } else {
+        default_kind()
+    };
     let only_staticlib = !libkinds.contains(&"cdylib");
     let only_cdylib = !libkinds.contains(&"staticlib");
 
@@ -1125,8 +1130,8 @@ pub fn cbuild(
                     .unwrap_or_else(|| PathBuf::from("dlltool"));
 
                 // dlltool argument overwrites environment var
-                if args.value_of("dlltool").is_some() {
-                    dlltool = args.value_of("dlltool").map(PathBuf::from).unwrap();
+                if args.value_of_os("dlltool").is_some() {
+                    dlltool = args.value_of_os("dlltool").map(PathBuf::from).unwrap();
                 }
 
                 build_implib_file(ws, lib_name, &rustc_target, &root_output, &dlltool)?;
@@ -1184,7 +1189,7 @@ pub fn cbuild(
 pub fn ctest(
     ws: &Workspace,
     config: &Config,
-    args: &ArgMatches<'_>,
+    args: &ArgMatches,
     packages: &[CPackage],
     mut compile_opts: CompileOptions,
 ) -> CliResult {

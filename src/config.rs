@@ -12,7 +12,7 @@ fn setup_env() {
     }
 }
 
-pub fn config_configure(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
+pub fn config_configure(config: &mut Config, args: &ArgMatches) -> CliResult {
     let arg_target_dir = &args.value_of_path("target-dir", config);
     let config_args: Vec<_> = args
         .values_of("config")
