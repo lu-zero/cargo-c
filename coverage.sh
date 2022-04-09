@@ -1,8 +1,7 @@
 export LLVM_PROFILE_FILE="cargo-c-%p-%m.profraw"
-export RUSTFLAGS=-Zinstrument-coverage
+export RUSTFLAGS=-Cinstrument-coverage
 export CARGO_INCREMENTAL=0
 
-rustup default nightly
 rustup target add x86_64-pc-windows-gnu
 cargo build
 cargo test

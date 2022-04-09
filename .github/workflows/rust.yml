@@ -46,9 +46,9 @@ jobs:
       - name: Install grcov
         env:
           LINK: https://github.com/mozilla/grcov/releases/download
-          GRCOV_VERSION: 0.7.1
+          GRCOV_VERSION: 0.8.7
         run: |
-          curl -L "$LINK/v$GRCOV_VERSION/grcov-linux-x86_64.tar.bz2" |
+          curl -L "$LINK/v$GRCOV_VERSION/grcov-x86_64-unknown-linux-gnu.tar.bz2" |
           tar xj -C $HOME/.cargo/bin
 
       - name: Install nightly
