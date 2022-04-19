@@ -14,7 +14,7 @@ libc = { version = "0.2", optional = true }
 inline-c = "0.1"
 
 [build-dependencies]
-cargo_metadata = "0.13.1"
+cargo_metadata = "0.14"
 
 [package.metadata.capi.header]
 subdirectory = "example-project-0.1/example_project"
