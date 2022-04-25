@@ -27,7 +27,7 @@ for project in example-project example-workspace; do
 
     run target/debug/cargo-cinstall --help
     run target/debug/cargo-cinstall cinstall --manifest-path=${project}/Cargo.toml --destdir=/tmp/staging
-    run target/debug/cargo-cinstall cinstall clean --manifest-path=${project}/Cargo.toml
+    run target/debug/cargo-cinstall clean --manifest-path=${project}/Cargo.toml
 
     run target/debug/cargo-cinstall cinstall --manifest-path=${project}/Cargo.toml --destdir=/tmp/staging-win --target=x86_64-pc-windows-gnu --dlltool=x86_64-w64-mingw32-dlltool
 done
