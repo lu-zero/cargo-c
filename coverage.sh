@@ -18,6 +18,8 @@ for project in example-project example-workspace; do
     run target/debug/cargo-capi capi test --manifest-path=${project}/Cargo.toml
     run target/debug/cargo-capi capi clean --manifest-path=${project}/Cargo.toml
     run target/debug/cargo-capi capi build --manifest-path=${project}/Cargo.toml
+    run target/debug/cargo-capi capi install --manifest-path=${project}/Cargo.toml --destdir=/tmp/staging
+    run target/debug/cargo-capi clean --manifest-path=${project}/Cargo.toml
 
     run target/debug/cargo-cbuild --help
     run target/debug/cargo-cbuild clean --manifest-path=${project}/Cargo.toml
