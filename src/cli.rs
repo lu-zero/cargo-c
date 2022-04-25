@@ -48,6 +48,7 @@ struct Common {
 
 fn base_cli() -> Command<'static> {
     Common::command()
+        .allow_external_subcommands(true)
         .arg(opt("version", "Print version info and exit").short('V'))
         .arg(
             opt(
