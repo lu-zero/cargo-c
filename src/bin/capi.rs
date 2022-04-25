@@ -23,6 +23,7 @@ fn main() -> CliResult {
         .allow_external_subcommands(true)
         .subcommand(
             Command::new("capi")
+                .allow_external_subcommands(true)
                 .about("Build or install the crate C-API")
                 .arg(opt("version", "Print version info and exit").short('V'))
                 .subcommand(cli_build)
@@ -46,6 +47,9 @@ fn main() -> CliResult {
                 return Ok(());
             }
         },
+        Some((cmd, args)) => {
+            return run_cargo_fallback(cmd, args);
+        }
         _ => {
             app.print_help()?;
             return Ok(());
