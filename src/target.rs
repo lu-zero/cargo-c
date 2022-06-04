@@ -72,7 +72,11 @@ impl Target {
         if os == "android" {
             lines.push(format!("-Wl,-soname,lib{}.so", lib_name));
         } else if env != "musl"
-            && (os == "linux" || os == "freebsd" || os == "dragonfly" || os == "netbsd")
+            && (os == "linux"
+                || os == "freebsd"
+                || os == "dragonfly"
+                || os == "netbsd"
+                || os == "haiku")
         {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
         } else if os == "macos" || os == "ios" {
