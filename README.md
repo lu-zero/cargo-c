@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/cargo-c.svg)](https://crates.io/crates/cargo-c)
 [![Build Status](https://github.com/lu-zero/cargo-c/workflows/Rust/badge.svg)](https://github.com/lu-zero/cargo-c/actions?query=workflow:Rust)
 [![cargo-c chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://rust-av.zulipchat.com/#narrow/stream/254255-cargo-c)
+[![dependency status](https://deps.rs/repo/github/lu-zero/cargo-c/status.svg)](https://deps.rs/repo/github/lu-zero/cargo-c)
 
 [cargo](https://doc.rust-lang.org/cargo) applet to build and install C-ABI compatible dynamic and static libraries.
 
