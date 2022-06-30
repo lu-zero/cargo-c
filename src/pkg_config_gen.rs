@@ -220,27 +220,27 @@ Cflags: {}",
         );
 
         if !self.libs_private.is_empty() {
-            base.push_str(&format!(
+            base.push_str(
                 "
-Libs.private: {}",
-                self.libs_private.join(" "),
-            ));
+Libs.private: ",
+            );
+            base.push_str(&self.libs_private.join(" "));
         }
 
         if !self.requires.is_empty() {
-            base.push_str(&format!(
+            base.push_str(
                 "
-Requires: {}",
-                self.requires.join(", ")
-            ));
+Requires: ",
+            );
+            base.push_str(&self.requires.join(", "));
         }
 
         if !self.requires_private.is_empty() {
-            base.push_str(&format!(
+            base.push_str(
                 "
-Requires.private: {}",
-                self.requires_private.join(", ")
-            ));
+Requires.private: ",
+            );
+            base.push_str(&self.requires_private.join(", "));
         }
 
         /*

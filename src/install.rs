@@ -30,40 +30,40 @@ mod tests {
     #[test]
     fn append_to_destdir() {
         assert_eq!(
-            super::append_to_destdir(Some(&Path::new(r"/foo")), &PathBuf::from(r"/bar/./..")),
+            super::append_to_destdir(Some(Path::new(r"/foo")), &PathBuf::from(r"/bar/./..")),
             PathBuf::from(r"/foo/bar/./..")
         );
 
         assert_eq!(
-            super::append_to_destdir(Some(&Path::new(r"foo")), &PathBuf::from(r"bar")),
+            super::append_to_destdir(Some(Path::new(r"foo")), &PathBuf::from(r"bar")),
             PathBuf::from(r"foo/bar")
         );
 
         assert_eq!(
-            super::append_to_destdir(Some(&Path::new(r"")), &PathBuf::from(r"")),
+            super::append_to_destdir(Some(Path::new(r"")), &PathBuf::from(r"")),
             PathBuf::from(r"")
         );
 
         if cfg!(windows) {
             assert_eq!(
-                super::append_to_destdir(Some(&Path::new(r"X:\foo")), &PathBuf::from(r"Y:\bar")),
+                super::append_to_destdir(Some(Path::new(r"X:\foo")), &PathBuf::from(r"Y:\bar")),
                 PathBuf::from(r"X:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(Some(&Path::new(r"A:\foo")), &PathBuf::from(r"B:bar")),
+                super::append_to_destdir(Some(Path::new(r"A:\foo")), &PathBuf::from(r"B:bar")),
                 PathBuf::from(r"A:\foo\bar")
             );
 
             assert_eq!(
-                super::append_to_destdir(Some(&Path::new(r"\foo")), &PathBuf::from(r"\bar")),
+                super::append_to_destdir(Some(Path::new(r"\foo")), &PathBuf::from(r"\bar")),
                 PathBuf::from(r"\foo\bar")
             );
 
             assert_eq!(
                 super::append_to_destdir(
-                    Some(&Path::new(r"C:\dest")),
-                    &Path::new(r"\\server\share\foo\bar")
+                    Some(Path::new(r"C:\dest")),
+                    Path::new(r"\\server\share\foo\bar")
                 ),
                 PathBuf::from(r"C:\\dest\\foo\\bar")
             );
