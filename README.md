@@ -145,21 +145,21 @@ subdirectory = "foodata"
 # Copy the pre-generated data files found in {root_dir}/{from} to {datadir}/{to}/{matched subdirs}
 # If {from} is a single path instead of a glob, the destination is {datapath}/{to}.
 # datapath is {datadir}/{subdirectory}
-assets = [{from="pattern/with/or/without/**/*", to="destination"}]
+asset = [{from="pattern/with/or/without/**/*", to="destination"}]
 # Copy the pre-generated data files found in {OUT_DIR}/{from} to {includedir}/{to}/{matched subdirs}
 # If {from} is a single path instead of a glob, the destination is {datapath}/{to}.
 # datapath is {datadir}/{subdirectory}
-generated = [{from="pattern/with/or/without/**/*", to="destination"]
+generated = [{from="pattern/with/or/without/**/*", to="destination"}]
 
 [package.metadata.capi.install.include]
 # Copy the pre-generated includes found in {root_dir}/{from} to {includedir}/{to}/{matched subdirs}
 # If {from} is a single path instead of a glob, the destination is {includepath}/{to}.
 # includepath is {includedir}/{header.subdirectory}
-assets = [{from="pattern/with/or/without/**/*", to="destination"}]
+asset = [{from="pattern/with/or/without/**/*", to="destination"}]
 # Copy the pre-generated includes found in {OUT_DIR}/{from} to {includedir}/{to}/{matched subdirs}
 # If {from} is a single path instead of a glob, the destination is {includedpath}/{to}.
 # includepath is {includedir}/{header.subdirectory}
-generated = [{from="pattern/with/or/without/**/*", to="destination"]
+generated = [{from="pattern/with/or/without/**/*", to="destination"}]
 ```
 
 ### Notes
