@@ -243,11 +243,18 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                     lib.install(capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {
-                    let install_path_bin = append_to_destdir(destdir.as_deref(), &paths.bindir);
-                    create_dir_all(&install_path_bin)?;
-
                     let lib_name = shared_lib.file_name().unwrap();
-                    copy(shared_lib, install_path_bin.join(lib_name))?;
+
+                    if capi_config.library.install_subdir.is_none() {
+                        let install_path_bin = append_to_destdir(destdir.as_deref(), &paths.bindir);
+                        create_dir_all(&install_path_bin)?;
+
+                        copy(shared_lib, install_path_bin.join(lib_name))?;
+                    } else {
+                        // We assume they are plugins, install them in the custom libdir path
+                        copy(shared_lib, install_path_lib.join(lib_name))?;
+                    }
+
                     let impl_lib = build_targets.impl_lib.as_ref().unwrap();
                     let impl_lib_name = impl_lib.file_name().unwrap();
                     copy(impl_lib, install_path_lib.join(impl_lib_name))?;
