@@ -1008,7 +1008,7 @@ pub fn cbuild(
         _ => vec!["staticlib", "cdylib"],
     };
 
-    let libkinds = if args._is_valid_arg("library-type") {
+    let libkinds = if args.is_valid_arg("library-type") {
         args.values_of("library-type")
             .map_or_else(default_kind, |v| v.collect::<Vec<_>>())
     } else {
