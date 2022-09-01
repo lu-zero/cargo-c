@@ -70,7 +70,7 @@ impl Target {
         let env = &self.env;
 
         if os == "android" {
-            lines.push(format!("-Wl,-soname,lib{}.so", lib_name));
+            lines.push(format!("-soname,lib{}.so", lib_name));
         } else if os == "linux"
             || os == "freebsd"
             || os == "dragonfly"
