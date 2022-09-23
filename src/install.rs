@@ -89,7 +89,8 @@ impl LibType {
             | ("dragonfly", _)
             | ("netbsd", _)
             | ("android", _)
-            | ("haiku", _) => LibType::So,
+            | ("haiku", _)
+            | ("illumos", _) => LibType::So,
             ("macos", _) | ("ios", _) => LibType::Dylib,
             ("windows", _) => LibType::Windows,
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),

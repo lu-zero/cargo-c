@@ -82,7 +82,8 @@ impl BuildTargets {
             | ("dragonfly", _)
             | ("netbsd", _)
             | ("android", _)
-            | ("haiku", _) => {
+            | ("haiku", _)
+            | ("illumos", _) => {
                 let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
                 let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)

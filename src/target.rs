@@ -76,6 +76,7 @@ impl Target {
             || os == "dragonfly"
             || os == "netbsd"
             || os == "haiku"
+            || os == "illumos"
         {
             lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
         } else if os == "macos" || os == "ios" {
