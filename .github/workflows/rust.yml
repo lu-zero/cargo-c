@@ -22,10 +22,8 @@ jobs:
           components: clippy, rustfmt
 
       - name: Run rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: |
+          cargo fmt --all -- --check
 
       - name: Run clippy
         uses: actions-rs/clippy-check@v1
@@ -95,16 +93,12 @@ jobs:
           override: true
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: |
+          cargo build --verbose
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
+        run: |
+          cargo test --verbose
 
   msvc-Nightly:
 
@@ -123,10 +117,8 @@ jobs:
           override: true
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --no-fail-fast
+        run: |
+          cargo test --no-fail-fast
 
   msvc-Stable:
 
@@ -145,16 +137,12 @@ jobs:
           override: true
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        run: |
+          cargo build --verbose
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
+        run: |
+          cargo test --verbose
 
   mingw-Nightly:
 
@@ -173,10 +161,8 @@ jobs:
           override: true
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --no-fail-fast
+        run: |
+          cargo test --no-fail-fast
 
   mingw-Stable:
 
@@ -195,7 +181,5 @@ jobs:
           override: true
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --no-fail-fast
+        run: |
+          cargo test --verbose
