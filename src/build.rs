@@ -12,9 +12,8 @@ use cargo::core::{TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
 use cargo::util::interning::InternedString;
-use cargo::{CliError, CliResult, Config};
+use cargo::{CliResult, Config};
 
-use anyhow::Error;
 use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes, write};
 use semver::Version;
 
@@ -793,7 +792,7 @@ struct Exec {
 
 use cargo::core::*;
 use cargo::CargoResult;
-use cargo_util::{is_simple_exit_code, ProcessBuilder};
+use cargo_util::ProcessBuilder;
 
 impl Executor for Exec {
     fn exec(
@@ -1239,18 +1238,5 @@ pub fn ctest(
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
 
-    let err = ops::run_tests(ws, &ops, &test_args)?;
-    match err {
-        None => Ok(()),
-        Some(err) => {
-            let context = anyhow::format_err!("{}", err.hint(ws, &ops.compile_opts));
-            let e = match err.code {
-                // Don't show "process didn't exit successfully" for simple errors.
-                Some(i) if is_simple_exit_code(i) => CliError::new(context, i),
-                Some(i) => CliError::new(Error::from(err).context(context), i),
-                None => CliError::new(Error::from(err).context(context), 101),
-            };
-            Err(e)
-        }
-    }
+    ops::run_tests(ws, &ops, &test_args)
 }
