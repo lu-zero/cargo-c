@@ -77,22 +77,9 @@ jobs:
         target: x86_64-unknown-linux-musl
         override: true
 
-    - name: Build openssl for musl
-      run: |
-         OPENSSL_BIN=target/x86_64-unknown-linux-musl/release/build
-         git clone --depth 1 https://github.com/sfackler/rust-openssl
-         cd rust-openssl/openssl-sys
-         cargo build --target x86_64-unknown-linux-musl \
-                     --release \
-                     --features=vendored
-         mv ../$OPENSSL_BIN/openssl-sys-*/out/openssl-build/install/* \
-            $GITHUB_WORKSPACE
-
     - name: Build cargo-c
       run: |
-        export OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/lib
-        export OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/include
-        cargo build --target x86_64-unknown-linux-musl --release
+        cargo build --target x86_64-unknown-linux-musl --release --features vendored-openssl
 
     - name: Create zip
       run: |
@@ -125,7 +112,7 @@ jobs:
 
     - name: Build cargo-c
       run: |
-        cargo build --features=cargo/vendored-openssl --release
+        cargo build --features=vendored-openssl --release
 
     - name: Create zip
       run: |
