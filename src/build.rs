@@ -1028,7 +1028,7 @@ pub fn cbuild(
         .as_path_unlocked()
         .to_path_buf()
         .join(PathBuf::from(target))
-        .join(&profiles.get_dir_name());
+        .join(profiles.get_dir_name());
 
     let capi_feature = InternedString::new("capi");
 
@@ -1225,7 +1225,7 @@ pub fn ctest(
         let builddir = static_lib_path.parent().unwrap();
 
         cflags.push("-I");
-        cflags.push(&builddir);
+        cflags.push(builddir);
         cflags.push(" ");
 
         // We push the full path here to work around macos ld not supporting the -l:{filename} syntax

@@ -115,7 +115,7 @@ pub fn subcommand_build(name: &str, about: &'static str) -> Command<'static> {
             )
             .global(true)
             .ignore_case(true)
-            .possible_values(&["cdylib", "staticlib"]),
+            .possible_values(["cdylib", "staticlib"]),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg_package_spec_no_all(
@@ -144,7 +144,7 @@ pub fn subcommand_install(name: &str, about: &'static str) -> Command<'static> {
             )
             .global(true)
             .ignore_case(true)
-            .possible_values(&["cdylib", "staticlib"]),
+            .possible_values(["cdylib", "staticlib"]),
         )
         .arg(opt("debug", "Build in debug mode instead of release mode"))
         .arg_release(
