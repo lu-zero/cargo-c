@@ -111,7 +111,7 @@ jobs:
     - name: Upload binaries
       uses: actions/upload-artifact@v2
       with:
-        name: cargo-c-${{ matrix.target }}-binaries
+        name: cargo-c-linux-binaries
         path: cargo-c-${{ matrix.target }}.tar.gz
 
   macos-binaries:
@@ -175,7 +175,7 @@ jobs:
       with:
         files: |
           Cargo.lock
-          cargo-c-linux-binaries/cargo-c-linux.tar.gz
+          cargo-c-linux-binaries/*.tar.gz
           cargo-c-macos-binaries/cargo-c-macos.zip
           cargo-c-windows-msvc-binaries/cargo-c-windows-msvc.zip
           cargo-c-windows-gnu-binaries/cargo-c-windows-gnu.zip
