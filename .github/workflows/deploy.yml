@@ -58,43 +58,31 @@ jobs:
 
   linux-binaries:
     strategy:
+      fail-fast: false
       matrix:
         target:
+         - i686-unknown-linux-musl
          - x86_64-unknown-linux-musl
          - powerpc64le-unknown-linux-gnu
-         - aarch64-unknown-linux-gnu
-        include:
-         - target: x86_64-unknown-linux-musl
-           sdk: musl-tools
-           cc: cc
-         - target: powerpc64le-unknown-linux-gnu
-           sdk: crossbuild-essential-ppc64el
-           cc: powerpc64le-linux-gnu-gcc
-         - target: aarch64-unknown-linux-gnu
-           sdk: crossbuild-essential-arm64
-           cc: aarch64-linux-gnu-gcc
+         - aarch64-unknown-linux-musl
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install $${{ matrix.sdk }}
-      run: |
-        sudo apt-get install ${{ matrix.sdk }}
-
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        target: ${{ matrix.target }}
+
+    - name: Install cross
+      run: |
+        cargo install cross --git https://github.com/cross-rs/cross
 
     - name: Build cargo-c
       run: |
-        mkdir .cargo
-        echo -e "[target.${{ matrix.target }}]\nlinker=\"${{ matrix.cc }}\"\n" > .cargo/config
-        echo -e "[profile.release]\nstrip = true" >> .cargo/config
-        cargo build --target ${{ matrix.target }} --release --features vendored-openssl
+        cross build --target ${{ matrix.target }} --features=vendored-openssl --release
 
     - name: Create zip
       run: |
