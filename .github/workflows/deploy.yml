@@ -28,9 +28,7 @@ jobs:
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: ${{ matrix.toolchain }}
-        override: true
 
     - name: Build cargo-c
       run: |
@@ -68,7 +66,7 @@ jobs:
         include:
          - target: x86_64-unknown-linux-musl
            sdk: musl-tools
-           cc: musl-gcc
+           cc: cc
          - target: powerpc64le-unknown-linux-gnu
            sdk: crossbuild-essential-ppc64el
            cc: powerpc64le-linux-gnu-gcc
@@ -88,10 +86,8 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: stable
         target: ${{ matrix.target }}
-        override: true
 
     - name: Build cargo-c
       run: |
@@ -124,9 +120,7 @@ jobs:
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: stable
-        override: true
 
     - name: Build cargo-c
       run: |
@@ -159,9 +153,7 @@ jobs:
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: stable
-        override: true
 
     - name: Download zip files
       uses: actions/download-artifact@v2
