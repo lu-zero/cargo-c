@@ -23,14 +23,12 @@ jobs:
 
     steps:
       - name: Clone Git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable${{ matrix.toolchain-suffix }}
-          override: true
 
       - name: Install cargo-c applet
         run: |
@@ -89,7 +87,13 @@ jobs:
 
     steps:
       - name: Clone Git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-gnu
+
 
       - name: Install MSYS2
         uses: msys2/setup-msys2@v2
@@ -97,7 +101,9 @@ jobs:
           install: >-
             make
             mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-rust
+
+      # Stale rustc may not build
+      #      mingw-w64-x86_64-rust
       #      mingw-w64-x86_64-cargo-c
 
       # NB: cargo-c is available from the package mingw-w64-x86_64-cargo-c
