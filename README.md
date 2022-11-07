@@ -16,6 +16,9 @@ It produces and installs a correct [pkg-config](https://www.freedesktop.org/wiki
 cargo install cargo-c
 ```
 
+The `rustc` version supported is the same as the one supported by the `cargo` version embedded in the package version, or as set in the
+[rust-version](https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field) field.
+
 You must have the **cargo** build [requirements](https://github.com/rust-lang/cargo#compiling-from-source) satisfied in order to build **cargo-c**:
 * `git`
 * `pkg-config` (on Unix, used to figure out the host-provided headers/libraries)
