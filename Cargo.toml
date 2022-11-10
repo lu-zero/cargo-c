@@ -48,5 +48,6 @@ itertools = "0.10"
 default = []
 vendored-openssl = ["cargo/vendored-openssl"]
 
-[profile.release]
+[profile.release-strip]
+inherits = "release"
 strip = "symbols"
