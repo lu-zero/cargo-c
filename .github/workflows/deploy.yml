@@ -32,19 +32,11 @@ jobs:
 
     - name: Build cargo-c
       run: |
-        cargo build --release
-
-    - name: Strip gnu binaries
-      if: matrix.conf == 'gnu'
-      run: |
-        strip "target\release\cargo-capi.exe" `
-              "target\release\cargo-cbuild.exe" `
-              "target\release\cargo-cinstall.exe"
-
+        cargo build --profile release-strip
 
     - name: Create zip
       run: |
-        cd target/release
+        cd target/release-strip
         7z a ../../cargo-c-windows-${{ matrix.conf }}.zip `
              "cargo-capi.exe" `
              "cargo-cbuild.exe" `
@@ -82,11 +74,13 @@ jobs:
 
     - name: Build cargo-c
       run: |
-        cross build --target ${{ matrix.target }} --features=vendored-openssl --release
+        cross build --target ${{ matrix.target }} \
+          --features=vendored-openssl \
+          --profile release-strip
 
     - name: Create zip
       run: |
-        cd target/${{ matrix.target }}/release
+        cd target/${{ matrix.target }}/release-strip
         tar -czvf $GITHUB_WORKSPACE/cargo-c-${{ matrix.target }}.tar.gz \
                   cargo-capi \
                   cargo-cbuild \
@@ -112,12 +106,11 @@ jobs:
 
     - name: Build cargo-c
       run: |
-        cargo build --features=vendored-openssl --release
+        cargo build --features=vendored-openssl --profile release-strip
 
     - name: Create zip
       run: |
-        cd target/release
-        strip cargo-capi cargo-cbuild cargo-cinstall
+        cd target/release-strip
         zip $GITHUB_WORKSPACE/cargo-c-macos.zip \
             cargo-capi \
             cargo-cbuild \
