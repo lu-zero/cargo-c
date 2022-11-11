@@ -11,14 +11,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: clippy, rustfmt
 
       - name: Run rustfmt
@@ -39,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install grcov
         env:
@@ -52,9 +50,7 @@ jobs:
       - name: Install nightly
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: nightly
-          override: true
           components: llvm-tools-preview
 
       - name: Set up MinGW
@@ -83,14 +79,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
 
       - name: Build
         run: |
@@ -107,14 +101,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install nightly
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: nightly
-          override: true
 
       - name: Run tests
         run: |
@@ -127,14 +119,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
 
       - name: Build
         run: |
@@ -151,14 +141,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install nightly-gnu
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: nightly-gnu
-          override: true
 
       - name: Run tests
         run: |
@@ -171,14 +159,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install stable-gnu
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable-gnu
-          override: true
 
       - name: Run tests
         run: |
