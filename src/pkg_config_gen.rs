@@ -132,10 +132,22 @@ impl PkgConfig {
         pc.prefix = install_paths.prefix.clone();
         // TODO: support exec_prefix
         if args.is_present("includedir") {
-            pc.includedir = install_paths.includedir.clone();
+            if let Ok(suffix) = install_paths.includedir.strip_prefix(&pc.prefix) {
+                let mut includedir = PathBuf::from("${prefix}");
+                includedir.push(suffix);
+                pc.includedir = includedir;
+            } else {
+                pc.includedir = install_paths.includedir.clone();
+            }
         }
         if args.is_present("libdir") {
-            pc.libdir = install_paths.libdir.clone();
+            if let Ok(suffix) = install_paths.libdir.strip_prefix(&pc.prefix) {
+                let mut libdir = PathBuf::from("${prefix}");
+                libdir.push(suffix);
+                pc.libdir = libdir;
+            } else {
+                pc.libdir = install_paths.libdir.clone();
+            }
         }
         pc
     }
