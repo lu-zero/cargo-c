@@ -29,15 +29,16 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all -- -D warnings --verbose
 
-
-  Ubuntu-Nightly:
-
-    name: Ubuntu-Nightly
-
+  coverage:
+    name: Code coverage
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: Install grcov
         env:
@@ -47,21 +48,11 @@ jobs:
           curl -L "$LINK/v$GRCOV_VERSION/grcov-x86_64-unknown-linux-gnu.tar.bz2" |
           tar xj -C $HOME/.cargo/bin
 
-      - name: Install nightly
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: llvm-tools-preview
-
       - name: Set up MinGW
         uses: egor-tensin/setup-mingw@v2
         with:
           platform: x64
           cc: false
-
-      - name: Run cargo clean
-        run: |
-          cargo clean
 
       - name: Run grcov
         id: coverage
@@ -72,19 +63,26 @@ jobs:
         with:
           files: coverage.lcov
 
-  Ubuntu-Stable:
+  arch-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-lastest]
+        toolchain: [nightly, stable]
+        include:
+          - toolchain: nightly-gnu
+            os: windows-latest
+          - toolchain: stable-gnu
+            os: windows-latest
 
-    name: Ubuntu-Stable
-
-    runs-on: ubuntu-latest
-
+    name: ${{matrix.os}}-${{matrix.toolchain}}
+    runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install stable
+      - name: Install ${{matrix.toolchain}}
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{matrix.toolchain}}
 
       - name: Build
         run: |
@@ -94,78 +92,5 @@ jobs:
         run: |
           cargo test --verbose
 
-  msvc-Nightly:
 
-    name: msvc-Nightly
 
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install nightly
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-
-      - name: Run tests
-        run: |
-          cargo test --no-fail-fast
-
-  msvc-Stable:
-
-    name: msvc-Stable
-
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      - name: Build
-        run: |
-          cargo build --verbose
-
-      - name: Run tests
-        run: |
-          cargo test --verbose
-
-  mingw-Nightly:
-
-    name: mingw-Nightly
-
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install nightly-gnu
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly-gnu
-
-      - name: Run tests
-        run: |
-          cargo test --no-fail-fast
-
-  mingw-Stable:
-
-    name: mingw-Stable
-
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install stable-gnu
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable-gnu
-
-      - name: Run tests
-        run: |
-          cargo test --verbose
