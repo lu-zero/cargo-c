@@ -28,8 +28,10 @@ pub fn config_configure(config: &mut Config, args: &ArgMatches) -> CliResult {
         args.is_present("offline"),
         arg_target_dir,
         &args
-            .values_of_lossy("unstable-features")
-            .unwrap_or_default(),
+            .get_many::<String>("unstable-features")
+            .unwrap_or_default()
+            .map(|s| s.to_owned())
+            .collect::<Vec<String>>(),
         &config_args,
     )?;
 
