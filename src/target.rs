@@ -78,15 +78,27 @@ impl Target {
             || os == "haiku"
             || os == "illumos"
         {
-            lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
-        } else if os == "macos" || os == "ios" {
-            let install_ver = if major == 0 {
-                format!("{}.{}", major, minor)
+            if capi_config.library.versioning {
+                lines.push(format!("-Wl,-soname,lib{}.so.{}", lib_name, major));
             } else {
-                format!("{}", major)
+                lines.push(format!("-Wl,-soname,lib{}.so", lib_name));
+            }
+        } else if os == "macos" || os == "ios" {
+            let line = if capi_config.library.versioning {
+                let install_ver = if major == 0 {
+                    format!("{}.{}", major, minor)
+                } else {
+                    format!("{}", major)
+                };
+                format!("-Wl,-install_name,{1}/lib{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
+                        lib_name, libdir.display(), major, minor, patch, install_ver)
+            } else {
+                format!(
+                    "-Wl,-install_name,{1}/lib{0}.dylib",
+                    lib_name,
+                    libdir.display()
+                )
             };
-            let line = format!("-Wl,-install_name,{1}/lib{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
-                    lib_name, libdir.display(), major, minor, patch, install_ver);
             lines.push(line)
         } else if os == "windows" && env == "gnu" {
             // This is only set up to work on GNU toolchain versions of Rust
