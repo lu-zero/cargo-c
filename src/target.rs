@@ -99,7 +99,9 @@ impl Target {
                     libdir.display()
                 )
             };
-            lines.push(line)
+            lines.push(line);
+            // Enable larger LC_RPATH and install_name entries
+            lines.push("-Wl,-headerpad_max_install_names".to_string());
         } else if os == "windows" && env == "gnu" {
             // This is only set up to work on GNU toolchain versions of Rust
             lines.push(format!(
