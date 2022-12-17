@@ -61,7 +61,7 @@ impl BuildTargets {
         libkinds: &[&str],
         capi_config: &CApiConfig,
     ) -> anyhow::Result<BuildTargets> {
-        let pc = targetdir.join(&format!("{}.pc", &capi_config.pkg_config.filename));
+        let pc = targetdir.join(format!("{}.pc", &capi_config.pkg_config.filename));
         let include = if capi_config.header.enabled {
             let mut header_name = PathBuf::from(&capi_config.header.name);
             header_name.set_extension("h");
@@ -84,28 +84,28 @@ impl BuildTargets {
             | ("android", _)
             | ("haiku", _)
             | ("illumos", _) => {
-                let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
-                let shared_lib = targetdir.join(&format!("lib{}.so", lib_name));
+                let static_lib = targetdir.join(format!("lib{}.a", lib_name));
+                let shared_lib = targetdir.join(format!("lib{}.so", lib_name));
                 (shared_lib, static_lib, None, None)
             }
             ("macos", _) | ("ios", _) => {
-                let static_lib = targetdir.join(&format!("lib{}.a", lib_name));
-                let shared_lib = targetdir.join(&format!("lib{}.dylib", lib_name));
+                let static_lib = targetdir.join(format!("lib{}.a", lib_name));
+                let shared_lib = targetdir.join(format!("lib{}.dylib", lib_name));
                 (shared_lib, static_lib, None, None)
             }
             ("windows", env) => {
                 let static_lib = if env == "msvc" {
-                    targetdir.join(&format!("{}.lib", lib_name))
+                    targetdir.join(format!("{}.lib", lib_name))
                 } else {
-                    targetdir.join(&format!("lib{}.a", lib_name))
+                    targetdir.join(format!("lib{}.a", lib_name))
                 };
-                let shared_lib = targetdir.join(&format!("{}.dll", lib_name));
+                let shared_lib = targetdir.join(format!("{}.dll", lib_name));
                 let impl_lib = if env == "msvc" {
-                    targetdir.join(&format!("{}.dll.lib", lib_name))
+                    targetdir.join(format!("{}.dll.lib", lib_name))
                 } else {
-                    targetdir.join(&format!("{}.dll.a", lib_name))
+                    targetdir.join(format!("{}.dll.a", lib_name))
                 };
-                let def = targetdir.join(&format!("{}.def", lib_name));
+                let def = targetdir.join(format!("{}.def", lib_name));
                 (shared_lib, static_lib, Some(impl_lib), Some(def))
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),

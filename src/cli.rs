@@ -190,7 +190,7 @@ pub fn run_cargo_fallback(subcommand: &str, subcommand_args: &ArgMatches) -> Cli
     let mut args = vec![subcommand];
 
     args.extend(subcommand_args.values_of("").unwrap_or_default());
-    let err = match ProcessBuilder::new(&cargo).args(&args).exec_replace() {
+    let err = match ProcessBuilder::new(cargo).args(&args).exec_replace() {
         Ok(()) => return Ok(()),
         Err(e) => e,
     };

@@ -79,7 +79,7 @@ fn copy_prebuilt_include_file(
 }
 
 fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Result<()> {
-    let pc_path = root_output.join(&format!("{}.pc", name));
+    let pc_path = root_output.join(format!("{}.pc", name));
     let buf = pc.render();
 
     write(pc_path, buf)
@@ -345,7 +345,7 @@ impl FingerPrint {
     }
 
     fn load_previous(&self) -> anyhow::Result<Cache> {
-        let mut f = open(&self.path())?;
+        let mut f = open(self.path())?;
         let mut cache_str = String::new();
         f.read_to_string(&mut cache_str)?;
         let cache = toml::de::from_str(&cache_str)?;
@@ -367,7 +367,7 @@ impl FingerPrint {
                 static_libs: self.static_libs.to_owned(),
             };
             let buf = toml::ser::to_vec(&cache)?;
-            write(&self.path(), buf)?;
+            write(self.path(), buf)?;
         }
 
         Ok(())
