@@ -284,36 +284,36 @@ pub struct InstallPaths {
 
 impl InstallPaths {
     pub fn new(_name: &str, args: &ArgMatches, capi_config: &CApiConfig) -> Self {
-        let destdir = args.value_of_os("destdir").map(PathBuf::from);
+        let destdir = args.get_one::<PathBuf>("destdir").map(PathBuf::from);
         let prefix = args
-            .value_of_os("prefix")
+            .get_one::<PathBuf>("prefix")
             .map(PathBuf::from)
             .unwrap_or_else(|| "/usr/local".into());
         let libdir = args
-            .value_of_os("libdir")
+            .get_one::<PathBuf>("libdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("lib"));
         let includedir = args
-            .value_of_os("includedir")
+            .get_one::<PathBuf>("includedir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("include"));
         let datarootdir = args
-            .value_of_os("datarootdir")
+            .get_one::<PathBuf>("datarootdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("share"));
         let datadir = args
-            .value_of_os("datadir")
+            .get_one::<PathBuf>("datadir")
             .map(PathBuf::from)
             .unwrap_or_else(|| datarootdir.clone());
 
         let subdir_name = PathBuf::from(&capi_config.header.subdirectory);
 
         let bindir = args
-            .value_of_os("bindir")
+            .get_one::<PathBuf>("bindir")
             .map(PathBuf::from)
             .unwrap_or_else(|| prefix.join("bin"));
         let pkgconfigdir = args
-            .value_of_os("pkgconfigdir")
+            .get_one::<PathBuf>("pkgconfigdir")
             .map(PathBuf::from)
             .unwrap_or_else(|| libdir.join("pkgconfig"));
 

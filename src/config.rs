@@ -15,17 +15,17 @@ fn setup_env() {
 pub fn config_configure(config: &mut Config, args: &ArgMatches) -> CliResult {
     let arg_target_dir = &args.value_of_path("target-dir", config);
     let config_args: Vec<_> = args
-        .values_of("config")
+        .get_many::<String>("config")
         .unwrap_or_default()
-        .map(String::from)
+        .map(|s| s.to_owned())
         .collect();
     config.configure(
-        args.occurrences_of("verbose") as u32,
-        args.is_present("quiet"),
-        args.value_of("color"),
-        args.is_present("frozen"),
-        args.is_present("locked"),
-        args.is_present("offline"),
+        args.verbose(),
+        args.flag("quiet"),
+        args.get_one::<String>("color").map(String::as_str),
+        args.flag("frozen"),
+        args.flag("locked"),
+        args.flag("offline"),
         arg_target_dir,
         &args
             .get_many::<String>("unstable-features")

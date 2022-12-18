@@ -8,14 +8,11 @@ use cargo_c::cli::subcommand_install;
 use cargo_c::config::config_configure;
 use cargo_c::install::cinstall;
 
-use clap::*;
-
 fn main() -> CliResult {
     let mut config = Config::default()?;
 
     let subcommand = subcommand_install("cinstall", "Install the crate C-API");
     let mut app = clap::command!()
-        .setting(AppSettings::DeriveDisplayOrder)
         .dont_collapse_args_in_usage(true)
         .allow_external_subcommands(true)
         .subcommand(subcommand);
@@ -34,7 +31,7 @@ fn main() -> CliResult {
         }
     };
 
-    if subcommand_args.is_present("version") {
+    if subcommand_args.flag("version") {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
