@@ -893,7 +893,7 @@ fn compile_with_exec<'a>(
         leaf_args.push("--print".into());
         leaf_args.push("native-static-libs".into());
 
-        if args.is_present("crt-static") {
+        if args.flag("crt-static") {
             leaf_args.push("-C".into());
             leaf_args.push("target-feature=+crt-static".into());
         }
@@ -1007,12 +1007,9 @@ pub fn cbuild(
         _ => vec!["staticlib", "cdylib"],
     };
 
-    let libkinds = if args.is_valid_arg("library-type") {
-        args.values_of("library-type")
-            .map_or_else(default_kind, |v| v.collect::<Vec<_>>())
-    } else {
-        default_kind()
-    };
+    let libkinds = args
+        .get_many::<String>("library-type")
+        .map_or_else(default_kind, |v| v.map(String::as_str).collect::<Vec<_>>());
     let only_staticlib = !libkinds.contains(&"cdylib");
     let only_cdylib = !libkinds.contains(&"staticlib");
 
@@ -1129,8 +1126,11 @@ pub fn cbuild(
                     .unwrap_or_else(|| PathBuf::from("dlltool"));
 
                 // dlltool argument overwrites environment var
-                if args.value_of_os("dlltool").is_some() {
-                    dlltool = args.value_of_os("dlltool").map(PathBuf::from).unwrap();
+                if args.contains_id("dlltool") {
+                    dlltool = args
+                        .get_one::<String>("dlltool")
+                        .map(PathBuf::from)
+                        .unwrap();
                 }
 
                 build_implib_file(ws, lib_name, &rustc_target, &root_output, &dlltool)?;
@@ -1207,14 +1207,14 @@ pub fn ctest(
     compile_opts.target_rustc_args = None;
 
     let ops = ops::TestOptions {
-        no_run: args.is_present("no-run"),
-        no_fail_fast: args.is_present("no-fail-fast"),
+        no_run: args.flag("no-run"),
+        no_fail_fast: args.flag("no-fail-fast"),
         compile_opts,
     };
 
-    let test_args = args.value_of("TESTNAME").into_iter();
-    let test_args = test_args.chain(args.values_of("args").unwrap_or_default());
-    let test_args = test_args.collect::<Vec<_>>();
+    let test_args = args.get_one::<String>("TESTNAME").into_iter();
+    let test_args = test_args.chain(args.get_many::<String>("args").unwrap_or_default());
+    let test_args = test_args.map(String::as_str).collect::<Vec<_>>();
 
     use std::ffi::OsString;
 

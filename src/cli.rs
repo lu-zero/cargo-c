@@ -1,44 +1,45 @@
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
-use cargo::util::command_prelude::AppExt;
-use cargo::util::command_prelude::{multi_opt, opt};
+use cargo::util::command_prelude::CommandExt;
+use cargo::util::command_prelude::{flag, multi_opt, opt};
 use cargo::util::{CliError, CliResult};
 
 use cargo_util::{ProcessBuilder, ProcessError};
 
-use clap::{Arg, ArgMatches, Command, CommandFactory, Parser};
+use clap::{Arg, ArgAction, ArgMatches, Command, CommandFactory, Parser};
 
 // TODO: convert to a function using cargo opt()
 #[allow(dead_code)]
 #[derive(Clone, Debug, Parser)]
 struct Common {
     /// Path to directory where target should be copied to
-    #[clap(long = "destdir", parse(from_os_str))]
+    #[clap(long = "destdir")]
     destdir: Option<PathBuf>,
     /// Directory path used to construct default values of
     /// includedir, libdir, bindir, pkgconfigdir
-    #[clap(long = "prefix", parse(from_os_str))]
+    #[clap(long = "prefix")]
     prefix: Option<PathBuf>,
     /// Path to directory for installing generated library files
-    #[clap(long = "libdir", parse(from_os_str))]
+    #[clap(long = "libdir")]
     libdir: Option<PathBuf>,
     /// Path to directory for installing generated headers files
-    #[clap(long = "includedir", parse(from_os_str))]
+    #[clap(long = "includedir")]
     includedir: Option<PathBuf>,
     /// Path to directory for installing generated executable files
-    #[clap(long = "bindir", parse(from_os_str))]
+    #[clap(long = "bindir")]
     bindir: Option<PathBuf>,
     /// Path to directory for installing generated pkg-config .pc files
-    #[clap(long = "pkgconfigdir", parse(from_os_str))]
+    #[clap(long = "pkgconfigdir")]
     pkgconfigdir: Option<PathBuf>,
     /// Path to directory for installing read-only data (defaults to {prefix}/share)
-    #[clap(long = "datarootdir", parse(from_os_str))]
+    #[clap(long = "datarootdir")]
     datarootdir: Option<PathBuf>,
     /// Path to directory for installing read-only application-specific data
     /// (defaults to {datarootdir})
-    #[clap(long = "datadir", parse(from_os_str))]
+    #[clap(long = "datadir")]
     datadir: Option<PathBuf>,
-    #[clap(long = "dlltool", parse(from_os_str))]
+    #[clap(long = "dlltool")]
     /// Use the provided dlltool when building for the windows-gnu targets.
     dlltool: Option<PathBuf>,
     #[clap(long = "crt-static")]
@@ -46,39 +47,37 @@ struct Common {
     crt_static: bool,
 }
 
-fn base_cli() -> Command<'static> {
+fn base_cli() -> Command {
     Common::command()
         .allow_external_subcommands(true)
-        .arg(opt("version", "Print version info and exit").short('V'))
+        .arg(flag("version", "Print version info and exit").short('V'))
+        .arg(flag("list", "List installed commands"))
+        .arg(opt("explain", "Run `rustc --explain CODE`").value_name("CODE"))
         .arg(
             opt(
                 "verbose",
                 "Use verbose output (-vv very verbose/build.rs output)",
             )
             .short('v')
-            .multiple_occurrences(true)
+            .action(ArgAction::Count)
             .global(true),
         )
-        .arg(opt("quiet", "No output printed to stdout").short('q'))
+        .arg_quiet()
         .arg(
             opt("color", "Coloring: auto, always, never")
                 .value_name("WHEN")
                 .global(true),
         )
-        .arg(opt("frozen", "Require Cargo.lock and cache are up to date").global(true))
-        .arg(opt("locked", "Require Cargo.lock is up to date").global(true))
-        .arg(opt("offline", "Run without accessing the network").global(true))
-        .arg(
-            multi_opt("config", "KEY=VALUE", "Override a configuration value")
-                .global(true)
-                .hide(true),
-        )
+        .arg(flag("frozen", "Require Cargo.lock and cache are up to date").global(true))
+        .arg(flag("locked", "Require Cargo.lock is up to date").global(true))
+        .arg(flag("offline", "Run without accessing the network").global(true))
+        .arg(multi_opt("config", "KEY=VALUE", "Override a configuration value").global(true))
         .arg(
             Arg::new("unstable-features")
                 .help("Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details")
                 .short('Z')
                 .value_name("FLAG")
-                .multiple_occurrences(true)
+                .action(ArgAction::Append)
                 .global(true),
         )
         .arg_jobs()
@@ -103,7 +102,7 @@ fn base_cli() -> Command<'static> {
         .arg_build_plan()
 }
 
-pub fn subcommand_build(name: &str, about: &'static str) -> Command<'static> {
+pub fn subcommand_build(name: &'static str, about: &'static str) -> Command {
     base_cli()
         .name(name)
         .about(about)
@@ -115,7 +114,7 @@ pub fn subcommand_build(name: &str, about: &'static str) -> Command<'static> {
             )
             .global(true)
             .ignore_case(true)
-            .possible_values(["cdylib", "staticlib"]),
+            .value_parser(["cdylib", "staticlib"]),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg_package_spec_no_all(
@@ -132,7 +131,7 @@ the --release flag will use the `release` profile instead.
         )
 }
 
-pub fn subcommand_install(name: &str, about: &'static str) -> Command<'static> {
+pub fn subcommand_install(name: &'static str, about: &'static str) -> Command {
     base_cli()
         .name(name)
         .about(about)
@@ -144,7 +143,7 @@ pub fn subcommand_install(name: &str, about: &'static str) -> Command<'static> {
             )
             .global(true)
             .ignore_case(true)
-            .possible_values(["cdylib", "staticlib"]),
+            .value_parser(["cdylib", "staticlib"]),
         )
         .arg(opt("debug", "Build in debug mode instead of release mode"))
         .arg_release(
@@ -164,7 +163,7 @@ the --debug flag will use the `dev` profile instead.
         )
 }
 
-pub fn subcommand_test(name: &str) -> Command<'static> {
+pub fn subcommand_test(name: &'static str) -> Command {
     base_cli()
         .trailing_var_arg(true)
         .name(name)
@@ -172,7 +171,7 @@ pub fn subcommand_test(name: &str) -> Command<'static> {
         .arg(
             Arg::new("args")
                 .help("Arguments for the test binary")
-                .multiple_values(true)
+                .num_args(0..)
                 .last(true),
         )
         .arg_release("Build artifacts in release mode, with optimizations")
@@ -187,9 +186,14 @@ pub fn subcommand_test(name: &str) -> Command<'static> {
 
 pub fn run_cargo_fallback(subcommand: &str, subcommand_args: &ArgMatches) -> CliResult {
     let cargo = std::env::var("CARGO_C_CARGO").unwrap_or_else(|_| "cargo".to_owned());
-    let mut args = vec![subcommand];
+    let mut args = vec![OsStr::new(subcommand)];
 
-    args.extend(subcommand_args.values_of("").unwrap_or_default());
+    args.extend(
+        subcommand_args
+            .get_many::<OsString>("")
+            .unwrap_or_default()
+            .map(OsStr::new),
+    );
     let err = match ProcessBuilder::new(cargo).args(&args).exec_replace() {
         Ok(()) => return Ok(()),
         Err(e) => e,

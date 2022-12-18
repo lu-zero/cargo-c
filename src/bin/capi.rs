@@ -18,7 +18,6 @@ fn main() -> CliResult {
     let cli_test = subcommand_test("test");
 
     let mut app = clap::command!()
-        .setting(AppSettings::DeriveDisplayOrder)
         .dont_collapse_args_in_usage(true)
         .allow_external_subcommands(true)
         .subcommand(
@@ -56,7 +55,7 @@ fn main() -> CliResult {
         }
     };
 
-    if subcommand_args.is_present("version") {
+    if subcommand_args.flag("version") {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
