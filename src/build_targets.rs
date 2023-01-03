@@ -103,7 +103,7 @@ impl BuildTargets {
                 let impl_lib = if env == "msvc" {
                     targetdir.join(format!("{}.dll.lib", lib_name))
                 } else {
-                    targetdir.join(format!("{}.dll.a", lib_name))
+                    targetdir.join(format!("lib{}.dll.a", lib_name))
                 };
                 let def = targetdir.join(format!("{}.def", lib_name));
                 (shared_lib, static_lib, Some(impl_lib), Some(def))

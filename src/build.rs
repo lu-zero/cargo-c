@@ -232,7 +232,7 @@ fn build_implib_file(
             dlltool_command.arg("-D").arg(format!("{}.dll", name));
             dlltool_command
                 .arg("-l")
-                .arg(targetdir.join(format!("{}.dll.a", name)));
+                .arg(targetdir.join(format!("lib{}.dll.a", name)));
             dlltool_command
                 .arg("-d")
                 .arg(targetdir.join(format!("{}.def", name)));
