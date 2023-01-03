@@ -223,6 +223,7 @@ fn build_implib_file(
             let binutils_arch = match arch.as_str() {
                 "x86_64" => "i386:x86-64",
                 "x86" => "i386",
+                "aarch64" => "arm64",
                 _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
             };
 
