@@ -173,6 +173,7 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
 - [lewton](https://github.com/RustAudio/lewton)
+- [libimagequant](https://github.com/ImageOptim/libimagequant#building-with-cargo-c)
 - [rav1e](https://github.com/xiph/rav1e)
 - [sled](https://github.com/spacejam/sled/tree/master/bindings/sled-native)
 - [pathfinder](https://github.com/servo/pathfinder#c)
