@@ -3,7 +3,7 @@ use cargo_c::cli::*;
 use cargo_c::config::*;
 use cargo_c::install::cinstall;
 
-use cargo::util::command_prelude::opt;
+use cargo::util::command_prelude::flag;
 use cargo::util::command_prelude::ArgMatchesExt;
 use cargo::CliResult;
 use cargo::Config;
@@ -24,7 +24,7 @@ fn main() -> CliResult {
             Command::new("capi")
                 .allow_external_subcommands(true)
                 .about("Build or install the crate C-API")
-                .arg(opt("version", "Print version info and exit").short('V'))
+                .arg(flag("version", "Print version info and exit").short('V'))
                 .subcommand(cli_build)
                 .subcommand(cli_install)
                 .subcommand(cli_test),

@@ -145,7 +145,7 @@ pub fn subcommand_install(name: &'static str, about: &'static str) -> Command {
             .ignore_case(true)
             .value_parser(["cdylib", "staticlib"]),
         )
-        .arg(opt("debug", "Build in debug mode instead of release mode"))
+        .arg(flag("debug", "Build in debug mode instead of release mode"))
         .arg_release(
             "Build artifacts in release mode, with optimizations. This is the default behavior.",
         )
@@ -180,8 +180,8 @@ pub fn subcommand_test(name: &'static str) -> Command {
             "Test all packages in the workspace",
             "Exclude packages from the test",
         )
-        .arg(opt("no-run", "Compile, but don't run tests"))
-        .arg(opt("no-fail-fast", "Run all tests regardless of failure"))
+        .arg(flag("no-run", "Compile, but don't run tests"))
+        .arg(flag("no-fail-fast", "Run all tests regardless of failure"))
 }
 
 pub fn run_cargo_fallback(subcommand: &str, subcommand_args: &ArgMatches) -> CliResult {
