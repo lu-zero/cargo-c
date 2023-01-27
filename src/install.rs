@@ -108,7 +108,7 @@ impl UnixLibNames {
     pub(crate) fn new(lib_type: LibType, lib_name: &str, lib_version: &Version) -> Option<Self> {
         match lib_type {
             LibType::So => {
-                let lib = format!("lib{}.so", lib_name);
+                let lib = format!("lib{lib_name}.so");
                 let lib_with_major_ver = format!("{}.{}", lib, lib_version.major);
                 let lib_with_full_ver = format!(
                     "{}.{}.{}",
@@ -121,7 +121,7 @@ impl UnixLibNames {
                 })
             }
             LibType::Dylib => {
-                let lib = format!("lib{}.dylib", lib_name);
+                let lib = format!("lib{lib_name}.dylib");
                 let lib_with_major_ver = if lib_version.major == 0 {
                     format!(
                         "lib{}.{}.{}.dylib",

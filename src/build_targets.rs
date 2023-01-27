@@ -84,28 +84,28 @@ impl BuildTargets {
             | ("android", _)
             | ("haiku", _)
             | ("illumos", _) => {
-                let static_lib = targetdir.join(format!("lib{}.a", lib_name));
-                let shared_lib = targetdir.join(format!("lib{}.so", lib_name));
+                let static_lib = targetdir.join(format!("lib{lib_name}.a"));
+                let shared_lib = targetdir.join(format!("lib{lib_name}.so"));
                 (shared_lib, static_lib, None, None)
             }
             ("macos", _) | ("ios", _) => {
-                let static_lib = targetdir.join(format!("lib{}.a", lib_name));
-                let shared_lib = targetdir.join(format!("lib{}.dylib", lib_name));
+                let static_lib = targetdir.join(format!("lib{lib_name}.a"));
+                let shared_lib = targetdir.join(format!("lib{lib_name}.dylib"));
                 (shared_lib, static_lib, None, None)
             }
             ("windows", env) => {
                 let static_lib = if env == "msvc" {
-                    targetdir.join(format!("{}.lib", lib_name))
+                    targetdir.join(format!("{lib_name}.lib"))
                 } else {
-                    targetdir.join(format!("lib{}.a", lib_name))
+                    targetdir.join(format!("lib{lib_name}.a"))
                 };
-                let shared_lib = targetdir.join(format!("{}.dll", lib_name));
+                let shared_lib = targetdir.join(format!("{lib_name}.dll"));
                 let impl_lib = if env == "msvc" {
-                    targetdir.join(format!("{}.dll.lib", lib_name))
+                    targetdir.join(format!("{lib_name}.dll.lib"))
                 } else {
-                    targetdir.join(format!("{}.dll.a", lib_name))
+                    targetdir.join(format!("{lib_name}.dll.a"))
                 };
-                let def = targetdir.join(format!("{}.def", lib_name));
+                let def = targetdir.join(format!("{lib_name}.def"));
                 (shared_lib, static_lib, Some(impl_lib), Some(def))
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
