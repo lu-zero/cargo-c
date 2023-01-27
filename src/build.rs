@@ -367,7 +367,7 @@ impl FingerPrint {
                 hash,
                 static_libs: self.static_libs.to_owned(),
             };
-            let buf = toml::ser::to_vec(&cache)?;
+            let buf = toml::ser::to_string(&cache)?;
             write(self.path(), buf)?;
         }
 
