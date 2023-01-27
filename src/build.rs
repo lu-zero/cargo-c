@@ -79,7 +79,7 @@ fn copy_prebuilt_include_file(
 }
 
 fn build_pc_file(name: &str, root_output: &Path, pc: &PkgConfig) -> anyhow::Result<()> {
-    let pc_path = root_output.join(format!("{}.pc", name));
+    let pc_path = root_output.join(format!("{name}.pc"));
     let buf = pc.render();
 
     write(pc_path, buf)
@@ -95,7 +95,7 @@ fn build_pc_files(
     build_pc_file(filename, root_output, pc)?;
     let pc_uninstalled = pc.uninstalled(root_output);
     build_pc_file(
-        &format!("{}-uninstalled", filename),
+        &format!("{filename}-uninstalled"),
         root_output,
         &pc_uninstalled,
     )
@@ -147,7 +147,7 @@ fn build_def_file(
             .shell()
             .status("Building", ".def file using dumpbin")?;
 
-        let txt_path = targetdir.join(format!("{}.txt", name));
+        let txt_path = targetdir.join(format!("{name}.txt"));
 
         let target_str = format!("{}-pc-windows-msvc", &target.arch);
         let mut dumpbin = match cc::windows_registry::find(&target_str, "dumpbin.exe") {
@@ -164,7 +164,7 @@ fn build_def_file(
         if out.status.success() {
             let txt_file = open(txt_path)?;
             let buf_reader = BufReader::new(txt_file);
-            let mut def_file = create(targetdir.join(format!("{}.def", name)))?;
+            let mut def_file = create(targetdir.join(format!("{name}.def")))?;
             writeln!(def_file, "EXPORTS")?;
 
             // The Rust loop below is analogue to the following loop.
@@ -190,7 +190,7 @@ fn build_def_file(
                         .to_string()
                 })
             {
-                writeln!(def_file, "\t{}", line)?;
+                writeln!(def_file, "\t{line}")?;
             }
 
             Ok(())
@@ -230,13 +230,13 @@ fn build_implib_file(
             let mut dlltool_command =
                 std::process::Command::new(dlltool.to_str().unwrap_or("dlltool"));
             dlltool_command.arg("-m").arg(binutils_arch);
-            dlltool_command.arg("-D").arg(format!("{}.dll", name));
+            dlltool_command.arg("-D").arg(format!("{name}.dll"));
             dlltool_command
                 .arg("-l")
-                .arg(targetdir.join(format!("{}.dll.a", name)));
+                .arg(targetdir.join(format!("{name}.dll.a")));
             dlltool_command
                 .arg("-d")
-                .arg(targetdir.join(format!("{}.def", name)));
+                .arg(targetdir.join(format!("{name}.def")));
 
             let out = dlltool_command.output()?;
             if out.status.success() {
@@ -258,13 +258,13 @@ fn build_implib_file(
             };
             lib.arg(format!(
                 "/DEF:{}",
-                targetdir.join(format!("{}.def", name)).display()
+                targetdir.join(format!("{name}.def")).display()
             ));
-            lib.arg(format!("/MACHINE:{}", lib_arch));
-            lib.arg(format!("/NAME:{}.dll", name));
+            lib.arg(format!("/MACHINE:{lib_arch}"));
+            lib.arg(format!("/NAME:{name}.dll"));
             lib.arg(format!(
                 "/OUT:{}",
-                targetdir.join(format!("{}.dll.lib", name)).display()
+                targetdir.join(format!("{name}.dll.lib")).display()
             ));
 
             let out = lib.output()?;
@@ -859,8 +859,8 @@ fn set_deps_args(
     }
 }
 
-fn compile_with_exec<'a>(
-    ws: &Workspace<'a>,
+fn compile_with_exec(
+    ws: &Workspace<'_>,
     options: &CompileOptions,
     exec: &Arc<dyn Executor>,
     rustc_target: &target::Target,
@@ -883,7 +883,7 @@ fn compile_with_exec<'a>(
         let mut leaf_args: Vec<String> = rustc_target
             .shared_object_link_args(&capi_config, &install_paths.libdir, root_output)
             .into_iter()
-            .flat_map(|l| vec!["-C".to_string(), format!("link-arg={}", l)])
+            .flat_map(|l| vec!["-C".to_string(), format!("link-arg={l}")])
             .collect();
 
         leaf_args.extend(pkg_rustflags.clone());
