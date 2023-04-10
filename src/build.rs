@@ -1129,7 +1129,7 @@ pub fn cbuild(
                 // dlltool argument overwrites environment var
                 if args.contains_id("dlltool") {
                     dlltool = args
-                        .get_one::<String>("dlltool")
+                        .get_one::<PathBuf>("dlltool")
                         .map(PathBuf::from)
                         .unwrap();
                 }
