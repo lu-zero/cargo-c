@@ -54,7 +54,7 @@ strip = "symbols"
 
 # workaround cargo
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.45"
+version = "0.48"
 features = [
   "Win32_Foundation",
   "Win32_Storage_FileSystem",
