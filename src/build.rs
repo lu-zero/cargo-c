@@ -408,6 +408,7 @@ pub struct LibraryCApiConfig {
     pub version: Version,
     pub install_subdir: Option<String>,
     pub versioning: bool,
+    pub import_library: bool,
     pub rustflags: Vec<String>,
 }
 
@@ -620,6 +621,7 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
     let mut version = pkg.version().clone();
     let mut install_subdir = None;
     let mut versioning = true;
+    let mut import_library = true;
     let mut rustflags = Vec::new();
 
     if let Some(library) = library {
@@ -634,6 +636,10 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
         }
         versioning = library
             .get("versioning")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        import_library = library
+            .get("import_library")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
         if let Some(args) = library.get("rustflags").and_then(|v| v.as_str()) {
@@ -651,6 +657,7 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
         version,
         install_subdir,
         versioning,
+        import_library,
         rustflags,
     };
 
@@ -1118,7 +1125,7 @@ pub fn cbuild(
 
             build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
-            if !only_staticlib {
+            if !only_staticlib && capi_config.library.import_library {
                 let lib_name = name;
                 build_def_file(ws, lib_name, &rustc_target, &root_output)?;
 

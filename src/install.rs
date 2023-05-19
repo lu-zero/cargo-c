@@ -255,13 +255,14 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                         // We assume they are plugins, install them in the custom libdir path
                         copy(shared_lib, install_path_lib.join(lib_name))?;
                     }
-
-                    let impl_lib = build_targets.impl_lib.as_ref().unwrap();
-                    let impl_lib_name = impl_lib.file_name().unwrap();
-                    copy(impl_lib, install_path_lib.join(impl_lib_name))?;
-                    let def = build_targets.def.as_ref().unwrap();
-                    let def_name = def.file_name().unwrap();
-                    copy(def, install_path_lib.join(def_name))?;
+                    if capi_config.library.import_library {
+                        let impl_lib = build_targets.impl_lib.as_ref().unwrap();
+                        let impl_lib_name = impl_lib.file_name().unwrap();
+                        copy(impl_lib, install_path_lib.join(impl_lib_name))?;
+                        let def = build_targets.def.as_ref().unwrap();
+                        let def_name = def.file_name().unwrap();
+                        copy(def, install_path_lib.join(def_name))?;
+                    }
                 }
             }
         }
