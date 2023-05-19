@@ -298,6 +298,7 @@ mod test {
                     version: Version::parse("0.1.0").unwrap(),
                     install_subdir: None,
                     versioning: true,
+                    import_library: true,
                     rustflags: Vec::default(),
                 },
                 install: Default::default(),

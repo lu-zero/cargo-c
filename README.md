@@ -138,6 +138,9 @@ versioning = false
 # Add `-Cpanic=abort` to the RUSTFLAGS automatically, it may be useful in case
 # something might panic in the crates used by the library.
 rustflags = "-Cpanic=abort"
+# Used to disable the generation of additional import library file in platforms
+# that have the concept such as Windows
+import_library = false
 ```
 
 ### Custom data install
