@@ -110,6 +110,10 @@ impl Target {
             ));
         }
 
+        // Emscripten doesn't support soname or other dynamic linking flags (yet).
+        // See: https://github.com/emscripten-core/emscripten/blob/3.1.39/emcc.py#L92-L94
+        // else if os == "emscripten"
+
         lines
     }
 }
