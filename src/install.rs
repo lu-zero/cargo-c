@@ -90,7 +90,8 @@ impl LibType {
             | ("netbsd", _)
             | ("android", _)
             | ("haiku", _)
-            | ("illumos", _) => LibType::So,
+            | ("illumos", _)
+            | ("emscripten", _) => LibType::So,
             ("macos", _) | ("ios", _) => LibType::Dylib,
             ("windows", _) => LibType::Windows,
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
