@@ -111,7 +111,7 @@ fn patch_target(
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
-    let mut kinds: Vec<_> = libkinds
+    let kinds: Vec<_> = libkinds
         .iter()
         .map(|&kind| match kind {
             "staticlib" => CrateType::Staticlib,
@@ -119,8 +119,6 @@ fn patch_target(
             _ => unreachable!(),
         })
         .collect();
-
-    kinds.push(CrateType::Lib);
 
     for target in targets.iter_mut() {
         if target.is_lib() {
