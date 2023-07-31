@@ -178,6 +178,7 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
 - [gst-plugins-rs](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs)
 - [lewton](https://github.com/RustAudio/lewton)
+- [libdovi](https://github.com/quietvoid/dovi_tool/tree/main/dolby_vision#libdovi-c-api)
 - [libimagequant](https://github.com/ImageOptim/libimagequant#building-with-cargo-c)
 - [rav1e](https://github.com/xiph/rav1e)
 - [sled](https://github.com/spacejam/sled/tree/master/bindings/sled-native)
