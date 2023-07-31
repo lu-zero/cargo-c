@@ -174,6 +174,7 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 
 ## Users
 
+- [ebur128](https://github.com/sdroege/ebur128#c-api)
 - [gcode-rs](https://github.com/Michael-F-Bryan/gcode-rs)
 - [gst-plugins-rs](https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs)
 - [lewton](https://github.com/RustAudio/lewton)
