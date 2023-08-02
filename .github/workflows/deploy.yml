@@ -40,7 +40,8 @@ jobs:
         7z a ../../cargo-c-windows-${{ matrix.conf }}.zip `
              "cargo-capi.exe" `
              "cargo-cbuild.exe" `
-             "cargo-cinstall.exe"
+             "cargo-cinstall.exe" `
+             "cargo-ctest.exe"
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
@@ -84,7 +85,8 @@ jobs:
         tar -czvf $GITHUB_WORKSPACE/cargo-c-${{ matrix.target }}.tar.gz \
                   cargo-capi \
                   cargo-cbuild \
-                  cargo-cinstall
+                  cargo-cinstall \
+                  cargo-ctest
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
@@ -114,7 +116,8 @@ jobs:
         zip $GITHUB_WORKSPACE/cargo-c-macos.zip \
             cargo-capi \
             cargo-cbuild \
-            cargo-cinstall
+            cargo-cinstall \
+            cargo-ctest
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
