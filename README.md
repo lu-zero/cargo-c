@@ -205,6 +205,11 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 [dev.to]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn
 [using]: https://dev.to/luzero/building-crates-so-they-look-like-c-abi-libraries-1ibn#using-cargoc
 
+## Availability
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/cargo-c.svg)](https://repology.org/project/cargo-c/versions)
+
+
 ## Acknowledgements
 
 This software has been partially developed in the scope of the H2020 project SIFIS-Home with GA n. 952652.
