@@ -1,6 +1,6 @@
 [package]
 name = "cargo-c"
-version = "0.9.23+cargo-0.72.2"
+version = "0.9.24+cargo-0.73.0"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
 license = "MIT"
@@ -28,7 +28,7 @@ name = "cargo-ctest"
 path = "src/bin/ctest.rs"
 
 [dependencies]
-cargo = "0.72.2"
+cargo = "0.73.0"
 cargo-util = "0.2"
 semver = "1.0.3"
 log = "0.4"
@@ -45,6 +45,20 @@ glob = "0.3"
 itertools = "0.11"
 # pin a cargo dependency that sadly broke semver
 strip-ansi-escapes = "=0.1.1"
+
+# workaround cargo
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.48"
+features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Console",
+  "Win32_System_Threading",
+  "Win32_System_JobObjects",
+  "Win32_Security",
+  "Win32_System_SystemServices"
+]
 
 [features]
 default = []
