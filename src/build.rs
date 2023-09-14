@@ -43,7 +43,7 @@ fn build_include_file(
     let warning = config.autogen_warning.unwrap_or_default();
     let version_info = format!(
         "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
-        name.to_uppercase(),
+        name.to_uppercase().replace('-', "_"),
         version.major,
         version.minor,
         version.patch
