@@ -69,6 +69,12 @@ impl Target {
         let os = &self.os;
         let env = &self.env;
 
+        let sover = if major == 0 {
+            format!("{major}.{minor}")
+        } else {
+            format!("{major}")
+        };
+
         if os == "android" {
             lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
         } else if os == "linux"
@@ -78,20 +84,15 @@ impl Target {
             || os == "haiku"
             || os == "illumos"
         {
-            if capi_config.library.versioning {
-                lines.push(format!("-Wl,-soname,lib{lib_name}.so.{major}"));
+            lines.push(if capi_config.library.versioning {
+                format!("-Wl,-soname,lib{lib_name}.so.{sover}")
             } else {
-                lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
-            }
+                format!("-Wl,-soname,lib{lib_name}.so")
+            });
         } else if os == "macos" || os == "ios" {
             let line = if capi_config.library.versioning {
-                let install_ver = if major == 0 {
-                    format!("{major}.{minor}")
-                } else {
-                    format!("{major}")
-                };
                 format!("-Wl,-install_name,{1}/lib{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
-                        lib_name, libdir.display(), major, minor, patch, install_ver)
+                        lib_name, libdir.display(), major, minor, patch, sover)
             } else {
                 format!(
                     "-Wl,-install_name,{1}/lib{0}.dylib",
