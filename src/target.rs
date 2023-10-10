@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::*;
 
 use crate::build::CApiConfig;
+use crate::VersionExt;
 
 /// Split a target string to its components
 ///
@@ -69,11 +70,7 @@ impl Target {
         let os = &self.os;
         let env = &self.env;
 
-        let sover = if major == 0 {
-            format!("{major}.{minor}")
-        } else {
-            format!("{major}")
-        };
+        let sover = version.main_version();
 
         if os == "android" {
             lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
