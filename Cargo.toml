@@ -1,6 +1,6 @@
 [package]
 name = "cargo-c"
-version = "0.9.26+cargo-0.74.0"
+version = "0.9.27+cargo-0.74.0"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
 license = "MIT"
