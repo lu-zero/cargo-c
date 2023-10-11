@@ -7,6 +7,7 @@ use semver::Version;
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
+use crate::VersionExt;
 
 fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
     if let Some(destdir) = destdir {
@@ -101,43 +102,40 @@ impl LibType {
 
 pub(crate) struct UnixLibNames {
     canonical: String,
-    with_major_ver: String,
+    with_main_ver: String,
     with_full_ver: String,
 }
 
 impl UnixLibNames {
     pub(crate) fn new(lib_type: LibType, lib_name: &str, lib_version: &Version) -> Option<Self> {
+        let main_version = lib_version.main_version();
+
         match lib_type {
             LibType::So => {
                 let lib = format!("lib{lib_name}.so");
-                let lib_with_major_ver = format!("{}.{}", lib, lib_version.major);
                 let lib_with_full_ver = format!(
-                    "{}.{}.{}",
-                    lib_with_major_ver, lib_version.minor, lib_version.patch
+                    "{}.{}.{}.{}",
+                    lib, lib_version.major, lib_version.minor, lib_version.patch
                 );
+                let lib_with_main_ver = format!("{}.{}", lib, main_version);
+
                 Some(Self {
                     canonical: lib,
-                    with_major_ver: lib_with_major_ver,
+                    with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
                 })
             }
             LibType::Dylib => {
                 let lib = format!("lib{lib_name}.dylib");
-                let lib_with_major_ver = if lib_version.major == 0 {
-                    format!(
-                        "lib{}.{}.{}.dylib",
-                        lib_name, lib_version.major, lib_version.minor
-                    )
-                } else {
-                    format!("lib{}.{}.dylib", lib_name, lib_version.major)
-                };
+                let lib_with_main_ver = format!("lib{}.{}.dylib", lib_name, main_version);
+
                 let lib_with_full_ver = format!(
                     "lib{}.{}.{}.{}.dylib",
                     lib_name, lib_version.major, lib_version.minor, lib_version.patch
                 );
                 Some(Self {
                     canonical: lib,
-                    with_major_ver: lib_with_major_ver,
+                    with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
                 })
             }
@@ -146,12 +144,14 @@ impl UnixLibNames {
     }
 
     fn links(&self, install_path_lib: &Path) {
-        let mut ln_sf = std::process::Command::new("ln");
-        ln_sf.arg("-sf");
-        ln_sf
-            .arg(&self.with_full_ver)
-            .arg(install_path_lib.join(&self.with_major_ver));
-        let _ = ln_sf.status().unwrap();
+        if self.with_main_ver != self.with_full_ver {
+            let mut ln_sf = std::process::Command::new("ln");
+            ln_sf.arg("-sf");
+            ln_sf
+                .arg(&self.with_full_ver)
+                .arg(install_path_lib.join(&self.with_main_ver));
+            let _ = ln_sf.status().unwrap();
+        }
 
         let mut ln_sf = std::process::Command::new("ln");
         ln_sf.arg("-sf");
