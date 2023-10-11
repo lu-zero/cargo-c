@@ -13,14 +13,10 @@ trait VersionExt {
 
 impl VersionExt for semver::Version {
     fn main_version(&self) -> String {
-        if self.major == 0 {
-            if self.minor == 0 {
-                format!("{}.{}.{}", self.major, self.minor, self.patch)
-            } else {
-                format!("{}.{}", self.major, self.minor)
-            }
-        } else {
-            format!("{}", self.major)
+        match (self.major, self.minor, self.patch) {
+            (0, 0, patch) => format!("0.0.{patch}"),
+            (0, minor, _) => format!("0.{minor}"),
+            (major, _, _) => format!("{major}"),
         }
     }
 }
