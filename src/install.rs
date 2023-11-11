@@ -3,11 +3,9 @@ use std::path::{Component, Path, PathBuf};
 
 use cargo::core::Workspace;
 use cargo_util::paths::{copy, create_dir_all};
-use semver::Version;
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
-use crate::VersionExt;
 
 fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
     if let Some(destdir) = destdir {
@@ -107,8 +105,13 @@ pub(crate) struct UnixLibNames {
 }
 
 impl UnixLibNames {
-    pub(crate) fn new(lib_type: LibType, lib_name: &str, lib_version: &Version) -> Option<Self> {
-        let main_version = lib_version.main_version();
+    pub(crate) fn new(
+        lib_type: LibType,
+        library: &LibraryCApiConfig,
+    ) -> anyhow::Result<Option<Self>> {
+        let lib_name = &library.name;
+        let lib_version = &library.version;
+        let main_version = library.sover()?;
 
         match lib_type {
             LibType::So => {
@@ -119,11 +122,11 @@ impl UnixLibNames {
                 );
                 let lib_with_main_ver = format!("{}.{}", lib, main_version);
 
-                Some(Self {
+                Ok(Some(Self {
                     canonical: lib,
                     with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
-                })
+                }))
             }
             LibType::Dylib => {
                 let lib = format!("lib{lib_name}.dylib");
@@ -133,13 +136,13 @@ impl UnixLibNames {
                     "lib{}.{}.{}.{}.dylib",
                     lib_name, lib_version.major, lib_version.minor, lib_version.patch
                 );
-                Some(Self {
+                Ok(Some(Self {
                     canonical: lib,
                     with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
-                })
+                }))
             }
-            LibType::Windows => None,
+            LibType::Windows => Ok(None),
         }
     }
 
@@ -236,12 +239,10 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         if let Some(ref shared_lib) = build_targets.shared_lib {
             ws.config().shell().status("Installing", "shared library")?;
 
-            let lib_name = &capi_config.library.name;
             let lib_type = LibType::from_build_targets(build_targets);
             match lib_type {
                 LibType::So | LibType::Dylib => {
-                    let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version)
-                        .unwrap();
+                    let lib = UnixLibNames::new(lib_type, &capi_config.library)?.unwrap();
                     lib.install(capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {

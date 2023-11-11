@@ -3,7 +3,6 @@ use std::path::Path;
 use anyhow::*;
 
 use crate::build::CApiConfig;
-use crate::VersionExt;
 
 /// Split a target string to its components
 ///
@@ -57,7 +56,7 @@ impl Target {
         capi_config: &CApiConfig,
         libdir: &Path,
         target_dir: &Path,
-    ) -> Vec<String> {
+    ) -> anyhow::Result<Vec<String>> {
         let mut lines = Vec::new();
 
         let lib_name = &capi_config.library.name;
@@ -70,7 +69,7 @@ impl Target {
         let os = &self.os;
         let env = &self.env;
 
-        let sover = version.main_version();
+        let sover = capi_config.library.sover()?;
 
         if os == "android" {
             lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
@@ -112,6 +111,6 @@ impl Target {
         // See: https://github.com/emscripten-core/emscripten/blob/3.1.39/emcc.py#L92-L94
         // else if os == "emscripten"
 
-        lines
+        Ok(lines)
     }
 }

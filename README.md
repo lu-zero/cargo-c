@@ -135,6 +135,10 @@ version = "1.2.3"
 install_subdir = "gstreamer-1.0"
 # Used to disable versioning links when installing the dynamic library
 versioning = false
+# Instead of using semver, select a fixed number of version components for your SONAME version suffix:
+# Setting this to 1 with a version of 0.0.0 allows a suffix of `.so.0`
+# Setting this to 3 always includes the full version in the SONAME (indicate any update is ABI breaking)
+#version_suffix_components = 2
 # Add `-Cpanic=abort` to the RUSTFLAGS automatically, it may be useful in case
 # something might panic in the crates used by the library.
 rustflags = "-Cpanic=abort"
