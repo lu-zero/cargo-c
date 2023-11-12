@@ -402,35 +402,39 @@ pub struct PkgConfigCApiConfig {
 }
 
 #[derive(Debug)]
+pub enum VersionSuffix {
+    Major,
+    MajorMinor,
+    MajorMinorPatch,
+}
+
+#[derive(Debug)]
 pub struct LibraryCApiConfig {
     pub name: String,
     pub version: Version,
     pub install_subdir: Option<String>,
     pub versioning: bool,
-    pub version_suffix_components: Option<u8>,
+    pub version_suffix_components: Option<VersionSuffix>,
     pub import_library: bool,
     pub rustflags: Vec<String>,
 }
 
 impl LibraryCApiConfig {
-    pub fn sover(&self) -> anyhow::Result<String> {
+    pub fn sover(&self) -> String {
         let major = self.version.major;
         let minor = self.version.minor;
         let patch = self.version.patch;
 
-        let sover = match self.version_suffix_components {
+        match self.version_suffix_components {
             None => match (major, minor, patch) {
                 (0, 0, patch) => format!("0.0.{patch}"),
                 (0, minor, _) => format!("0.{minor}"),
                 (major, _, _) => format!("{major}"),
             },
-            Some(1) => format!("{major}"),
-            Some(2) => format!("{major}.{minor}"),
-            Some(3) => format!("{major}.{minor}.{patch}"),
-            Some(num) => anyhow::bail!("Unexpected number of suffix components: {num}"),
-        };
-
-        Ok(sover)
+            Some(VersionSuffix::Major) => format!("{major}"),
+            Some(VersionSuffix::MajorMinor) => format!("{major}.{minor}"),
+            Some(VersionSuffix::MajorMinorPatch) => format!("{major}.{minor}.{patch}"),
+        }
     }
 }
 
@@ -666,10 +670,12 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
             let value = value.as_integer().with_context(|| {
                 format!("Value for `version_suffix_components` is not an integer: {value:?}")
             })?;
-            let value = value
-                .try_into()
-                .with_context(|| format!("Value is too large: {value:?}"))?;
-            version_suffix_components = Some(value);
+            version_suffix_components = Some(match value {
+                1 => VersionSuffix::Major,
+                2 => VersionSuffix::MajorMinor,
+                3 => VersionSuffix::MajorMinorPatch,
+                _ => anyhow::bail!("Out of range value for version suffix components: {value}"),
+            });
         }
 
         import_library = library
@@ -923,7 +929,7 @@ fn compile_with_exec(
         let pkg_rustflags = &capi_config.library.rustflags;
 
         let mut leaf_args: Vec<String> = rustc_target
-            .shared_object_link_args(&capi_config, &install_paths.libdir, root_output)?
+            .shared_object_link_args(&capi_config, &install_paths.libdir, root_output)
             .into_iter()
             .flat_map(|l| vec!["-C".to_string(), format!("link-arg={l}")])
             .collect();
@@ -1304,45 +1310,45 @@ mod tests {
     #[test]
     pub fn test_semver_zero_zero_zero() {
         let library = make_test_library_config("0.0.0");
-        let sover = library.sover().unwrap();
+        let sover = library.sover();
         assert_eq!(sover, "0.0.0");
     }
 
     #[test]
     pub fn test_semver_zero_one_zero() {
         let library = make_test_library_config("0.1.0");
-        let sover = library.sover().unwrap();
+        let sover = library.sover();
         assert_eq!(sover, "0.1");
     }
 
     #[test]
     pub fn test_semver_one_zero_zero() {
         let library = make_test_library_config("1.0.0");
-        let sover = library.sover().unwrap();
+        let sover = library.sover();
         assert_eq!(sover, "1");
     }
 
     #[test]
     pub fn text_one_fixed_zero_zero_zero() {
         let mut library = make_test_library_config("0.0.0");
-        library.version_suffix_components = Some(1);
-        let sover = library.sover().unwrap();
+        library.version_suffix_components = Some(VersionSuffix::Major);
+        let sover = library.sover();
         assert_eq!(sover, "0");
     }
 
     #[test]
     pub fn text_two_fixed_one_zero_zero() {
         let mut library = make_test_library_config("1.0.0");
-        library.version_suffix_components = Some(2);
-        let sover = library.sover().unwrap();
+        library.version_suffix_components = Some(VersionSuffix::MajorMinor);
+        let sover = library.sover();
         assert_eq!(sover, "1.0");
     }
 
     #[test]
     pub fn text_three_fixed_one_zero_zero() {
         let mut library = make_test_library_config("1.0.0");
-        library.version_suffix_components = Some(3);
-        let sover = library.sover().unwrap();
+        library.version_suffix_components = Some(VersionSuffix::MajorMinorPatch);
+        let sover = library.sover();
         assert_eq!(sover, "1.0.0");
     }
 }

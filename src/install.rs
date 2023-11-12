@@ -105,13 +105,10 @@ pub(crate) struct UnixLibNames {
 }
 
 impl UnixLibNames {
-    pub(crate) fn new(
-        lib_type: LibType,
-        library: &LibraryCApiConfig,
-    ) -> anyhow::Result<Option<Self>> {
+    pub(crate) fn new(lib_type: LibType, library: &LibraryCApiConfig) -> Option<Self> {
         let lib_name = &library.name;
         let lib_version = &library.version;
-        let main_version = library.sover()?;
+        let main_version = library.sover();
 
         match lib_type {
             LibType::So => {
@@ -122,11 +119,11 @@ impl UnixLibNames {
                 );
                 let lib_with_main_ver = format!("{}.{}", lib, main_version);
 
-                Ok(Some(Self {
+                Some(Self {
                     canonical: lib,
                     with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
-                }))
+                })
             }
             LibType::Dylib => {
                 let lib = format!("lib{lib_name}.dylib");
@@ -136,13 +133,13 @@ impl UnixLibNames {
                     "lib{}.{}.{}.{}.dylib",
                     lib_name, lib_version.major, lib_version.minor, lib_version.patch
                 );
-                Ok(Some(Self {
+                Some(Self {
                     canonical: lib,
                     with_main_ver: lib_with_main_ver,
                     with_full_ver: lib_with_full_ver,
-                }))
+                })
             }
-            LibType::Windows => Ok(None),
+            LibType::Windows => None,
         }
     }
 
@@ -242,7 +239,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             let lib_type = LibType::from_build_targets(build_targets);
             match lib_type {
                 LibType::So | LibType::Dylib => {
-                    let lib = UnixLibNames::new(lib_type, &capi_config.library)?.unwrap();
+                    let lib = UnixLibNames::new(lib_type, &capi_config.library).unwrap();
                     lib.install(capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {

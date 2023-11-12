@@ -56,7 +56,7 @@ impl Target {
         capi_config: &CApiConfig,
         libdir: &Path,
         target_dir: &Path,
-    ) -> anyhow::Result<Vec<String>> {
+    ) -> Vec<String> {
         let mut lines = Vec::new();
 
         let lib_name = &capi_config.library.name;
@@ -69,7 +69,7 @@ impl Target {
         let os = &self.os;
         let env = &self.env;
 
-        let sover = capi_config.library.sover()?;
+        let sover = capi_config.library.sover();
 
         if os == "android" {
             lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
@@ -111,6 +111,6 @@ impl Target {
         // See: https://github.com/emscripten-core/emscripten/blob/3.1.39/emcc.py#L92-L94
         // else if os == "emscripten"
 
-        Ok(lines)
+        lines
     }
 }
