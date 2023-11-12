@@ -3,11 +3,9 @@ use std::path::{Component, Path, PathBuf};
 
 use cargo::core::Workspace;
 use cargo_util::paths::{copy, create_dir_all};
-use semver::Version;
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
-use crate::VersionExt;
 
 fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
     if let Some(destdir) = destdir {
@@ -107,8 +105,10 @@ pub(crate) struct UnixLibNames {
 }
 
 impl UnixLibNames {
-    pub(crate) fn new(lib_type: LibType, lib_name: &str, lib_version: &Version) -> Option<Self> {
-        let main_version = lib_version.main_version();
+    pub(crate) fn new(lib_type: LibType, library: &LibraryCApiConfig) -> Option<Self> {
+        let lib_name = &library.name;
+        let lib_version = &library.version;
+        let main_version = library.sover();
 
         match lib_type {
             LibType::So => {
@@ -236,12 +236,10 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         if let Some(ref shared_lib) = build_targets.shared_lib {
             ws.config().shell().status("Installing", "shared library")?;
 
-            let lib_name = &capi_config.library.name;
             let lib_type = LibType::from_build_targets(build_targets);
             match lib_type {
                 LibType::So | LibType::Dylib => {
-                    let lib = UnixLibNames::new(lib_type, lib_name, &capi_config.library.version)
-                        .unwrap();
+                    let lib = UnixLibNames::new(lib_type, &capi_config.library).unwrap();
                     lib.install(capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {
