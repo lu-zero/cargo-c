@@ -1040,7 +1040,7 @@ pub fn cbuild(
     default_profile: &str,
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     let rustc = config.load_global_rustc(Some(ws))?;
-    let targets = args.targets();
+    let targets = args.targets()?;
     let target = match targets.len() {
         0 => rustc.host.to_string(),
         1 => targets[0].to_string(),
