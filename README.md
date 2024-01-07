@@ -213,6 +213,28 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/cargo-c.svg)](https://repology.org/project/cargo-c/versions)
 
+## Troubleshooting
+
+### Shared libraries are not built on musl systems
+
+When running on a musl-based system (e.g. Alpine Linux), it could be that using the `cdylib` library type results in the following error (as reported [here](https://github.com/lu-zero/cargo-c/issues/180)):
+
+> Error: CliError { error: Some(cannot produce cdylib for <package> as the target x86_64-unknown-linux-musl does not support these crate types), exit_code: 101 }
+
+This suggests that Rust was not built with `crt-static=false` and it typically happens if Rust has been installed through rustup.
+
+Shared libraries can be enabled manually in this case, by editing the file `.cargo/config` like so:
+
+```toml
+# .cargo/config
+
+[target.x86_64-unknown-linux-musl]
+rustflags = [
+    "-C", "target-feature=-crt-static",
+]
+```
+
+However, it is preferred to install Rust through the system package manager instead of rustup (e.g. with `apk add rust`), because the provided package should already handle this (see e.g. [here](https://git.alpinelinux.org/aports/tree/main/rust/APKBUILD?h=3.19-stable#n232)).
 
 ## Acknowledgements
 
