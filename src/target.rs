@@ -85,7 +85,7 @@ impl Target {
             } else {
                 format!("-Wl,-soname,lib{lib_name}.so")
             });
-        } else if os == "macos" || os == "ios" {
+        } else if os == "macos" || os == "ios" || os == "tvos" {
             let line = if capi_config.library.versioning {
                 format!("-Wl,-install_name,{1}/lib{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
                         lib_name, libdir.display(), major, minor, patch, sover)
