@@ -91,7 +91,7 @@ impl LibType {
             | ("haiku", _)
             | ("illumos", _)
             | ("emscripten", _) => LibType::So,
-            ("macos", _) | ("ios", _) => LibType::Dylib,
+            ("macos", _) | ("ios", _) | ("tvos", _) => LibType::Dylib,
             ("windows", _) => LibType::Windows,
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         }
