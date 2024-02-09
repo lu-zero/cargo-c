@@ -62,7 +62,7 @@ fn base_cli() -> Command {
             .action(ArgAction::Count)
             .global(true),
         )
-        .arg_quiet()
+        .arg_silent_suggestion()
         .arg(
             opt("color", "Coloring: auto, always, never")
                 .value_name("WHEN")
@@ -80,7 +80,7 @@ fn base_cli() -> Command {
                 .action(ArgAction::Append)
                 .global(true),
         )
-        .arg_jobs()
+        .arg_parallel()
         .arg_targets_all(
             "Build only this package's library",
             "Build only the specified binary",
