@@ -16,27 +16,32 @@ struct Common {
     /// Path to directory where target should be copied to
     #[clap(long = "destdir")]
     destdir: Option<PathBuf>,
-    /// Directory path used to construct default values of
-    /// includedir, libdir, bindir, pkgconfigdir
-    #[clap(long = "prefix")]
-    prefix: Option<PathBuf>,
+    /// Directory path used to construct the values of
+    /// `bindir`, `datarootdir`, `includedir`, `libdir`
+    ///
+    /// If they are absolute the prefix is ignored.
+    #[clap(long = "prefix", default_value = "/usr/local")]
+    prefix: PathBuf,
     /// Path to directory for installing generated library files
-    #[clap(long = "libdir")]
-    libdir: Option<PathBuf>,
+    #[clap(long = "libdir", default_value = "lib")]
+    libdir: PathBuf,
     /// Path to directory for installing generated headers files
-    #[clap(long = "includedir")]
-    includedir: Option<PathBuf>,
+    #[clap(long = "includedir", default_value = "include")]
+    includedir: PathBuf,
     /// Path to directory for installing generated executable files
-    #[clap(long = "bindir")]
-    bindir: Option<PathBuf>,
+    #[clap(long = "bindir", default_value = "bin")]
+    bindir: PathBuf,
     /// Path to directory for installing generated pkg-config .pc files
+    ///
+    /// [default: {libdir}/pkgconfig]
     #[clap(long = "pkgconfigdir")]
     pkgconfigdir: Option<PathBuf>,
-    /// Path to directory for installing read-only data (defaults to {prefix}/share)
-    #[clap(long = "datarootdir")]
-    datarootdir: Option<PathBuf>,
+    /// Path to directory for installing read-only data
+    #[clap(long = "datarootdir", default_value = "share")]
+    datarootdir: PathBuf,
     /// Path to directory for installing read-only application-specific data
-    /// (defaults to {datarootdir})
+    ///
+    /// [default: {datarootdir}]
     #[clap(long = "datadir")]
     datadir: Option<PathBuf>,
     #[clap(long = "dlltool")]

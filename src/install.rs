@@ -289,32 +289,20 @@ impl InstallPaths {
             .get_one::<PathBuf>("prefix")
             .map(PathBuf::from)
             .unwrap_or_else(|| "/usr/local".into());
-        let libdir = args
-            .get_one::<PathBuf>("libdir")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| prefix.join("lib"));
-        let includedir = args
-            .get_one::<PathBuf>("includedir")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| prefix.join("include"));
-        let datarootdir = args
-            .get_one::<PathBuf>("datarootdir")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| prefix.join("share"));
+        let libdir = prefix.join(args.get_one::<PathBuf>("libdir").unwrap());
+        let includedir = prefix.join(args.get_one::<PathBuf>("includedir").unwrap());
+        let datarootdir = prefix.join(args.get_one::<PathBuf>("datarootdir").unwrap());
         let datadir = args
             .get_one::<PathBuf>("datadir")
-            .map(PathBuf::from)
+            .map(|d| prefix.join(d))
             .unwrap_or_else(|| datarootdir.clone());
 
         let subdir_name = PathBuf::from(&capi_config.header.subdirectory);
 
-        let bindir = args
-            .get_one::<PathBuf>("bindir")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| prefix.join("bin"));
+        let bindir = prefix.join(args.get_one::<PathBuf>("bindir").unwrap());
         let pkgconfigdir = args
             .get_one::<PathBuf>("pkgconfigdir")
-            .map(PathBuf::from)
+            .map(|d| prefix.join(d))
             .unwrap_or_else(|| libdir.join("pkgconfig"));
 
         InstallPaths {
