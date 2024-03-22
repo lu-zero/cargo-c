@@ -4,11 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use cargo::core::compiler::unit_graph::UnitDep;
-use cargo::core::compiler::unit_graph::UnitGraph;
-use cargo::core::compiler::Unit;
-use cargo::core::{compiler::Executor, profiles::Profiles};
-use cargo::core::{TargetKind, Workspace};
+use cargo::core::compiler::{unit_graph::UnitDep, unit_graph::UnitGraph, Executor, Unit};
+use cargo::core::profiles::Profiles;
+use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
 use cargo::util::interning::InternedString;
@@ -839,7 +837,6 @@ struct Exec {
     link_line: Mutex<HashMap<PackageId, String>>,
 }
 
-use cargo::core::*;
 use cargo::CargoResult;
 use cargo_util::ProcessBuilder;
 
