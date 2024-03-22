@@ -1,6 +1,4 @@
 use cargo::util::command_prelude::*;
-use cargo::CliResult;
-use cargo::Config;
 
 use cargo_c::build::*;
 use cargo_c::cli::run_cargo_fallback;
