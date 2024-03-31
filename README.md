@@ -185,6 +185,7 @@ Do **not** pass `RUSTFLAGS` that are managed by cargo through other means, (e.g.
 - [libdovi](https://github.com/quietvoid/dovi_tool/tree/main/dolby_vision#libdovi-c-api)
 - [libimagequant](https://github.com/ImageOptim/libimagequant#building-with-cargo-c)
 - [rav1e](https://github.com/xiph/rav1e)
+- [rustls-ffi](https://github.com/rustls/rustls-ffi)
 - [sled](https://github.com/spacejam/sled/tree/master/bindings/sled-native)
 - [pathfinder](https://github.com/servo/pathfinder#c)
 - [udbserver](https://github.com/bet4it/udbserver)
