@@ -129,7 +129,7 @@ impl PkgConfig {
     ) -> Self {
         let mut pc = PkgConfig::new(name, capi_config);
 
-        pc.prefix = install_paths.prefix.clone();
+        pc.prefix.clone_from(&install_paths.prefix);
         // TODO: support exec_prefix
         if args.contains_id("includedir") {
             if let Ok(suffix) = install_paths.includedir.strip_prefix(&pc.prefix) {
@@ -137,7 +137,7 @@ impl PkgConfig {
                 includedir.push(suffix);
                 pc.includedir = includedir;
             } else {
-                pc.includedir = install_paths.includedir.clone();
+                pc.includedir.clone_from(&install_paths.includedir);
             }
         }
         if args.contains_id("libdir") {
@@ -146,7 +146,7 @@ impl PkgConfig {
                 libdir.push(suffix);
                 pc.libdir = libdir;
             } else {
-                pc.libdir = install_paths.libdir.clone();
+                pc.libdir.clone_from(&install_paths.libdir);
             }
         }
         pc
@@ -164,7 +164,7 @@ impl PkgConfig {
     }
 
     pub fn set_description<S: AsRef<str>>(&mut self, descr: S) -> &mut Self {
-        self.description = descr.as_ref().to_owned();
+        descr.as_ref().clone_into(&mut self.description);
         self
     }
 
