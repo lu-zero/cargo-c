@@ -510,7 +510,10 @@ impl InstallTargetPaths {
     }
 }
 
-fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
+fn load_manifest_capi_config(
+    pkg: &Package,
+    rustc_target: &target::Target,
+) -> anyhow::Result<CApiConfig> {
     let name = &pkg
         .manifest()
         .targets()
@@ -688,6 +691,10 @@ fn load_manifest_capi_config(pkg: &Package) -> anyhow::Result<CApiConfig> {
                 .map(str::to_string);
             rustflags.extend(args);
         }
+    }
+
+    if rustc_target.os == "android" {
+        versioning = false;
     }
 
     let library = LibraryCApiConfig {
@@ -920,7 +927,7 @@ fn compile_with_exec(
 
     for unit in bcx.roots.iter() {
         let pkg = &unit.pkg;
-        let capi_config = load_manifest_capi_config(pkg)?;
+        let capi_config = load_manifest_capi_config(pkg, rustc_target)?;
         let name = &capi_config.library.name;
         let install_paths = InstallPaths::new(name, args, &capi_config);
         let pkg_rustflags = &capi_config.library.rustflags;
@@ -1007,7 +1014,7 @@ impl CPackage {
         let id = pkg.package_id();
         let version = pkg.version().clone();
         let root_path = pkg.root().to_path_buf();
-        let capi_config = load_manifest_capi_config(pkg)?;
+        let capi_config = load_manifest_capi_config(pkg, rustc_target)?;
 
         patch_target(pkg, libkinds, &capi_config)?;
 
