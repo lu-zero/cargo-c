@@ -10,7 +10,7 @@ use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspac
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
 use cargo::util::interning::InternedString;
-use cargo::{CliResult, Config};
+use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
 use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes, write};
@@ -29,7 +29,7 @@ fn build_include_file(
     root_output: &Path,
     root_path: &Path,
 ) -> anyhow::Result<()> {
-    ws.config()
+    ws.gctx()
         .shell()
         .status("Building", "header file using cbindgen")?;
     let mut header_name = PathBuf::from(name);
@@ -64,7 +64,7 @@ fn copy_prebuilt_include_file(
     build_targets: &BuildTargets,
     root_output: &Path,
 ) -> anyhow::Result<()> {
-    let mut shell = ws.config().shell();
+    let mut shell = ws.gctx().shell();
     shell.status("Populating", "uninstalled header directory")?;
     let path = &format!("PKG_CONFIG_PATH=\"{}\"", root_output.display());
     shell.verbose(move |s| s.note(path))?;
@@ -90,7 +90,7 @@ fn build_pc_files(
     root_output: &Path,
     pc: &PkgConfig,
 ) -> anyhow::Result<()> {
-    ws.config().shell().status("Building", "pkg-config files")?;
+    ws.gctx().shell().status("Building", "pkg-config files")?;
     build_pc_file(filename, root_output, pc)?;
     let pc_uninstalled = pc.uninstalled(root_output);
     build_pc_file(
@@ -140,7 +140,7 @@ fn build_def_file(
     let env = &target.env;
 
     if os == "windows" && env == "msvc" {
-        ws.config()
+        ws.gctx()
             .shell()
             .status("Building", ".def file using dumpbin")?;
 
@@ -213,7 +213,7 @@ fn build_implib_file(
     if os == "windows" {
         let arch = &target.arch;
         if env == "gnu" {
-            ws.config()
+            ws.gctx()
                 .shell()
                 .status("Building", "implib using dlltool")?;
 
@@ -242,7 +242,7 @@ fn build_implib_file(
                 Err(anyhow::anyhow!("Command failed {:?}", dlltool_command))
             }
         } else {
-            ws.config().shell().status("Building", "implib using lib")?;
+            ws.gctx().shell().status("Building", "implib using lib")?;
             let target_str = format!("{}-pc-windows-msvc", &target.arch);
             let mut lib = match cc::windows_registry::find(&target_str, "lib.exe") {
                 Some(command) => command,
@@ -802,14 +802,14 @@ fn load_manifest_capi_config(
 
 fn compile_options(
     ws: &Workspace,
-    config: &Config,
+    gctx: &GlobalContext,
     args: &ArgMatches,
     profile: InternedString,
     compile_mode: CompileMode,
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
-        args.compile_options(config, compile_mode, Some(ws), ProfileChecking::Custom)?;
+        args.compile_options(gctx, compile_mode, Some(ws), ProfileChecking::Custom)?;
 
     compile_opts.build_config.requested_profile = profile;
 
@@ -827,12 +827,12 @@ fn compile_options(
 
     compile_opts.build_config.unit_graph = false;
 
-    let rustc = config.load_global_rustc(Some(ws))?;
+    let rustc = gctx.load_global_rustc(Some(ws))?;
 
     // Always set the target, requested_kinds is a vec of a single element.
     if compile_opts.build_config.requested_kinds[0].is_host() {
         compile_opts.build_config.requested_kinds =
-            CompileKind::from_requested_targets(config, &[rustc.host.to_string()])?
+            CompileKind::from_requested_targets(gctx, &[rustc.host.to_string()])?
     }
 
     Ok(compile_opts)
@@ -893,7 +893,6 @@ impl Executor for Exec {
 
 use cargo::core::compiler::{unit_graph, UnitInterner};
 use cargo::ops::create_bcx;
-use cargo::util::profile;
 
 fn set_deps_args(
     dep: &UnitDep,
@@ -959,11 +958,10 @@ fn compile_with_exec(
     }
 
     if options.build_config.unit_graph {
-        unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.config())?;
+        unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.gctx())?;
         return Ok(HashMap::new());
     }
-    let _p = profile::start("compiling");
-    let cx = cargo::core::compiler::Context::new(&bcx)?;
+    let cx = cargo::core::compiler::BuildRunner::new(&bcx)?;
 
     let r = cx.compile(exec)?;
 
@@ -1039,7 +1037,7 @@ impl CPackage {
 
 pub fn cbuild(
     ws: &mut Workspace,
-    config: &Config,
+    config: &GlobalContext,
     args: &ArgMatches,
     default_profile: &str,
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
@@ -1240,7 +1238,7 @@ pub fn cbuild(
 
 pub fn ctest(
     ws: &Workspace,
-    config: &Config,
+    config: &GlobalContext,
     args: &ArgMatches,
     packages: &[CPackage],
     mut compile_opts: CompileOptions,

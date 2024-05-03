@@ -6,7 +6,7 @@ use cargo_c::cli::subcommand_test;
 use cargo_c::config::*;
 
 fn main() -> CliResult {
-    let mut config = Config::default()?;
+    let mut config = GlobalContext::default()?;
 
     let subcommand = subcommand_test("ctest");
 
@@ -34,7 +34,7 @@ fn main() -> CliResult {
         return Ok(());
     }
 
-    config_configure(&mut config, subcommand_args)?;
+    global_context_configure(&mut config, subcommand_args)?;
 
     let mut ws = subcommand_args.workspace(&config)?;
 
