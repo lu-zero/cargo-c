@@ -198,9 +198,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         create_dir_all(&install_path_lib)?;
         create_dir_all(&install_path_pc)?;
 
-        ws.config()
-            .shell()
-            .status("Installing", "pkg-config file")?;
+        ws.gctx().shell().status("Installing", "pkg-config file")?;
 
         copy(
             &build_targets.pc,
@@ -208,7 +206,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         )?;
 
         if capi_config.header.enabled {
-            ws.config().shell().status("Installing", "header file")?;
+            ws.gctx().shell().status("Installing", "header file")?;
             for (from, to) in build_targets.extra.include.iter() {
                 let to = install_path_include.join(to);
                 create_dir_all(to.parent().unwrap())?;
@@ -217,7 +215,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         }
 
         if !build_targets.extra.data.is_empty() {
-            ws.config().shell().status("Installing", "data file")?;
+            ws.gctx().shell().status("Installing", "data file")?;
             for (from, to) in build_targets.extra.data.iter() {
                 let to = install_path_data.join(to);
                 create_dir_all(to.parent().unwrap())?;
@@ -226,7 +224,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         }
 
         if let Some(ref static_lib) = build_targets.static_lib {
-            ws.config().shell().status("Installing", "static library")?;
+            ws.gctx().shell().status("Installing", "static library")?;
             copy(
                 static_lib,
                 install_path_lib.join(static_lib.file_name().unwrap()),
@@ -234,7 +232,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         }
 
         if let Some(ref shared_lib) = build_targets.shared_lib {
-            ws.config().shell().status("Installing", "shared library")?;
+            ws.gctx().shell().status("Installing", "shared library")?;
 
             let lib_type = LibType::from_build_targets(build_targets);
             match lib_type {

@@ -5,13 +5,12 @@ use cargo_c::install::cinstall;
 
 use cargo::util::command_prelude::flag;
 use cargo::util::command_prelude::ArgMatchesExt;
-use cargo::CliResult;
-use cargo::Config;
+use cargo::{CliResult, GlobalContext};
 
 use clap::*;
 
 fn main() -> CliResult {
-    let mut config = Config::default()?;
+    let mut config = GlobalContext::default()?;
 
     let cli_build = subcommand_build("build", "Build the crate C-API");
     let cli_install = subcommand_install("install", "Install the crate C-API");
@@ -60,7 +59,7 @@ fn main() -> CliResult {
         return Ok(());
     }
 
-    config_configure(&mut config, subcommand_args)?;
+    global_context_configure(&mut config, subcommand_args)?;
 
     let mut ws = subcommand_args.workspace(&config)?;
 

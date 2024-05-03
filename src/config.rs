@@ -1,7 +1,7 @@
 use std::env;
 
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt};
-use cargo::{CliResult, Config};
+use cargo::{CliResult, GlobalContext};
 
 // Take the original cargo instance and save it as a separate env var if not already set.
 fn setup_env() {
@@ -12,14 +12,14 @@ fn setup_env() {
     }
 }
 
-pub fn config_configure(config: &mut Config, args: &ArgMatches) -> CliResult {
-    let arg_target_dir = &args.value_of_path("target-dir", config);
+pub fn global_context_configure(gctx: &mut GlobalContext, args: &ArgMatches) -> CliResult {
+    let arg_target_dir = &args.value_of_path("target-dir", gctx);
     let config_args: Vec<_> = args
         .get_many::<String>("config")
         .unwrap_or_default()
         .map(|s| s.to_owned())
         .collect();
-    config.configure(
+    gctx.configure(
         args.verbose(),
         args.flag("quiet"),
         args.get_one::<String>("color").map(String::as_str),
