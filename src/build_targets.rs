@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::build::{CApiConfig, InstallTarget};
@@ -44,6 +45,7 @@ fn extra_targets(
 
 #[derive(Debug, Clone)]
 pub struct BuildTargets {
+    pub name: String,
     pub include: Option<PathBuf>,
     pub static_lib: Option<PathBuf>,
     pub shared_lib: Option<PathBuf>,
@@ -53,6 +55,7 @@ pub struct BuildTargets {
     pub pc: PathBuf,
     pub target: Target,
     pub extra: ExtraTargets,
+    pub use_meson_naming_convention: bool,
 }
 
 impl BuildTargets {
@@ -62,6 +65,7 @@ impl BuildTargets {
         targetdir: &Path,
         libkinds: &[&str],
         capi_config: &CApiConfig,
+        use_meson_naming_convention: bool,
     ) -> anyhow::Result<BuildTargets> {
         let pc = targetdir.join(format!("{}.pc", &capi_config.pkg_config.filename));
         let include = if capi_config.header.enabled {
@@ -141,6 +145,8 @@ impl BuildTargets {
             impl_lib,
             debug_info,
             def,
+            use_meson_naming_convention,
+            name: name.into(),
             target: target.clone(),
             extra: Default::default(),
         })
@@ -159,6 +165,27 @@ impl BuildTargets {
                 Some(libdir.join(self.debug_info.as_ref()?.file_name()?))
             }
             LibType::Windows => Some(bindir.join(self.debug_info.as_ref()?.file_name()?)),
+        }
+    }
+
+    pub fn static_output_file_name(&self) -> Option<OsString> {
+        match self.lib_type() {
+            LibType::Windows => {
+                if self.static_lib.is_some() && self.use_meson_naming_convention {
+                    Some(format!("lib{}.a", self.name).into())
+                } else {
+                    Some(self.static_lib.as_ref()?.file_name()?.to_owned())
+                }
+            }
+            _ => Some(self.static_lib.as_ref()?.file_name()?.to_owned()),
+        }
+    }
+
+    pub fn shared_output_file_name(&self) -> Option<OsString> {
+        if self.shared_lib.is_some() && self.use_meson_naming_convention {
+            Some(format!("lib{}.dll", self.name).into())
+        } else {
+            Some(self.shared_lib.as_ref()?.file_name().unwrap().to_owned())
         }
     }
 }

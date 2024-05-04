@@ -50,6 +50,9 @@ struct Common {
     #[clap(long = "crt-static")]
     /// Build the library embedding the C runtime
     crt_static: bool,
+    /// Use the Linux/Meson library naming convention on Windows
+    #[clap(long = "meson-paths", default_value = "false")]
+    meson: bool,
 }
 
 fn base_cli() -> Command {
