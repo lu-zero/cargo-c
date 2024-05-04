@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::env::consts;
+use std::path::{Path, PathBuf};
 
 use anyhow::*;
 
@@ -112,5 +113,77 @@ impl Target {
         // else if os == "emscripten"
 
         lines
+    }
+
+    fn is_debianlike(&self) -> bool {
+        consts::ARCH.eq_ignore_ascii_case(&self.arch)
+            && consts::OS.eq_ignore_ascii_case(&self.os)
+            && PathBuf::from("/etc/debian_version").exists()
+    }
+
+    fn is_freebsd(&self) -> bool {
+        self.os.eq_ignore_ascii_case("freebsd")
+    }
+
+    fn is_haiku(&self) -> bool {
+        self.os.eq_ignore_ascii_case("haiku")
+    }
+
+    fn is_windows(&self) -> bool {
+        self.os.eq_ignore_ascii_case("windows")
+    }
+
+    pub fn default_libdir(&self) -> PathBuf {
+        if self.is_debianlike() {
+            let pc = std::process::Command::new("dpkg-architecture")
+                .arg("-qDEB_HOST_MULTIARCH")
+                .output();
+            match pc {
+                std::io::Result::Ok(v) => {
+                    if v.status.success() {
+                        let archpath = String::from_utf8_lossy(&v.stdout);
+                        return format!("lib/{archpath}").into();
+                    }
+                }
+                std::io::Result::Err(_) => {}
+            }
+        }
+
+        if self.is_freebsd() {
+            return "lib".into();
+        }
+        if consts::ARCH.eq_ignore_ascii_case(&self.arch)
+            && consts::OS.eq_ignore_ascii_case(&self.os)
+        {
+            let usr_lib64 = PathBuf::from("/usr/lib64");
+            if usr_lib64.exists() && !usr_lib64.is_symlink() {
+                return "lib64".into();
+            }
+        }
+        "lib".into()
+    }
+
+    pub fn default_prefix(&self) -> PathBuf {
+        if self.is_windows() {
+            "c:/".into()
+        } else if self.is_haiku() {
+            "/boot/system/non-packaged".into()
+        } else {
+            "/usr/local".into()
+        }
+    }
+
+    pub fn default_datadir(&self) -> PathBuf {
+        if self.is_haiku() {
+            return "data".into();
+        }
+        "share".into()
+    }
+
+    pub fn default_includedir(&self) -> PathBuf {
+        if self.is_haiku() {
+            return "develop/headers".into();
+        }
+        "include".into()
     }
 }
