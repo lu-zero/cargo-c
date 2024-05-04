@@ -1019,8 +1019,14 @@ impl CPackage {
         let name = &capi_config.library.name;
 
         let install_paths = InstallPaths::new(name, args, &capi_config);
-        let build_targets =
-            BuildTargets::new(name, rustc_target, root_output, libkinds, &capi_config)?;
+        let build_targets = BuildTargets::new(
+            name,
+            rustc_target,
+            root_output,
+            libkinds,
+            &capi_config,
+            args.get_flag("meson"),
+        )?;
 
         let finger_print = FingerPrint::new(&id, root_output, &build_targets, &install_paths);
 
@@ -1209,6 +1215,7 @@ pub fn cbuild(
                     &root_output,
                     &libkinds,
                     capi_config,
+                    args.get_flag("meson"),
                 )?;
 
                 if let (Some(from_static_lib), Some(to_static_lib)) = (
