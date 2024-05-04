@@ -1223,6 +1223,12 @@ pub fn cbuild(
                 ) {
                     copy(from_shared_lib, to_shared_lib)?;
                 }
+                if let (Some(from_debug_info), Some(to_debug_info)) = (
+                    from_build_targets.debug_info.as_ref(),
+                    build_targets.debug_info.as_ref(),
+                ) {
+                    copy(from_debug_info, to_debug_info)?;
+                }
             }
 
             cpkg.finger_print.static_libs = static_libs;

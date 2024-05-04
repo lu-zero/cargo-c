@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::build::{CApiConfig, InstallTarget};
+use crate::install::LibType;
 use crate::target::Target;
 
 #[derive(Debug, Default, Clone)]
@@ -47,6 +48,7 @@ pub struct BuildTargets {
     pub static_lib: Option<PathBuf>,
     pub shared_lib: Option<PathBuf>,
     pub impl_lib: Option<PathBuf>,
+    pub debug_info: Option<PathBuf>,
     pub def: Option<PathBuf>,
     pub pc: PathBuf,
     pub target: Target,
@@ -75,7 +77,8 @@ impl BuildTargets {
         let os = &target.os;
         let env = &target.env;
 
-        let (shared_lib, static_lib, impl_lib, def) = match (os.as_str(), env.as_str()) {
+        let (shared_lib, static_lib, impl_lib, debug_info, def) = match (os.as_str(), env.as_str())
+        {
             ("none", _)
             | ("linux", _)
             | ("freebsd", _)
@@ -87,12 +90,12 @@ impl BuildTargets {
             | ("emscripten", _) => {
                 let static_lib = targetdir.join(format!("lib{lib_name}.a"));
                 let shared_lib = targetdir.join(format!("lib{lib_name}.so"));
-                (shared_lib, static_lib, None, None)
+                (shared_lib, static_lib, None, None, None)
             }
             ("macos", _) | ("ios", _) | ("tvos", _) => {
                 let static_lib = targetdir.join(format!("lib{lib_name}.a"));
                 let shared_lib = targetdir.join(format!("lib{lib_name}.dylib"));
-                (shared_lib, static_lib, None, None)
+                (shared_lib, static_lib, None, None, None)
             }
             ("windows", env) => {
                 let static_lib = if env == "msvc" {
@@ -107,7 +110,12 @@ impl BuildTargets {
                     targetdir.join(format!("{lib_name}.dll.a"))
                 };
                 let def = targetdir.join(format!("{lib_name}.def"));
-                (shared_lib, static_lib, Some(impl_lib), Some(def))
+                let pdb = if env == "msvc" {
+                    Some(targetdir.join(format!("{lib_name}.pdb")))
+                } else {
+                    None
+                };
+                (shared_lib, static_lib, Some(impl_lib), pdb, Some(def))
             }
             _ => unimplemented!("The target {}-{} is not supported yet", os, env),
         };
@@ -131,9 +139,26 @@ impl BuildTargets {
             static_lib,
             shared_lib,
             impl_lib,
+            debug_info,
             def,
             target: target.clone(),
             extra: Default::default(),
         })
+    }
+
+    fn lib_type(&self) -> LibType {
+        LibType::from_build_targets(self)
+    }
+
+    pub fn debug_info_file_name(&self, bindir: &Path, libdir: &Path) -> Option<PathBuf> {
+        match self.lib_type() {
+            // FIXME: Requires setting split-debuginfo to packed and
+            // specifying the corresponding file name convention
+            // in BuildTargets::new.
+            LibType::So | LibType::Dylib => {
+                Some(libdir.join(self.debug_info.as_ref()?.file_name()?))
+            }
+            LibType::Windows => Some(bindir.join(self.debug_info.as_ref()?.file_name()?)),
+        }
     }
 }
