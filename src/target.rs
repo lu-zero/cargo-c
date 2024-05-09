@@ -11,6 +11,7 @@ use crate::build::CApiConfig;
 /// It uses internally `rustc` to validate the string.
 #[derive(Clone, Debug)]
 pub struct Target {
+    pub is_target_overridden: bool,
     pub arch: String,
     // pub vendor: String,
     pub os: String,
@@ -18,7 +19,10 @@ pub struct Target {
 }
 
 impl Target {
-    pub fn new<T: AsRef<std::ffi::OsStr>>(target: T) -> Result<Self, anyhow::Error> {
+    pub fn new<T: AsRef<std::ffi::OsStr>>(
+        target: T,
+        is_target_overridden: bool,
+    ) -> Result<Self, anyhow::Error> {
         let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
         let mut cmd = std::process::Command::new(rustc);
 
@@ -45,6 +49,7 @@ impl Target {
                 // vendor: match_re(vendor_re, s),
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
+                is_target_overridden,
             })
         } else {
             Err(anyhow!("Cannot run {:?}", cmd))
@@ -134,24 +139,22 @@ impl Target {
     }
 
     pub fn default_libdir(&self) -> PathBuf {
+        if self.is_target_overridden || self.is_freebsd() {
+            return "lib".into();
+        }
+
         if self.is_debianlike() {
             let pc = std::process::Command::new("dpkg-architecture")
                 .arg("-qDEB_HOST_MULTIARCH")
                 .output();
-            match pc {
-                std::io::Result::Ok(v) => {
-                    if v.status.success() {
-                        let archpath = String::from_utf8_lossy(&v.stdout);
-                        return format!("lib/{archpath}").into();
-                    }
+            if let std::result::Result::Ok(v) = pc {
+                if v.status.success() {
+                    let archpath = String::from_utf8_lossy(&v.stdout);
+                    return format!("lib/{}", archpath.trim()).into();
                 }
-                std::io::Result::Err(_) => {}
             }
         }
 
-        if self.is_freebsd() {
-            return "lib".into();
-        }
         if consts::ARCH.eq_ignore_ascii_case(&self.arch)
             && consts::OS.eq_ignore_ascii_case(&self.os)
         {
@@ -160,6 +163,7 @@ impl Target {
                 return "lib64".into();
             }
         }
+
         "lib".into()
     }
 

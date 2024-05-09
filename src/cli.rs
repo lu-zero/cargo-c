@@ -30,7 +30,7 @@ struct Common {
     includedir: PathBuf,
     /// Path to directory for installing generated executable files
     #[clap(long = "bindir", default_value = "bin")]
-    bindir: PathBuf,
+    bindir: Option<PathBuf>,
     /// Path to directory for installing generated pkg-config .pc files
     ///
     /// [default: {libdir}/pkgconfig]

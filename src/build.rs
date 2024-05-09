@@ -1049,15 +1049,15 @@ pub fn cbuild(
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     let rustc = config.load_global_rustc(Some(ws))?;
     let targets = args.targets()?;
-    let target = match targets.len() {
-        0 => rustc.host.to_string(),
-        1 => targets[0].to_string(),
+    let (target, is_target_overridden) = match targets.len() {
+        0 => (rustc.host.to_string(), false),
+        1 => (targets[0].to_string(), true),
         _ => {
             anyhow::bail!("Multiple targets not supported yet");
         }
     };
 
-    let rustc_target = target::Target::new(&target)?;
+    let rustc_target = target::Target::new(&target, is_target_overridden)?;
 
     let default_kind = || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
         ("none", _) | (_, "musl") => vec!["staticlib"],
