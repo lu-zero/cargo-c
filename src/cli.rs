@@ -9,6 +9,8 @@ use cargo_util::{ProcessBuilder, ProcessError};
 
 use clap::{Arg, ArgAction, ArgMatches, Command, CommandFactory, Parser};
 
+use crate::target::Target;
+
 // TODO: convert to a function using cargo opt()
 #[allow(dead_code)]
 #[derive(Clone, Debug, Parser)]
@@ -56,7 +58,8 @@ struct Common {
 }
 
 fn base_cli() -> Command {
-    Common::command()
+    let default_target = Target::new::<&str>(None, false);
+    let app = Common::command()
         .allow_external_subcommands(true)
         .arg(flag("version", "Print version info and exit").short('V'))
         .arg(flag("list", "List installed commands"))
@@ -107,7 +110,24 @@ fn base_cli() -> Command {
         .arg_target_dir()
         .arg_manifest_path()
         .arg_message_format()
-        .arg_build_plan()
+        .arg_build_plan();
+
+    if let Ok(t) = default_target {
+        app.mut_arg("prefix", |a| {
+            a.default_value(t.default_prefix().as_os_str().to_os_string())
+        })
+        .mut_arg("libdir", |a| {
+            a.default_value(t.default_libdir().as_os_str().to_os_string())
+        })
+        .mut_arg("datadir", |a| {
+            a.default_value(t.default_datadir().as_os_str().to_os_string())
+        })
+        .mut_arg("includedir", |a| {
+            a.default_value(t.default_includedir().as_os_str().to_os_string())
+        })
+    } else {
+        app
+    }
 }
 
 pub fn subcommand_build(name: &'static str, about: &'static str) -> Command {

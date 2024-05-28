@@ -928,7 +928,7 @@ fn compile_with_exec(
         let pkg = &unit.pkg;
         let capi_config = load_manifest_capi_config(pkg, rustc_target)?;
         let name = &capi_config.library.name;
-        let install_paths = InstallPaths::new(name, args, &capi_config);
+        let install_paths = InstallPaths::new(name, rustc_target, args, &capi_config);
         let pkg_rustflags = &capi_config.library.rustflags;
 
         let mut leaf_args: Vec<String> = rustc_target
@@ -1018,7 +1018,7 @@ impl CPackage {
 
         let name = &capi_config.library.name;
 
-        let install_paths = InstallPaths::new(name, args, &capi_config);
+        let install_paths = InstallPaths::new(name, rustc_target, args, &capi_config);
         let build_targets = BuildTargets::new(
             name,
             rustc_target,
@@ -1057,7 +1057,7 @@ pub fn cbuild(
         }
     };
 
-    let rustc_target = target::Target::new(&target, is_target_overridden)?;
+    let rustc_target = target::Target::new(Some(&target), is_target_overridden)?;
 
     let default_kind = || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
         ("none", _) | (_, "musl") => vec!["staticlib"],
