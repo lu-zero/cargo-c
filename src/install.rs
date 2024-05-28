@@ -6,6 +6,7 @@ use cargo_util::paths::{copy, create_dir_all};
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
+use crate::target::Target;
 
 fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
     if let Some(destdir) = destdir {
@@ -296,16 +297,35 @@ pub struct InstallPaths {
     pub pkgconfigdir: PathBuf,
 }
 
+fn get_path_or(args: &ArgMatches, id: &str, f: impl FnOnce() -> PathBuf) -> PathBuf {
+    if matches!(
+        args.value_source(id),
+        Some(clap::parser::ValueSource::DefaultValue)
+    ) {
+        f()
+    } else {
+        args.get_one::<PathBuf>(id).unwrap().to_owned()
+    }
+}
+
 impl InstallPaths {
-    pub fn new(_name: &str, args: &ArgMatches, capi_config: &CApiConfig) -> Self {
+    pub fn new(
+        _name: &str,
+        rustc_target: &Target,
+        args: &ArgMatches,
+        capi_config: &CApiConfig,
+    ) -> Self {
         let destdir = args.get_one::<PathBuf>("destdir").map(PathBuf::from);
-        let prefix = args
-            .get_one::<PathBuf>("prefix")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| "/usr/local".into());
-        let libdir = prefix.join(args.get_one::<PathBuf>("libdir").unwrap());
-        let includedir = prefix.join(args.get_one::<PathBuf>("includedir").unwrap());
-        let datarootdir = prefix.join(args.get_one::<PathBuf>("datarootdir").unwrap());
+        let prefix = get_path_or(args, "prefix", || rustc_target.default_prefix());
+        let libdir = prefix.join(get_path_or(args, "libdir", || {
+            rustc_target.default_libdir()
+        }));
+        let includedir = prefix.join(get_path_or(args, "includedir", || {
+            rustc_target.default_includedir()
+        }));
+        let datarootdir = prefix.join(get_path_or(args, "datarootdir", || {
+            rustc_target.default_datadir()
+        }));
         let datadir = args
             .get_one::<PathBuf>("datadir")
             .map(|d| prefix.join(d))

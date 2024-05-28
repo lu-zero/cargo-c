@@ -20,14 +20,16 @@ pub struct Target {
 
 impl Target {
     pub fn new<T: AsRef<std::ffi::OsStr>>(
-        target: T,
+        target: Option<T>,
         is_target_overridden: bool,
     ) -> Result<Self, anyhow::Error> {
         let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
         let mut cmd = std::process::Command::new(rustc);
 
         cmd.arg("--print").arg("cfg");
-        cmd.arg("--target").arg(target);
+        if let Some(target) = target {
+            cmd.arg("--target").arg(target);
+        }
 
         let out = cmd.output()?;
         if out.status.success() {
@@ -120,12 +122,6 @@ impl Target {
         lines
     }
 
-    fn is_debianlike(&self) -> bool {
-        consts::ARCH.eq_ignore_ascii_case(&self.arch)
-            && consts::OS.eq_ignore_ascii_case(&self.os)
-            && PathBuf::from("/etc/debian_version").exists()
-    }
-
     fn is_freebsd(&self) -> bool {
         self.os.eq_ignore_ascii_case("freebsd")
     }
@@ -143,7 +139,7 @@ impl Target {
             return "lib".into();
         }
 
-        if self.is_debianlike() {
+        if PathBuf::from("/etc/debian_version").exists() {
             let pc = std::process::Command::new("dpkg-architecture")
                 .arg("-qDEB_HOST_MULTIARCH")
                 .output();
