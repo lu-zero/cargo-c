@@ -61,11 +61,19 @@ jobs:
           sudo cp -r temp/usr/local/* /usr/local/
 
       - name: Test pkg-config
-        if: startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'ubuntu')
+        if: startsWith(matrix.os, 'macos')
         run: |
           set -x
           test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example-project-0.1"
           test "$(pkg-config --libs example_project)" = "-L/usr/local/lib -lexample-project"
+
+      - name: Test pkg-config
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          set -x
+          ARCHDIR=`dpkg-architecture -qDEB_HOST_MULTIARCH`
+          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example-project-0.1"
+          test "$(pkg-config --libs example_project)" = "-L/usr/local/lib/${ARCHDIR} -lexample-project"
 
       - name: Update dynamic linker cache
         if: startsWith(matrix.os, 'ubuntu')
