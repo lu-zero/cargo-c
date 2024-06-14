@@ -21,9 +21,9 @@ jobs:
           cargo fmt --all -- --check
 
       - name: Run clippy
-        uses: actions-rs-plus/clippy-check@v2.0.0
+        uses: actions-rs-plus/clippy-check@v2.2.0
         with:
-          args: --all -- -D warnings --verbose
+          args: --all -- -D warnings
 
   coverage:
     needs: arch-test
