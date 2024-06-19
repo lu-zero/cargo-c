@@ -237,6 +237,11 @@ rustflags = [
 
 However, it is preferred to install Rust through the system package manager instead of rustup (e.g. with `apk add rust`), because the provided package should already handle this (see e.g. [here](https://git.alpinelinux.org/aports/tree/main/rust/APKBUILD?h=3.19-stable#n232)).
 
+### On Debian-like system the libdir includes the host triplet by default
+
+In order to accomodate Debian's [multiarch](https://wiki.debian.org/Multiarch/Implementation) approach the `cargo-c` default for the `libdir` is `lib/<triplet>` on such system.
+Either pass an explicit `--libdir` or pass `--target` to return to the common `libdir=lib` default.
+
 ## Acknowledgements
 
 This software has been partially developed in the scope of the H2020 project SIFIS-Home with GA n. 952652.
