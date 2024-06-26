@@ -283,7 +283,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             } else {
                 ws.gctx()
                     .shell()
-                    .status("Absent", "debugging information")?;
+                    .verbose(|shell| shell.status("Absent", "debugging information"))?;
             }
         }
     }
