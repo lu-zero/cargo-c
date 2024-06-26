@@ -270,15 +270,21 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         }
 
         if let Some(ref debug_info) = build_targets.debug_info {
-            ws.gctx()
-                .shell()
-                .status("Installing", "debugging information")?;
-            let destination_path = build_targets
-                .debug_info_file_name(&install_path_bin, &install_path_lib)
-                .unwrap();
+            if debug_info.exists() {
+                ws.gctx()
+                    .shell()
+                    .status("Installing", "debugging information")?;
+                let destination_path = build_targets
+                    .debug_info_file_name(&install_path_bin, &install_path_lib)
+                    .unwrap();
 
-            create_dir_all(destination_path.parent().unwrap())?;
-            copy(debug_info, destination_path)?;
+                create_dir_all(destination_path.parent().unwrap())?;
+                copy(debug_info, destination_path)?;
+            } else {
+                ws.gctx()
+                    .shell()
+                    .status("Absent", "debugging information")?;
+            }
         }
     }
 
