@@ -23,7 +23,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
@@ -44,7 +44,7 @@ jobs:
              "cargo-ctest.exe"
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-c-windows-${{ matrix.conf }}-binaries
         path: cargo-c-windows-${{ matrix.conf }}.zip
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -89,7 +89,7 @@ jobs:
                   cargo-ctest
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-c-linux-binaries
         path: cargo-c-${{ matrix.target }}.tar.gz
@@ -99,7 +99,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
@@ -120,7 +120,7 @@ jobs:
             cargo-ctest
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-c-macos-binaries
         path: cargo-c-macos.zip
@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install stable
       uses: dtolnay/rust-toolchain@stable
@@ -140,14 +140,14 @@ jobs:
         toolchain: stable
 
     - name: Download zip files
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
 
     - name: Create Cargo.lock
       run: |
         cargo update
 
     - name: Create a release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           Cargo.lock

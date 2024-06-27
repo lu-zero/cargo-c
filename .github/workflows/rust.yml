@@ -8,7 +8,7 @@ jobs:
     name: Format and Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
@@ -30,7 +30,7 @@ jobs:
     name: Code coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -56,7 +56,7 @@ jobs:
         run: bash coverage.sh
 
       - name: Codecov upload
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: coverage.lcov
 
@@ -75,7 +75,7 @@ jobs:
     name: ${{matrix.os}}-${{matrix.toolchain}}
     runs-on: ${{matrix.os}}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install ${{matrix.toolchain}}
         uses: dtolnay/rust-toolchain@stable
