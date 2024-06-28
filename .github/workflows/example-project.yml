@@ -72,7 +72,7 @@ jobs:
         run: |
           set -x
           ARCHDIR=`dpkg-architecture -qDEB_HOST_MULTIARCH`
-          test "$(pkg-config --cflags example_project)" = "-I/usr/local/include/example-project-0.1"
+          test $(pkg-config --cflags example_project) = -I/usr/local/include/example-project-0.1
           test "$(pkg-config --libs example_project)" = "-L/usr/local/lib/${ARCHDIR} -lexample-project"
 
       - name: Update dynamic linker cache
