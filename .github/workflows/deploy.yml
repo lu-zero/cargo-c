@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+      - 'pre-*.*.*'
 
 jobs:
 
@@ -79,7 +80,7 @@ jobs:
           --features=vendored-openssl \
           --profile release-strip
 
-    - name: Create zip
+    - name: Create tar
       run: |
         cd target/${{ matrix.target }}/release-strip
         tar -czvf $GITHUB_WORKSPACE/cargo-c-${{ matrix.target }}.tar.gz \
@@ -91,7 +92,7 @@ jobs:
     - name: Upload binaries
       uses: actions/upload-artifact@v4
       with:
-        name: cargo-c-linux-binaries
+        name: cargo-c-linux-binaries-${{ matrix.target }}
         path: cargo-c-${{ matrix.target }}.tar.gz
 
   macos-binaries:
@@ -151,7 +152,7 @@ jobs:
       with:
         files: |
           Cargo.lock
-          cargo-c-linux-binaries/*.tar.gz
+          cargo-c-linux-binaries*/*.tar.gz
           cargo-c-macos-binaries/cargo-c-macos.zip
           cargo-c-windows-msvc-binaries/cargo-c-windows-msvc.zip
           cargo-c-windows-gnu-binaries/cargo-c-windows-gnu.zip
