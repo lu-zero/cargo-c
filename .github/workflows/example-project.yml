@@ -13,6 +13,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+          # x86_64:
+          - os: macos-13
+          # arm64:
           - os: macos-latest
           - os: windows-latest
             toolchain-suffix: -gnu
