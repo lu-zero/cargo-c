@@ -2,11 +2,22 @@ use clap::ArgMatches;
 use std::path::{Component, Path, PathBuf};
 
 use cargo::core::Workspace;
-use cargo_util::paths::{copy, create_dir_all};
+use cargo_util::paths::{self, create_dir_all};
 
 use crate::build::*;
 use crate::build_targets::BuildTargets;
 use crate::target::Target;
+
+pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(ws: &Workspace, from: P, to: Q) -> anyhow::Result<u64> {
+    ws.gctx().shell().verbose(|shell| {
+        shell.status(
+            "Copying",
+            format!("{} to {}", from.as_ref().display(), to.as_ref().display()),
+        )
+    })?;
+
+    paths::copy(from, to)
+}
 
 fn append_to_destdir(destdir: Option<&Path>, path: &Path) -> PathBuf {
     if let Some(destdir) = destdir {
@@ -164,15 +175,16 @@ impl UnixLibNames {
 
     pub(crate) fn install(
         &self,
+        ws: &Workspace,
         capi_config: &CApiConfig,
         shared_lib: &Path,
         install_path_lib: &Path,
     ) -> anyhow::Result<()> {
         if capi_config.library.versioning {
-            copy(shared_lib, install_path_lib.join(&self.with_full_ver))?;
+            copy(ws, shared_lib, install_path_lib.join(&self.with_full_ver))?;
             self.links(install_path_lib);
         } else {
-            copy(shared_lib, install_path_lib.join(&self.canonical))?;
+            copy(ws, shared_lib, install_path_lib.join(&self.canonical))?;
         }
         Ok(())
     }
@@ -203,6 +215,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         ws.gctx().shell().status("Installing", "pkg-config file")?;
 
         copy(
+            ws,
             &build_targets.pc,
             install_path_pc.join(build_targets.pc.file_name().unwrap()),
         )?;
@@ -212,7 +225,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             for (from, to) in build_targets.extra.include.iter() {
                 let to = install_path_include.join(to);
                 create_dir_all(to.parent().unwrap())?;
-                copy(from, to)?;
+                copy(ws, from, to)?;
             }
         }
 
@@ -221,7 +234,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             for (from, to) in build_targets.extra.data.iter() {
                 let to = install_path_data.join(to);
                 create_dir_all(to.parent().unwrap())?;
-                copy(from, to)?;
+                copy(ws, from, to)?;
             }
         }
 
@@ -229,7 +242,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             ws.gctx().shell().status("Installing", "static library")?;
             let file_name = build_targets.static_output_file_name().unwrap();
 
-            copy(static_lib, install_path_lib.join(file_name))?;
+            copy(ws, static_lib, install_path_lib.join(file_name))?;
         }
 
         if let Some(ref shared_lib) = build_targets.shared_lib {
@@ -239,7 +252,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             match lib_type {
                 LibType::So | LibType::Dylib => {
                     let lib = UnixLibNames::new(lib_type, &capi_config.library).unwrap();
-                    lib.install(capi_config, shared_lib, &install_path_lib)?;
+                    lib.install(ws, capi_config, shared_lib, &install_path_lib)?;
                 }
                 LibType::Windows => {
                     let lib_name = build_targets.shared_output_file_name().unwrap();
@@ -248,10 +261,10 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                         let install_path_bin = append_to_destdir(destdir.as_deref(), &paths.bindir);
                         create_dir_all(&install_path_bin)?;
 
-                        copy(shared_lib, install_path_bin.join(lib_name))?;
+                        copy(ws, shared_lib, install_path_bin.join(lib_name))?;
                     } else {
                         // We assume they are plugins, install them in the custom libdir path
-                        copy(shared_lib, install_path_lib.join(lib_name))?;
+                        copy(ws, shared_lib, install_path_lib.join(lib_name))?;
                     }
                     if capi_config.library.import_library {
                         let impl_lib = build_targets.impl_lib.as_ref().unwrap();
@@ -260,10 +273,10 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                         } else {
                             impl_lib.file_name().unwrap().to_owned()
                         };
-                        copy(impl_lib, install_path_lib.join(impl_lib_name))?;
+                        copy(ws, impl_lib, install_path_lib.join(impl_lib_name))?;
                         let def = build_targets.def.as_ref().unwrap();
                         let def_name = def.file_name().unwrap();
-                        copy(def, install_path_lib.join(def_name))?;
+                        copy(ws, def, install_path_lib.join(def_name))?;
                     }
                 }
             }
@@ -279,7 +292,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                     .unwrap();
 
                 create_dir_all(destination_path.parent().unwrap())?;
-                copy(debug_info, destination_path)?;
+                copy(ws, debug_info, destination_path)?;
             } else {
                 ws.gctx()
                     .shell()
