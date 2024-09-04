@@ -1158,7 +1158,7 @@ pub fn cbuild(
                     .unwrap()
                     .values()
                     .next()
-                    .unwrap()
+                    .map_or("", |s| s)
                     .to_string()
             };
             let capi_config = &cpkg.capi_config;
