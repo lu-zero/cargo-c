@@ -40,5 +40,5 @@ fn main() -> CliResult {
 
     let (packages, compile_opts) = cbuild(&mut ws, &config, subcommand_args, "dev")?;
 
-    ctest(&ws, &config, subcommand_args, &packages, compile_opts)
+    ctest(&ws, subcommand_args, &packages, compile_opts)
 }

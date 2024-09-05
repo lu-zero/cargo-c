@@ -1068,7 +1068,7 @@ pub fn cbuild(
     let only_staticlib = !libkinds.contains(&"cdylib");
     let only_cdylib = !libkinds.contains(&"staticlib");
 
-    let profile = args.get_profile_name(config, default_profile, ProfileChecking::Custom)?;
+    let profile = args.get_profile_name(default_profile, ProfileChecking::Custom)?;
 
     let profiles = Profiles::new(ws, profile)?;
 
@@ -1254,13 +1254,12 @@ pub fn cbuild(
 
 pub fn ctest(
     ws: &Workspace,
-    config: &GlobalContext,
     args: &ArgMatches,
     packages: &[CPackage],
     mut compile_opts: CompileOptions,
 ) -> CliResult {
     compile_opts.build_config.requested_profile =
-        args.get_profile_name(config, "test", ProfileChecking::Custom)?;
+        args.get_profile_name("test", ProfileChecking::Custom)?;
     compile_opts.build_config.mode = CompileMode::Test;
 
     compile_opts.filter = ops::CompileFilter::new(

@@ -68,7 +68,7 @@ fn main() -> CliResult {
     if cmd == "install" {
         cinstall(&ws, &packages)?;
     } else if cmd == "test" {
-        ctest(&ws, &config, subcommand_args, &packages, compile_opts)?;
+        ctest(&ws, subcommand_args, &packages, compile_opts)?;
     }
 
     Ok(())
