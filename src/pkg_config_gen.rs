@@ -208,63 +208,38 @@ impl PkgConfig {
     }
 
     pub fn render(&self) -> String {
-        let mut base = format!(
-            "prefix={}
-exec_prefix={}
-libdir={}
-includedir={}
+        // writing to a String only fails on OOM, which we disregard
+        self.render_help(String::with_capacity(1024)).unwrap()
+    }
 
-Name: {}
-Description: {}
-Version: {}
-Libs: {}
-Cflags: {}",
-            canonicalize(&self.prefix),
-            canonicalize(&self.exec_prefix),
-            canonicalize(&self.libdir),
-            canonicalize(&self.includedir),
-            self.name,
-            // avoid endlines
-            self.description.replace('\n', " "),
-            self.version,
-            self.libs.join(" "),
-            self.cflags.join(" "),
-        );
+    fn render_help<W: core::fmt::Write>(&self, mut w: W) -> Result<W, core::fmt::Error> {
+        writeln!(w, "prefix={}", canonicalize(&self.prefix))?;
+        writeln!(w, "exec_prefix={}", canonicalize(&self.exec_prefix))?;
+        writeln!(w, "libdir={}", canonicalize(&self.libdir))?;
+        writeln!(w, "includedir={}", canonicalize(&self.includedir))?;
+
+        writeln!(w)?;
+
+        writeln!(w, "Name: {}", self.name)?;
+        writeln!(w, "Description: {}", self.description.replace('\n', " "))?; // avoid endlines
+        writeln!(w, "Version: {}", self.version)?;
+        writeln!(w, "Libs: {}", self.libs.join(" "))?;
+        writeln!(w, "Cflags: {}", self.cflags.join(" "))?;
 
         if !self.libs_private.is_empty() {
-            base.push_str(
-                "
-Libs.private: ",
-            );
-            base.push_str(&self.libs_private.join(" "));
+            writeln!(w, "Libs.private: {}", self.libs_private.join(" "))?;
         }
 
         if !self.requires.is_empty() {
-            base.push_str(
-                "
-Requires: ",
-            );
-            base.push_str(&self.requires.join(", "));
+            writeln!(w, "Requires: {}", self.requires.join(", "))?;
         }
 
         if !self.requires_private.is_empty() {
-            base.push_str(
-                "
-Requires.private: ",
-            );
-            base.push_str(&self.requires_private.join(", "));
+            let joined = self.requires_private.join(", ");
+            writeln!(w, "Requires.private: {}", joined)?;
         }
 
-        /*
-        Conflicts:
-        Libs.private:
-
-                ).to_owned()
-        */
-
-        base.push('\n');
-
-        base
+        Ok(w)
     }
 }
 
@@ -307,6 +282,21 @@ mod test {
         );
         pkg.add_lib("-lbar").add_cflag("-DFOO");
 
-        println!("{:?}\n{}", pkg, pkg.render());
+        let expected = concat!(
+            "prefix=/usr/local\n",
+            "exec_prefix=${prefix}\n",
+            "libdir=${exec_prefix}/lib\n",
+            "includedir=${prefix}/include\n",
+            "\n",
+            "Name: foo\n",
+            "Description: \n",
+            "Version: 0.1\n",
+            "Libs: -L${libdir} -lfoo -lbar\n",
+            "Cflags: -I${includedir} -DFOO\n",
+            "Requires: somelib, someotherlib\n",
+            "Requires.private: someprivatelib >= 1.0\n",
+        );
+
+        assert_eq!(expected, pkg.render());
     }
 }
