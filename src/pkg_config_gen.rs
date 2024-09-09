@@ -5,27 +5,55 @@ use crate::install::InstallPaths;
 use std::path::{Component, Path, PathBuf};
 
 fn canonicalize<P: AsRef<Path>>(path: P) -> String {
-    let mut separator = "";
-    let out = path
-        .as_ref()
-        .components()
-        .map(|p| match p {
+    let mut stack = Vec::with_capacity(16);
+
+    struct Item<'a> {
+        separator: bool,
+        component: Component<'a>,
+    }
+
+    let mut separator = false;
+
+    for component in path.as_ref().components() {
+        match component {
             Component::RootDir => {
-                separator = "/";
-                String::new()
+                separator = true;
             }
-            Component::Prefix(_) => p.as_os_str().to_string_lossy().to_string(),
-            _ => {
-                let c = format!("{}{}", separator, p.as_os_str().to_string_lossy());
-                separator = "/";
-                c
+            Component::Prefix(_) => stack.push(Item {
+                separator: false,
+                component,
+            }),
+            Component::ParentDir => {
+                let _ = stack.pop();
             }
-        })
-        .collect::<String>();
-    if out.is_empty() {
-        "/".to_string()
+            Component::CurDir => stack.push(Item {
+                separator: false,
+                component,
+            }),
+            Component::Normal(_) => {
+                stack.push(Item {
+                    separator,
+                    component,
+                });
+                separator = true;
+            }
+        }
+    }
+
+    if stack.is_empty() {
+        String::from("/")
     } else {
-        out
+        let mut buf = String::with_capacity(64);
+
+        for item in stack {
+            if item.separator {
+                buf.push('/');
+            }
+
+            buf.push_str(&item.component.as_os_str().to_string_lossy());
+        }
+
+        buf
     }
 }
 
@@ -298,5 +326,86 @@ mod test {
         );
 
         assert_eq!(expected, pkg.render());
+    }
+
+    mod test_canonicalize {
+        use super::canonicalize;
+
+        #[test]
+        fn test_absolute_path() {
+            let path = "/home/user/docs";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/user/docs");
+        }
+
+        #[test]
+        fn test_relative_path() {
+            let path = "home/user/docs";
+            let result = canonicalize(path);
+            assert_eq!(result, "home/user/docs");
+        }
+
+        #[test]
+        fn test_current_directory() {
+            let path = "/home/user/./docs";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/user/docs");
+        }
+
+        #[test]
+        fn test_parent_directory() {
+            let path = "/home/user/../docs";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/docs");
+        }
+
+        #[test]
+        fn test_mixed_dots_and_parent_dirs() {
+            let path = "/home/./user/../docs/./files";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/docs/files");
+        }
+
+        #[test]
+        fn test_multiple_consecutive_slashes() {
+            let path = "/home//user///docs";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/user/docs");
+        }
+
+        #[test]
+        fn test_empty_path() {
+            let path = "";
+            let result = canonicalize(path);
+            assert_eq!(result, "/");
+        }
+
+        #[test]
+        fn test_single_dot() {
+            let path = ".";
+            let result = canonicalize(path);
+            assert_eq!(result, ".");
+        }
+
+        #[test]
+        fn test_single_dot_in_absolute_path() {
+            let path = "/.";
+            let result = canonicalize(path);
+            assert_eq!(result, "/");
+        }
+
+        #[test]
+        fn test_trailing_slash() {
+            let path = "/home/user/docs/";
+            let result = canonicalize(path);
+            assert_eq!(result, "/home/user/docs");
+        }
+
+        #[test]
+        fn test_dots_complex_case() {
+            let path = "/a/b/./c/../d//e/./../f";
+            let result = canonicalize(path);
+            assert_eq!(result, "/a/b/d/f");
+        }
     }
 }
