@@ -62,6 +62,13 @@ jobs:
         working-directory: example-project
         run: |
           sudo cp -r temp/usr/local/* /usr/local/
+      
+      - name: Install into Cargo root
+        if: startsWith(matrix.os, 'windows')
+        shell: bash
+        working-directory: example-project
+        run: |
+          cargo cinstall --verbose --release --prefix=$CARGO_HOME
 
       - name: Test pkg-config
         if: startsWith(matrix.os, 'macos')
@@ -75,6 +82,28 @@ jobs:
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: pkgconf
+  
+      - name: Setup Meson + Ninja
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install meson ninja
+  
+      - name: Setup MSVC for test
+        if: startsWith(matrix.os, 'windows')
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86_64
+
+      # https://github.com/pkgconf/pkgconf/issues/364
+      - name: Install pkgconf
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          git clone https://github.com/amyspark/pkgconf --branch msvc
+          cd pkgconf
+          meson setup build --prefix=$env:CARGO_HOME
+          meson compile -C build
+          meson install -C build
 
       - name: Test pkgconf
         if: startsWith(matrix.os, 'ubuntu')
@@ -90,6 +119,18 @@ jobs:
           test "${CFLAGS%% }" = "-I/usr/local/include/example-project-0.1"
           test "${LIBS%% }" = "-L/usr/local/lib/${ARCHDIR} -lexample-project"
 
+      - name: Test pkgconf
+        if: startsWith(matrix.os, 'windows')
+        shell: bash
+        run: |
+          set -x
+          pkgconf --version
+          CFLAGS=$(pkgconf --cflags example_project)
+          LIBS=$(pkgconf --libs example_project)
+
+          test "${CFLAGS%% }" = "-I${CARGO_HOME//\\//}/bin/../include/example-project-0.1"
+          test "${LIBS%% }" = "-L${CARGO_HOME//\\//}/bin/../lib -lexample-project"
+
       - name: Update dynamic linker cache
         if: startsWith(matrix.os, 'ubuntu')
         run: |
@@ -101,3 +142,12 @@ jobs:
         run: |
           make
 
+      - name: Test usage from C (Meson)
+        if: startsWith(matrix.os, 'windows') && matrix.toolchain-suffix == '-msvc'
+        working-directory: example-project/usage-from-c
+        shell: pwsh
+        run: |
+          $env:PKG_CONFIG="$env:CARGO_HOME/bin/pkgconf.exe"
+          meson setup build
+          meson compile -C build
+          meson test -C build
