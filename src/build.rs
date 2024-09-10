@@ -932,7 +932,7 @@ fn compile_with_exec(
         let mut leaf_args: Vec<String> = rustc_target
             .shared_object_link_args(&capi_config, &install_paths.libdir, root_output)
             .into_iter()
-            .flat_map(|l| vec!["-C".to_string(), format!("link-arg={l}")])
+            .flat_map(|l| ["-C".to_string(), format!("link-arg={l}")])
             .collect();
 
         leaf_args.extend(pkg_rustflags.clone());
@@ -1176,17 +1176,13 @@ pub fn cbuild(
                 let lib_name = name;
                 build_def_file(ws, lib_name, &rustc_target, &root_output)?;
 
-                let mut dlltool = std::env::var_os("DLLTOOL")
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| PathBuf::from("dlltool"));
-
-                // dlltool argument overwrites environment var
-                if args.contains_id("dlltool") {
-                    dlltool = args
-                        .get_one::<PathBuf>("dlltool")
-                        .map(PathBuf::from)
-                        .unwrap();
-                }
+                let dlltool = if let Some(path) = args.get_one::<PathBuf>("dlltool") {
+                    PathBuf::from(path)
+                } else if let Some(path) = std::env::var_os("DLLTOOL") {
+                    PathBuf::from(path)
+                } else {
+                    PathBuf::from("dlltool")
+                };
 
                 build_implib_file(ws, lib_name, &rustc_target, &root_output, &dlltool)?;
             }
