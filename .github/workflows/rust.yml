@@ -71,6 +71,8 @@ jobs:
             os: windows-latest
           - toolchain: stable-gnu
             os: windows-latest
+          - toolchain: stable-msvc
+            os: windows-latest
 
     name: ${{matrix.os}}-${{matrix.toolchain}}
     runs-on: ${{matrix.os}}
