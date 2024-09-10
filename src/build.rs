@@ -14,6 +14,8 @@ use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
 use cargo_util::paths::{copy, create_dir_all, open, read, read_bytes, write};
+use implib::def::ModuleDef;
+use implib::{Flavor, ImportLibrary, MachineType};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -171,75 +173,54 @@ fn build_implib_file(
     name: &str,
     target: &target::Target,
     targetdir: &Path,
-    dlltool: &Path,
 ) -> anyhow::Result<()> {
-    let os = &target.os;
-    let env = &target.env;
+    if target.os == "windows" {
+        ws.gctx().shell().status("Building", "implib")?;
 
-    if os == "windows" {
-        let arch = &target.arch;
-        if env == "gnu" {
-            ws.gctx()
-                .shell()
-                .status("Building", "implib using dlltool")?;
+        let def_path = targetdir.join(format!("{name}.def"));
+        let def_contents = cargo_util::paths::read(&def_path)?;
 
-            let binutils_arch = match arch.as_str() {
-                "x86_64" => "i386:x86-64",
-                "x86" => "i386",
-                "aarch64" => "arm64",
-                _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
-            };
+        let flavor = match target.env.as_str() {
+            "msvc" => Flavor::Msvc,
+            _ => Flavor::Gnu,
+        };
 
-            let mut dlltool_command =
-                std::process::Command::new(dlltool.to_str().unwrap_or("dlltool"));
-            dlltool_command.arg("-m").arg(binutils_arch);
-            dlltool_command.arg("-D").arg(format!("{name}.dll"));
-            dlltool_command
-                .arg("-l")
-                .arg(targetdir.join(format!("{name}.dll.a")));
-            dlltool_command
-                .arg("-d")
-                .arg(targetdir.join(format!("{name}.def")));
-
-            let out = dlltool_command.output()?;
-            if out.status.success() {
-                Ok(())
-            } else {
-                Err(anyhow::anyhow!("Command failed {:?}", dlltool_command))
+        let machine_type = match target.arch.as_str() {
+            "x86_64" => MachineType::AMD64,
+            "x86" => MachineType::I386,
+            "aarch64" => MachineType::ARM64,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Windows support for {} is not implemented yet.",
+                    target.arch
+                ))
             }
-        } else {
-            ws.gctx().shell().status("Building", "implib using lib")?;
-            let target_str = format!("{}-pc-windows-msvc", &target.arch);
-            let mut lib = match cc::windows_registry::find(&target_str, "lib.exe") {
-                Some(command) => command,
-                None => std::process::Command::new("lib"),
-            };
-            let lib_arch = match arch.as_str() {
-                "x86_64" => "X64",
-                "x86" => "IX86",
-                _ => unimplemented!("Windows support for {} is not implemented yet.", arch),
-            };
-            lib.arg(format!(
-                "/DEF:{}",
-                targetdir.join(format!("{name}.def")).display()
-            ));
-            lib.arg(format!("/MACHINE:{lib_arch}"));
-            lib.arg(format!("/NAME:{name}.dll"));
-            lib.arg(format!(
-                "/OUT:{}",
-                targetdir.join(format!("{name}.dll.lib")).display()
-            ));
+        };
 
-            let out = lib.output()?;
-            if out.status.success() {
-                Ok(())
-            } else {
-                Err(anyhow::anyhow!("Command failed {:?}", lib))
-            }
-        }
-    } else {
-        Ok(())
+        let lib_path = match flavor {
+            Flavor::Msvc => targetdir.join(format!("{name}.dll.lib")),
+            Flavor::Gnu => targetdir.join(format!("{name}.dll.a")),
+        };
+
+        let lib_file = cargo_util::paths::create(lib_path)?;
+        write_implib(lib_file, machine_type, flavor, &def_contents)?;
     }
+
+    Ok(())
+}
+
+fn write_implib<W: std::io::Write + std::io::Seek>(
+    mut w: W,
+    machine_type: MachineType,
+    flavor: Flavor,
+    def_contents: &str,
+) -> anyhow::Result<W> {
+    let module_def = ModuleDef::parse(def_contents, machine_type)?;
+    let import_library = ImportLibrary::from_def(module_def, machine_type, flavor);
+
+    import_library.write_to(&mut w)?;
+
+    Ok(w)
 }
 
 #[derive(Debug)]
@@ -1143,16 +1124,7 @@ pub fn cbuild(
             if !only_staticlib && capi_config.library.import_library {
                 let lib_name = name;
                 build_def_file(ws, lib_name, &rustc_target, &root_output)?;
-
-                let dlltool = if let Some(path) = args.get_one::<PathBuf>("dlltool") {
-                    PathBuf::from(path)
-                } else if let Some(path) = std::env::var_os("DLLTOOL") {
-                    PathBuf::from(path)
-                } else {
-                    PathBuf::from("dlltool")
-                };
-
-                build_implib_file(ws, lib_name, &rustc_target, &root_output, &dlltool)?;
+                build_implib_file(ws, lib_name, &rustc_target, &root_output)?;
             }
 
             if capi_config.header.enabled {
