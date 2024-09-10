@@ -325,6 +325,8 @@ mod test {
     }
 
     mod test_canonicalize {
+        use std::path::Path;
+
         use super::canonicalize;
 
         #[test]
@@ -402,6 +404,59 @@ mod test {
             let path = "/a/b/./c/../d//e/./../f";
             let result = canonicalize(path);
             assert_eq!(result, "/a/b/d/f");
+        }
+
+        #[cfg(windows)]
+        mod windows {
+            use super::*;
+
+            #[test]
+            fn test_canonicalize_basic_windows_path() {
+                let input = Path::new(r"C:\Users\test\..\Documents");
+                let expected = r"C:/Users/Documents";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn test_canonicalize_with_current_dir() {
+                let input = Path::new(r"C:\Users\.\Documents");
+                let expected = r"C:/Users/Documents";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn test_canonicalize_with_double_parent_dir() {
+                let input = Path::new(r"C:\Users\test\..\..\Documents");
+                let expected = r"C:/Documents";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn test_canonicalize_with_trailing_slash() {
+                let input = Path::new(r"C:\Users\test\..\Documents\");
+                let expected = r"C:/Users/Documents";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn test_canonicalize_relative_path() {
+                let input = Path::new(r"Users\test\..\Documents");
+                let expected = r"Users/Documents";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn test_canonicalize_current_dir_only() {
+                let input = Path::new(r".\");
+                let expected = r".";
+                let result = canonicalize(input);
+                assert_eq!(result, expected);
+            }
         }
     }
 }
