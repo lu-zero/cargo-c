@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ use cargo::util::interning::InternedString;
 use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
-use cargo_util::paths::{copy, create, create_dir_all, open, read, read_bytes, write};
+use cargo_util::paths::{copy, create_dir_all, open, read, read_bytes, write};
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -134,67 +134,35 @@ fn build_def_file(
     target: &target::Target,
     targetdir: &Path,
 ) -> anyhow::Result<()> {
-    let os = &target.os;
-    let env = &target.env;
+    if target.os == "windows" && target.env == "msvc" {
+        ws.gctx().shell().status("Building", ".def file")?;
 
-    if os == "windows" && env == "msvc" {
-        ws.gctx()
-            .shell()
-            .status("Building", ".def file using dumpbin")?;
+        // Parse the .dll as an object file
+        let dll_path = targetdir.join(format!("{}.dll", name.replace('-', "_")));
+        let dll_content = std::fs::read(&dll_path)?;
+        let dll_file = object::File::parse(&*dll_content)?;
 
-        let txt_path = targetdir.join(format!("{name}.txt"));
+        // Create the .def output file
+        let def_file = cargo_util::paths::create(targetdir.join(format!("{name}.def")))?;
 
-        let target_str = format!("{}-pc-windows-msvc", &target.arch);
-        let mut dumpbin = match cc::windows_registry::find(&target_str, "dumpbin.exe") {
-            Some(command) => command,
-            None => std::process::Command::new("dumpbin"),
-        };
-
-        dumpbin
-            .arg("/EXPORTS")
-            .arg(targetdir.join(format!("{}.dll", name.replace('-', "_"))));
-        dumpbin.arg(format!("/OUT:{}", txt_path.to_str().unwrap()));
-
-        let out = dumpbin.output()?;
-        if out.status.success() {
-            let txt_file = open(txt_path)?;
-            let buf_reader = BufReader::new(txt_file);
-            let mut def_file = create(targetdir.join(format!("{name}.def")))?;
-            writeln!(def_file, "EXPORTS")?;
-
-            // The Rust loop below is analogue to the following loop.
-            // for /f "skip=19 tokens=4" %A in (file.txt) do echo %A > file.def
-            // The most recent versions of dumpbin adds three lines of copyright
-            // information before the relevant content.
-            // If the "/OUT:file.txt" dumpbin's option is used, the three
-            // copyright lines are added to the shell, so the txt file
-            // contains three lines less.
-            // The Rust loop first skips 16 lines and then, for each line,
-            // deletes all the characters up to the fourth space included
-            // (skip=16 tokens=4)
-            for line in buf_reader
-                .lines()
-                .skip(16)
-                .take_while(|l| !l.as_ref().unwrap().is_empty())
-                .map(|l| {
-                    l.unwrap()
-                        .as_str()
-                        .split_whitespace()
-                        .nth(3)
-                        .unwrap()
-                        .to_string()
-                })
-            {
-                writeln!(def_file, "\t{line}")?;
-            }
-
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Command failed {:?}", dumpbin))
-        }
-    } else {
-        Ok(())
+        write_def_file(dll_file, def_file)?;
     }
+
+    Ok(())
+}
+
+fn write_def_file<W: std::io::Write>(dll_file: object::File, mut def_file: W) -> anyhow::Result<W> {
+    use object::read::Object;
+
+    writeln!(def_file, "EXPORTS")?;
+
+    for export in dll_file.exports()? {
+        def_file.write_all(b"\t")?;
+        def_file.write_all(export.name())?;
+        def_file.write_all(b"\n")?;
+    }
+
+    Ok(def_file)
 }
 
 /// Build import library for windows-gnu

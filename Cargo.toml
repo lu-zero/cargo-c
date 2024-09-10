@@ -43,6 +43,7 @@ anyhow = "1.0"
 cc = "1.0"
 glob = "0.3"
 itertools = "0.13"
+object = "0.36.4"
 
 # workaround cargo
 [target.'cfg(windows)'.dependencies.windows-sys]
