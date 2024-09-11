@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use crate::build::{CApiConfig, InstallTarget};
+use crate::build::{CApiConfig, InstallTarget, LibraryTypes};
 use crate::install::LibType;
 use crate::target::Target;
 
@@ -63,7 +63,7 @@ impl BuildTargets {
         name: &str,
         target: &Target,
         targetdir: &Path,
-        libkinds: &[&str],
+        library_types: LibraryTypes,
         capi_config: &CApiConfig,
         use_meson_naming_convention: bool,
     ) -> anyhow::Result<BuildTargets> {
@@ -82,15 +82,11 @@ impl BuildTargets {
             ));
         };
 
-        // Bare metal does not support shared objects
-        let build_shared_lib = libkinds.contains(&"cdylib") && target.os.as_str() != "none";
-        let build_static_lib = libkinds.contains(&"staticlib");
-
         Ok(BuildTargets {
             pc,
             include,
-            static_lib: build_static_lib.then_some(file_names.static_lib),
-            shared_lib: build_shared_lib.then_some(file_names.shared_lib),
+            static_lib: library_types.staticlib.then_some(file_names.static_lib),
+            shared_lib: library_types.cdylib.then_some(file_names.shared_lib),
             impl_lib: file_names.impl_lib,
             debug_info: file_names.debug_info,
             def: file_names.def,

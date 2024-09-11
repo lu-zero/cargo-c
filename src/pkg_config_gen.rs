@@ -325,8 +325,6 @@ mod test {
     }
 
     mod test_canonicalize {
-        use std::path::Path;
-
         use super::canonicalize;
 
         #[test]
@@ -408,6 +406,8 @@ mod test {
 
         #[cfg(windows)]
         mod windows {
+            use std::path::Path;
+
             use super::*;
 
             #[test]
