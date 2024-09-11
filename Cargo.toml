@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/lu-zero/cargo-c"
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 keywords = ["cargo", "cdylib"]
-rust-version = "1.78"
+rust-version = "1.79"
 
 [[bin]]
 name = "cargo-capi"
