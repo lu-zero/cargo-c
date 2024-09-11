@@ -103,7 +103,7 @@ fn build_pc_files(
 
 fn patch_target(
     pkg: &mut Package,
-    libkinds: &[&str],
+    library_types: LibraryTypes,
     capi_config: &CApiConfig,
 ) -> anyhow::Result<()> {
     use cargo::core::compiler::CrateType;
@@ -111,20 +111,19 @@ fn patch_target(
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
-    let kinds: Vec<_> = libkinds
-        .iter()
-        .map(|&kind| match kind {
-            "staticlib" => CrateType::Staticlib,
-            "cdylib" => CrateType::Cdylib,
-            _ => unreachable!(),
-        })
-        .collect();
+    let mut kinds = Vec::with_capacity(2);
 
-    for target in targets.iter_mut() {
-        if target.is_lib() {
-            target.set_kind(TargetKind::Lib(kinds.clone()));
-            target.set_name(&capi_config.library.name);
-        }
+    if library_types.staticlib {
+        kinds.push(CrateType::Staticlib);
+    }
+
+    if library_types.cdylib {
+        kinds.push(CrateType::Cdylib);
+    }
+
+    for target in targets.iter_mut().filter(|t| t.is_lib()) {
+        target.set_kind(TargetKind::Lib(kinds.to_vec()));
+        target.set_name(&capi_config.library.name);
     }
 
     Ok(())
@@ -953,7 +952,7 @@ impl CPackage {
     fn from_package(
         pkg: &mut Package,
         args: &ArgMatches,
-        libkinds: &[&str],
+        library_types: LibraryTypes,
         rustc_target: &target::Target,
         root_output: &Path,
     ) -> anyhow::Result<CPackage> {
@@ -962,7 +961,7 @@ impl CPackage {
         let root_path = pkg.root().to_path_buf();
         let capi_config = load_manifest_capi_config(pkg, rustc_target)?;
 
-        patch_target(pkg, libkinds, &capi_config)?;
+        patch_target(pkg, library_types, &capi_config)?;
 
         let name = &capi_config.library.name;
 
@@ -971,7 +970,7 @@ impl CPackage {
             name,
             rustc_target,
             root_output,
-            libkinds,
+            library_types,
             &capi_config,
             args.get_flag("meson"),
         )?;
@@ -997,6 +996,63 @@ fn deprecation_warnings(ws: &Workspace, args: &ArgMatches) -> anyhow::Result<()>
     }
 
     Ok(())
+}
+
+/// What library types to build
+#[derive(Debug, Clone, Copy)]
+pub struct LibraryTypes {
+    pub staticlib: bool,
+    pub cdylib: bool,
+}
+
+impl LibraryTypes {
+    fn from_target(target: &target::Target) -> Self {
+        // for os == "none", cdylib does not make sense. By default cdylib is also not built on
+        // musl, but that can be overriden by the user. That is useful when musl is being used as
+        // main libc, e.g. in Alpine, Gentoo and OpenWRT
+        //
+        // See also
+        //
+        // - https://github.com/lu-zero/cargo-c?tab=readme-ov-file#shared-libraries-are-not-built-on-musl-systems
+        // - https://github.com/lu-zero/cargo-c/issues/180
+        Self {
+            staticlib: true,
+            cdylib: target.os != "none" && target.env != "musl",
+        }
+    }
+
+    fn from_args(target: &target::Target, args: &ArgMatches) -> Self {
+        match args.get_many::<String>("library-type") {
+            Some(library_types) => Self::from_library_types(target, library_types),
+            None => Self::from_target(target),
+        }
+    }
+
+    pub(crate) fn from_library_types<S: AsRef<str>>(
+        target: &target::Target,
+        library_types: impl Iterator<Item = S>,
+    ) -> Self {
+        let (mut staticlib, mut cdylib) = (false, false);
+
+        for library_type in library_types {
+            staticlib |= library_type.as_ref() == "staticlib";
+            cdylib |= library_type.as_ref() == "cdylib";
+        }
+
+        // when os is none, a cdylib cannot be produced
+        // forcing a cdylib for musl is allowed here (see [`LibraryTypes::from_target`])
+        cdylib &= target.os != "none";
+
+        Self { staticlib, cdylib }
+    }
+
+    const fn only_staticlib(self) -> bool {
+        self.staticlib && !self.cdylib
+    }
+
+    const fn only_cdylib(self) -> bool {
+        self.cdylib && !self.staticlib
+    }
 }
 
 fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
@@ -1029,28 +1085,15 @@ pub fn cbuild(
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     deprecation_warnings(ws, args)?;
 
-    let rustc = config.load_global_rustc(Some(ws))?;
-    let targets = args.targets()?;
-    let (target, is_target_overridden) = match targets.len() {
-        0 => (rustc.host.to_string(), false),
-        1 => (targets[0].to_string(), true),
-        _ => {
-            anyhow::bail!("Multiple targets not supported yet");
-        }
+    let (target, is_target_overridden) = match args.targets()?.as_slice() {
+        [] => (config.load_global_rustc(Some(ws))?.host.to_string(), false),
+        [target] => (target.to_string(), true),
+        [..] => anyhow::bail!("Multiple targets not supported yet"),
     };
 
     let rustc_target = target::Target::new(Some(&target), is_target_overridden)?;
 
-    let default_kind = || match (rustc_target.os.as_str(), rustc_target.env.as_str()) {
-        ("none", _) | (_, "musl") => vec!["staticlib"],
-        _ => vec!["staticlib", "cdylib"],
-    };
-
-    let libkinds = args
-        .get_many::<String>("library-type")
-        .map_or_else(default_kind, |v| v.map(String::as_str).collect::<Vec<_>>());
-    let only_staticlib = !libkinds.contains(&"cdylib");
-    let only_cdylib = !libkinds.contains(&"staticlib");
+    let library_types = LibraryTypes::from_args(&rustc_target, args);
 
     let profile = args.get_profile_name(default_profile, ProfileChecking::Custom)?;
 
@@ -1066,10 +1109,7 @@ pub fn cbuild(
         .join(PathBuf::from(target))
         .join(profiles.get_dir_name());
 
-    let capi_feature = InternedString::new("capi");
-
     let mut members = Vec::new();
-
     let mut pristine = false;
 
     let requested: Vec<_> = compile_opts
@@ -1079,22 +1119,23 @@ pub fn cbuild(
         .map(|p| p.package_id())
         .collect();
 
-    for m in ws.members_mut().filter(|m| {
-        m.library().is_some()
-            && m.summary().features().contains_key(&capi_feature)
-            && requested.contains(&m.package_id())
-    }) {
-        let cpkg = CPackage::from_package(m, args, &libkinds, &rustc_target, &root_output)?;
+    let capi_feature = InternedString::new("capi");
+    let is_relevant_package = |package: &Package| {
+        package.library().is_some()
+            && package.summary().features().contains_key(&capi_feature)
+            && requested.contains(&package.package_id())
+    };
 
-        pristine = pristine || cpkg.finger_print.load_previous().is_err();
+    for m in ws.members_mut().filter(|p| is_relevant_package(p)) {
+        let cpkg = CPackage::from_package(m, args, library_types, &rustc_target, &root_output)?;
+
+        pristine |= cpkg.finger_print.load_previous().is_err();
 
         members.push(cpkg);
     }
 
-    if pristine {
-        // If the cache is somehow missing force a full rebuild;
-        compile_opts.build_config.force_rebuild = true;
-    }
+    // If the cache is somehow missing force a full rebuild;
+    compile_opts.build_config.force_rebuild |= pristine;
 
     let exec = Arc::new(Exec::default());
     let out_dirs = compile_with_exec(
@@ -1134,7 +1175,7 @@ pub fn cbuild(
         // if the hash value does not match.
         if new_build && !cpkg.finger_print.is_valid() {
             let name = &cpkg.capi_config.library.name;
-            let (pkg_config_static_libs, static_libs) = if only_cdylib {
+            let (pkg_config_static_libs, static_libs) = if library_types.only_cdylib() {
                 (String::new(), String::new())
             } else if let Some(libs) = exec.link_line.lock().unwrap().values().next() {
                 (static_libraries(libs, &rustc_target), libs.to_string())
@@ -1145,14 +1186,14 @@ pub fn cbuild(
             let build_targets = &cpkg.build_targets;
 
             let mut pc = PkgConfig::from_workspace(name, &cpkg.install_paths, args, capi_config);
-            if only_staticlib {
+            if library_types.only_staticlib() {
                 pc.add_lib(&pkg_config_static_libs);
             }
             pc.add_lib_private(&pkg_config_static_libs);
 
             build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
-            if !only_staticlib && capi_config.library.import_library {
+            if !library_types.only_staticlib() && capi_config.library.import_library {
                 let lib_name = name;
                 build_def_file(ws, lib_name, &rustc_target, &root_output)?;
                 build_implib_file(ws, lib_name, &rustc_target, &root_output)?;
@@ -1178,7 +1219,7 @@ pub fn cbuild(
                     &name.replace('-', "_"),
                     &rustc_target,
                     &root_output,
-                    &libkinds,
+                    library_types,
                     capi_config,
                     args.get_flag("meson"),
                 )?;
@@ -1350,17 +1391,17 @@ mod tests {
         let target_msvc = target::Target::new(Some("x86_64-pc-windows-msvc"), false).unwrap();
         let target_mingw = target::Target::new(Some("x86_64-pc-windows-gnu"), false).unwrap();
 
-        assert_eq!(static_libraries(&libs_osx, &target_osx), "-lSystem -lc -lm");
+        assert_eq!(static_libraries(libs_osx, &target_osx), "-lSystem -lc -lm");
         assert_eq!(
-            static_libraries(&libs_linux, &target_linux),
+            static_libraries(libs_linux, &target_linux),
             "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
         );
         assert_eq!(
-            static_libraries(&libs_msvc, &target_msvc),
+            static_libraries(libs_msvc, &target_msvc),
             "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32 -lmsvcrt"
         );
         assert_eq!(
-            static_libraries(&libs_mingw, &target_mingw),
+            static_libraries(libs_mingw, &target_mingw),
             "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32"
         );
     }
