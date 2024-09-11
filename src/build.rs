@@ -16,6 +16,7 @@ use anyhow::Context as _;
 use cargo_util::paths::{copy, create_dir_all, open, read, read_bytes, write};
 use implib::def::ModuleDef;
 use implib::{Flavor, ImportLibrary, MachineType};
+use itertools::Itertools;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -998,6 +999,28 @@ fn deprecation_warnings(ws: &Workspace, args: &ArgMatches) -> anyhow::Result<()>
     Ok(())
 }
 
+fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
+    link_line
+        .trim()
+        .split(' ')
+        .filter(|s| {
+            if rustc_target.env == "msvc" && s.starts_with("/defaultlib") {
+                return false;
+            }
+            !s.is_empty()
+        })
+        .unique()
+        .map(|lib| {
+            if rustc_target.env == "msvc" && lib.ends_with(".lib") {
+                return format!("-l{}", lib.trim_end_matches(".lib"));
+            }
+            lib.trim().to_string()
+        })
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &GlobalContext,
@@ -1111,25 +1134,21 @@ pub fn cbuild(
         // if the hash value does not match.
         if new_build && !cpkg.finger_print.is_valid() {
             let name = &cpkg.capi_config.library.name;
-            let static_libs = if only_cdylib {
-                "".to_string()
+            let (pkg_config_static_libs, static_libs) = if only_cdylib {
+                (String::new(), String::new())
+            } else if let Some(libs) = exec.link_line.lock().unwrap().values().next() {
+                (static_libraries(libs, &rustc_target), libs.to_string())
             } else {
-                exec.link_line
-                    .lock()
-                    .unwrap()
-                    .values()
-                    .next()
-                    .map_or("", |s| s)
-                    .to_string()
+                (String::new(), String::new())
             };
             let capi_config = &cpkg.capi_config;
             let build_targets = &cpkg.build_targets;
 
             let mut pc = PkgConfig::from_workspace(name, &cpkg.install_paths, args, capi_config);
             if only_staticlib {
-                pc.add_lib(&static_libs);
+                pc.add_lib(&pkg_config_static_libs);
             }
-            pc.add_lib_private(&static_libs);
+            pc.add_lib_private(&pkg_config_static_libs);
 
             build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
@@ -1184,6 +1203,8 @@ pub fn cbuild(
                 }
             }
 
+            // This can be supplied to Rust, so it must be in
+            // linker-native syntax
             cpkg.finger_print.static_libs = static_libs;
             cpkg.finger_print.store()?;
         } else {
@@ -1315,5 +1336,32 @@ mod tests {
         library.version_suffix_components = Some(VersionSuffix::MajorMinorPatch);
         let sover = library.sover();
         assert_eq!(sover, "1.0.0");
+    }
+
+    #[test]
+    pub fn test_lib_listing() {
+        let libs_osx = "-lSystem -lc -lm";
+        let libs_linux = "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc";
+        let libs_msvc = "kernel32.lib advapi32.lib kernel32.lib ntdll.lib userenv.lib ws2_32.lib kernel32.lib ws2_32.lib kernel32.lib msvcrt.lib /defaultlib:msvcrt";
+        let libs_mingw = "-lkernel32 -ladvapi32 -lkernel32 -lntdll -luserenv -lws2_32 -lkernel32 -lws2_32 -lkernel32";
+
+        let target_osx = target::Target::new(Some("x86_64-apple-darwin"), false).unwrap();
+        let target_linux = target::Target::new(Some("x86_64-unknown-linux-gnu"), false).unwrap();
+        let target_msvc = target::Target::new(Some("x86_64-pc-windows-msvc"), false).unwrap();
+        let target_mingw = target::Target::new(Some("x86_64-pc-windows-gnu"), false).unwrap();
+
+        assert_eq!(static_libraries(&libs_osx, &target_osx), "-lSystem -lc -lm");
+        assert_eq!(
+            static_libraries(&libs_linux, &target_linux),
+            "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
+        );
+        assert_eq!(
+            static_libraries(&libs_msvc, &target_msvc),
+            "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32 -lmsvcrt"
+        );
+        assert_eq!(
+            static_libraries(&libs_mingw, &target_mingw),
+            "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32"
+        );
     }
 }
