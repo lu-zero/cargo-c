@@ -988,12 +988,24 @@ impl CPackage {
     }
 }
 
+fn deprecation_warnings(ws: &Workspace, args: &ArgMatches) -> anyhow::Result<()> {
+    if args.contains_id("dlltool") {
+        ws.gctx()
+        .shell()
+        .warn("The `dlltool` support is now builtin. The cli option is deprecated and will be removed in the future")?;
+    }
+
+    Ok(())
+}
+
 pub fn cbuild(
     ws: &mut Workspace,
     config: &GlobalContext,
     args: &ArgMatches,
     default_profile: &str,
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
+    deprecation_warnings(ws, args)?;
+
     let rustc = config.load_global_rustc(Some(ws))?;
     let targets = args.targets()?;
     let (target, is_target_overridden) = match targets.len() {

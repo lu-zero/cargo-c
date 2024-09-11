@@ -47,7 +47,7 @@ struct Common {
     #[clap(long = "datadir")]
     datadir: Option<PathBuf>,
     #[clap(long = "dlltool")]
-    /// Use the provided dlltool when building for the windows-gnu targets.
+    /// Use the provided dlltool when building for the windows-gnu targets. (deprecated and no-op)
     dlltool: Option<PathBuf>,
     #[clap(long = "crt-static")]
     /// Build the library embedding the C runtime
