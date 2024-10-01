@@ -16,18 +16,15 @@ fn main() -> CliResult {
     let cli_install = subcommand_install("install", "Install the crate C-API");
     let cli_test = subcommand_test("test");
 
-    let mut app = clap::command!()
-        .dont_collapse_args_in_usage(true)
-        .allow_external_subcommands(true)
-        .subcommand(
-            Command::new("capi")
-                .allow_external_subcommands(true)
-                .about("Build or install the crate C-API")
-                .arg(flag("version", "Print version info and exit").short('V'))
-                .subcommand(cli_build)
-                .subcommand(cli_install)
-                .subcommand(cli_test),
-        );
+    let mut app = main_cli().subcommand(
+        Command::new("capi")
+            .allow_external_subcommands(true)
+            .about("Build or install the crate C-API")
+            .arg(flag("version", "Print version info and exit").short('V'))
+            .subcommand(cli_build)
+            .subcommand(cli_install)
+            .subcommand(cli_test),
+    );
 
     let args = app.clone().get_matches();
 

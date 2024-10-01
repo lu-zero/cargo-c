@@ -32,7 +32,7 @@ cargo = "0.82.0"
 cargo-util = "0.2"
 semver = "1.0.3"
 log = "0.4"
-clap = { version = "4.0.29", features = ["color", "derive", "cargo", "string"] }
+clap = { version = "4.5.18", features = ["color", "derive", "cargo", "string", "wrap_help"] }
 regex = "1.5.6"
 cbindgen = { version="0.27.0", default-features=false }
 toml = "0.8"
