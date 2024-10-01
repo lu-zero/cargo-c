@@ -1,8 +1,7 @@
 use cargo::util::command_prelude::*;
 
 use cargo_c::build::*;
-use cargo_c::cli::run_cargo_fallback;
-use cargo_c::cli::subcommand_test;
+use cargo_c::cli::{main_cli, run_cargo_fallback, subcommand_test};
 use cargo_c::config::*;
 
 fn main() -> CliResult {
@@ -10,10 +9,7 @@ fn main() -> CliResult {
 
     let subcommand = subcommand_test("ctest");
 
-    let mut app = clap::command!()
-        .dont_collapse_args_in_usage(true)
-        .allow_external_subcommands(true)
-        .subcommand(subcommand);
+    let mut app = main_cli().subcommand(subcommand);
 
     let args = app.clone().get_matches();
 

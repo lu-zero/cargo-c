@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use cargo::util::command_prelude::CommandExt;
 use cargo::util::command_prelude::{flag, multi_opt, opt};
-use cargo::util::{CliError, CliResult};
+use cargo::util::{style, CliError, CliResult};
 
 use cargo_util::{ProcessBuilder, ProcessError};
 
@@ -55,6 +55,23 @@ struct Common {
     /// Use the Linux/Meson library naming convention on Windows
     #[clap(long = "meson-paths", default_value = "false")]
     meson: bool,
+}
+
+pub fn main_cli() -> Command {
+    let styles = {
+        clap::builder::styling::Styles::styled()
+            .header(style::HEADER)
+            .usage(style::USAGE)
+            .literal(style::LITERAL)
+            .placeholder(style::PLACEHOLDER)
+            .error(style::ERROR)
+            .valid(style::VALID)
+            .invalid(style::INVALID)
+    };
+    clap::command!()
+        .dont_collapse_args_in_usage(true)
+        .allow_external_subcommands(true)
+        .styles(styles)
 }
 
 fn base_cli() -> Command {

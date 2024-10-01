@@ -3,18 +3,14 @@ use cargo::CliResult;
 use cargo::GlobalContext;
 
 use cargo_c::build::*;
-use cargo_c::cli::run_cargo_fallback;
-use cargo_c::cli::subcommand_build;
+use cargo_c::cli::{main_cli, run_cargo_fallback, subcommand_build};
 use cargo_c::config::*;
 
 fn main() -> CliResult {
     let mut config = GlobalContext::default()?;
 
     let subcommand = subcommand_build("cbuild", "Build the crate C-API");
-    let mut app = clap::command!()
-        .dont_collapse_args_in_usage(true)
-        .allow_external_subcommands(true)
-        .subcommand(subcommand);
+    let mut app = main_cli().subcommand(subcommand);
 
     let args = app.clone().get_matches();
 
