@@ -1177,7 +1177,7 @@ pub fn cbuild(
             let name = &cpkg.capi_config.library.name;
             let (pkg_config_static_libs, static_libs) = if library_types.only_cdylib() {
                 (String::new(), String::new())
-            } else if let Some(libs) = exec.link_line.lock().unwrap().values().next() {
+            } else if let Some(libs) = exec.link_line.lock().unwrap().get(&cpkg.finger_print.id) {
                 (static_libraries(libs, &rustc_target), libs.to_string())
             } else {
                 (String::new(), String::new())
