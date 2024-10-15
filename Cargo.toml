@@ -67,3 +67,7 @@ vendored-openssl = ["cargo/vendored-openssl"]
 [profile.release-strip]
 inherits = "release"
 strip = "symbols"
+
+# To avoid #414
+[workspace]
+exclude = ["example-project", "example-workspace"]
