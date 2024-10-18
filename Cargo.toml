@@ -46,20 +46,6 @@ itertools = "0.13"
 implib = "0.3.3"
 object = { version = "0.36.4", default-features = false, features = ["std", "read_core", "pe"] }
 
-# workaround cargo
-[target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52"
-features = [
-  "Win32_Foundation",
-  "Win32_Storage_FileSystem",
-  "Win32_System_IO",
-  "Win32_System_Console",
-  "Win32_System_Threading",
-  "Win32_System_JobObjects",
-  "Win32_Security",
-  "Win32_System_SystemServices"
-]
-
 [features]
 default = []
 vendored-openssl = ["cargo/vendored-openssl"]
