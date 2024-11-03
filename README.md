@@ -49,7 +49,7 @@ For a more in-depth explanation of how `cargo-c` works and how to use it for
 your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
 
 ### The TL;DR:
-
+This is the ideal setup for a project that wants to keep their C-API within the main crate:
 - [Create][diff-1] a `capi.rs` with the C-API you want to expose and use
   ~~`#[cfg(cargo_c)]`~~`#[cfg(feature="capi")]` to hide it when you build a normal rust library.
 - [Make sure][diff-2] you have a lib target and if you are using a workspace
@@ -65,10 +65,16 @@ your crates, read [Building Crates so they Look Like C ABI Libraries][dev.to].
   to install `cargo-c` and do `cargo cinstall --prefix=/usr
   --destdir=/tmp/some-place` or something along those lines.
 
+If you plan to keep the bindings as a separate crate and do not need to autogenerate the headers you may just [populate Cargo.toml][diff-5]:
+- Add a `capi` feature, since it is used by cargo-c to identify packages that has to be built as C-libraries within a workspace.
+- Set the entry in `package.metadata.capi.header.generate` to `false`.
+- Optionally override the path to the header to a custom one instead of the default one.
+
 [diff-1]: https://github.com/RustAudio/lewton/pull/50/commits/557cb4ce35beedf6d6bfaa481f29936094a71669
 [diff-2]: https://github.com/RustAudio/lewton/pull/50/commits/e7ea8fff6423213d1892e86d51c0c499d8904dc1
 [diff-3]: https://github.com/xiph/rav1e/pull/1381/commits/7d558125f42f4b503bcdcda5a82765da76a227e0#diff-80398c5faae3c069e4e6aa2ed11b28c0R94
 [diff-4]: https://github.com/RustAudio/lewton/pull/51/files
+[diff-5]: https://github.com/linebender/resvg/commit/c0777c7ce26bf40efed7ba38d0a70e5af83feb78
 [cbindgen-toml]: https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
 
 ## Advanced
