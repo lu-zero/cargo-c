@@ -102,6 +102,7 @@ impl LibType {
             | ("android", _)
             | ("haiku", _)
             | ("illumos", _)
+            | ("openbsd", _)
             | ("emscripten", _) => LibType::So,
             ("macos", _) | ("ios", _) | ("tvos", _) | ("visionos", _) => LibType::Dylib,
             ("windows", _) => LibType::Windows,
