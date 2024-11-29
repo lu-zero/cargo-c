@@ -47,13 +47,23 @@ jobs:
         run: |
           cargo cbuild --verbose --release
 
+      - name: Build C API for example workspace
+        working-directory: example-workspace
+        run: |
+          cargo cbuild --verbose --release
+
       - name: Run C API tests for example project
         working-directory: example-project
         run: |
           cargo ctest --verbose --release
 
-      - name: Install into temporary location
+      - name: Install into temporary location the example project
         working-directory: example-project
+        run: |
+          cargo cinstall --verbose --release --destdir=temp
+
+      - name: Install into temporary location the example workspace
+        working-directory: example-workspace
         run: |
           cargo cinstall --verbose --release --destdir=temp
 
@@ -62,7 +72,7 @@ jobs:
         working-directory: example-project
         run: |
           sudo cp -r temp/usr/local/* /usr/local/
-      
+
       - name: Install into Cargo root
         if: startsWith(matrix.os, 'windows')
         shell: bash
@@ -82,13 +92,13 @@ jobs:
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: pkgconf
-  
+
       - name: Setup Meson + Ninja
         if: startsWith(matrix.os, 'windows')
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install meson ninja
-  
+
       - name: Setup MSVC for test
         if: startsWith(matrix.os, 'windows')
         uses: ilammy/msvc-dev-cmd@v1

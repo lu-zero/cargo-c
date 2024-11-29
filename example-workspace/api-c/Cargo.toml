@@ -1,0 +1,16 @@
+[package]
+name = "api-c"
+version = "0.1.0"
+authors = ["Luca Barbato <lu_zero@gentoo.org>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+capi = ["libc"]
+
+[dependencies]
+libc = { version = "0.2", optional = true }
+
+[package.metadata.capi.library]
+name = "name_with_underscore-and-dashes"

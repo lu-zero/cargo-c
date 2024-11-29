@@ -2,4 +2,5 @@
 members = [
     "api-a",
     "api-b",
+    "api-c",
 ]
