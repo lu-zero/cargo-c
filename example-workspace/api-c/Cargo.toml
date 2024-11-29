@@ -14,3 +14,6 @@ libc = { version = "0.2", optional = true }
 
 [package.metadata.capi.library]
 name = "name_with_underscore-and-dashes"
+version_suffix_components = 3
+rustflags = "-Cmetadata=name_with_underscore-and-dashes"
+
