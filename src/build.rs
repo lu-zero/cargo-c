@@ -147,19 +147,23 @@ fn build_def_file(
         // Create the .def output file
         let def_file = cargo_util::paths::create(targetdir.join(format!("{name}.def")))?;
 
-        write_def_file(dll_file, def_file)?;
+        write_def_file(name, dll_file, def_file)?;
     }
 
     Ok(())
 }
 
-fn write_def_file<W: std::io::Write>(dll_file: object::File, mut def_file: W) -> anyhow::Result<W> {
+fn write_def_file<W: std::io::Write>(
+    name: &str,
+    dll_file: object::File,
+    mut def_file: W,
+) -> anyhow::Result<W> {
     use object::read::Object;
 
+    writeln!(def_file, "LIBRARY \"{name}.dll\"")?;
     writeln!(def_file, "EXPORTS")?;
 
     for export in dll_file.exports()? {
-        def_file.write_all(b"\t")?;
         def_file.write_all(export.name())?;
         def_file.write_all(b"\n")?;
     }
