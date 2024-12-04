@@ -88,6 +88,7 @@ impl Target {
             || os == "haiku"
             || os == "illumos"
             || os == "openbsd"
+            || os == "hurd"
         {
             lines.push(if capi_config.library.versioning {
                 format!("-Wl,-soname,lib{lib_name}.so.{sover}")

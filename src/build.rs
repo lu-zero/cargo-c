@@ -1387,17 +1387,23 @@ mod tests {
     pub fn test_lib_listing() {
         let libs_osx = "-lSystem -lc -lm";
         let libs_linux = "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc";
+        let libs_hurd = "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc";
         let libs_msvc = "kernel32.lib advapi32.lib kernel32.lib ntdll.lib userenv.lib ws2_32.lib kernel32.lib ws2_32.lib kernel32.lib msvcrt.lib /defaultlib:msvcrt";
         let libs_mingw = "-lkernel32 -ladvapi32 -lkernel32 -lntdll -luserenv -lws2_32 -lkernel32 -lws2_32 -lkernel32";
 
         let target_osx = target::Target::new(Some("x86_64-apple-darwin"), false).unwrap();
         let target_linux = target::Target::new(Some("x86_64-unknown-linux-gnu"), false).unwrap();
+        let target_hurd = target::Target::new(Some("x86_64-unknown-hurd-gnu"), false).unwrap();
         let target_msvc = target::Target::new(Some("x86_64-pc-windows-msvc"), false).unwrap();
         let target_mingw = target::Target::new(Some("x86_64-pc-windows-gnu"), false).unwrap();
 
         assert_eq!(static_libraries(libs_osx, &target_osx), "-lSystem -lc -lm");
         assert_eq!(
             static_libraries(libs_linux, &target_linux),
+            "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
+        );
+        assert_eq!(
+            static_libraries(libs_hurd, &target_hurd),
             "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
         );
         assert_eq!(
