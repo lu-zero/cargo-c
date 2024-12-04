@@ -148,7 +148,7 @@ impl FileNames {
     fn from_target(target: &Target, lib_name: &str, targetdir: &Path) -> Option<Self> {
         let (shared_lib, static_lib, impl_lib, debug_info, def) = match target.os.as_str() {
             "none" | "linux" | "freebsd" | "dragonfly" | "netbsd" | "android" | "haiku"
-            | "illumos" | "openbsd" | "emscripten" => {
+            | "illumos" | "openbsd" | "emscripten" | "hurd" => {
                 let static_lib = targetdir.join(format!("lib{lib_name}.a"));
                 let shared_lib = targetdir.join(format!("lib{lib_name}.so"));
                 (shared_lib, static_lib, None, None, None)
@@ -207,6 +207,7 @@ mod test {
             "haiku",
             "illumos",
             "emscripten",
+            "hurd",
         ] {
             let target = Target {
                 is_target_overridden: false,
