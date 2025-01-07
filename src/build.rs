@@ -174,6 +174,7 @@ fn write_def_file<W: std::io::Write>(
 /// Build import library for windows-gnu
 fn build_implib_file(
     ws: &Workspace,
+    build_targets: &BuildTargets,
     name: &str,
     target: &target::Target,
     targetdir: &Path,
@@ -201,10 +202,7 @@ fn build_implib_file(
             }
         };
 
-        let lib_path = match flavor {
-            Flavor::Msvc => targetdir.join(format!("{name}.dll.lib")),
-            Flavor::Gnu => targetdir.join(format!("{name}.dll.a")),
-        };
+        let lib_path = build_targets.impl_lib.as_ref().unwrap();
 
         let lib_file = cargo_util::paths::create(lib_path)?;
         write_implib(lib_file, machine_type, flavor, &def_contents)?;
@@ -1200,7 +1198,7 @@ pub fn cbuild(
             if !library_types.only_staticlib() && capi_config.library.import_library {
                 let lib_name = name;
                 build_def_file(ws, lib_name, &rustc_target, &root_output)?;
-                build_implib_file(ws, lib_name, &rustc_target, &root_output)?;
+                build_implib_file(ws, build_targets, lib_name, &rustc_target, &root_output)?;
             }
 
             if capi_config.header.enabled {
