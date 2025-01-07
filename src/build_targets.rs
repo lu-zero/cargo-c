@@ -129,10 +129,18 @@ impl BuildTargets {
     }
 
     pub fn shared_output_file_name(&self) -> Option<OsString> {
-        if self.shared_lib.is_some() && self.use_meson_naming_convention {
-            Some(format!("lib{}.dll", self.name).into())
-        } else {
-            Some(self.shared_lib.as_ref()?.file_name().unwrap().to_owned())
+        match self.lib_type() {
+            LibType::Windows => {
+                if self.shared_lib.is_some()
+                    && self.use_meson_naming_convention
+                    && self.target.env == "gnu"
+                {
+                    Some(format!("lib{}.dll", self.name).into())
+                } else {
+                    Some(self.shared_lib.as_ref()?.file_name()?.to_owned())
+                }
+            }
+            _ => Some(self.shared_lib.as_ref()?.file_name()?.to_owned()),
         }
     }
 }
