@@ -270,11 +270,7 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                     }
                     if capi_config.library.import_library {
                         let impl_lib = build_targets.impl_lib.as_ref().unwrap();
-                        let impl_lib_name = if build_targets.use_meson_naming_convention {
-                            format!("{}.lib", build_targets.name).into()
-                        } else {
-                            impl_lib.file_name().unwrap().to_owned()
-                        };
+                        let impl_lib_name = impl_lib.file_name().unwrap();
                         copy(ws, impl_lib, install_path_lib.join(impl_lib_name))?;
                         let def = build_targets.def.as_ref().unwrap();
                         let def_name = def.file_name().unwrap();
