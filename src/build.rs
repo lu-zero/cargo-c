@@ -147,20 +147,15 @@ fn build_def_file(
         // Create the .def output file
         let def_file = cargo_util::paths::create(targetdir.join(format!("{name}.def")))?;
 
-        write_def_file(name, dll_file, def_file)?;
+        write_def_file(dll_file, def_file)?;
     }
 
     Ok(())
 }
 
-fn write_def_file<W: std::io::Write>(
-    name: &str,
-    dll_file: object::File,
-    mut def_file: W,
-) -> anyhow::Result<W> {
+fn write_def_file<W: std::io::Write>(dll_file: object::File, mut def_file: W) -> anyhow::Result<W> {
     use object::read::Object;
 
-    writeln!(def_file, "LIBRARY \"{name}.dll\"")?;
     writeln!(def_file, "EXPORTS")?;
 
     for export in dll_file.exports()? {
@@ -171,7 +166,7 @@ fn write_def_file<W: std::io::Write>(
     Ok(def_file)
 }
 
-/// Build import library for windows-gnu
+/// Build import library for windows
 fn build_implib_file(
     ws: &Workspace,
     build_targets: &BuildTargets,
@@ -202,10 +197,15 @@ fn build_implib_file(
             }
         };
 
-        let lib_path = build_targets.impl_lib.as_ref().unwrap();
+        let lib_name = build_targets
+            .shared_output_file_name()
+            .unwrap()
+            .into_string()
+            .unwrap();
+        let implib_path = build_targets.impl_lib.as_ref().unwrap();
 
-        let lib_file = cargo_util::paths::create(lib_path)?;
-        write_implib(lib_file, machine_type, flavor, &def_contents)?;
+        let implib_file = cargo_util::paths::create(implib_path)?;
+        write_implib(implib_file, lib_name, machine_type, flavor, &def_contents)?;
     }
 
     Ok(())
@@ -213,11 +213,14 @@ fn build_implib_file(
 
 fn write_implib<W: std::io::Write + std::io::Seek>(
     mut w: W,
+    lib_name: String,
     machine_type: MachineType,
     flavor: Flavor,
     def_contents: &str,
 ) -> anyhow::Result<W> {
-    let module_def = ModuleDef::parse(def_contents, machine_type)?;
+    let mut module_def = ModuleDef::parse(def_contents, machine_type)?;
+    module_def.import_name = lib_name;
+
     let import_library = ImportLibrary::from_def(module_def, machine_type, flavor);
 
     import_library.write_to(&mut w)?;
