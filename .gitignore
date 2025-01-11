@@ -1,5 +1,4 @@
 /target
 **/*.rs.bk
-Cargo.lock
 /example-project/target/
 /example-project/usage-from-c/run_tests
