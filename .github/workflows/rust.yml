@@ -56,7 +56,7 @@ jobs:
         run: bash coverage.sh
 
       - name: Codecov upload
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: coverage.lcov
 
