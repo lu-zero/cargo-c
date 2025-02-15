@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -235,6 +236,7 @@ struct FingerPrint {
     build_targets: BuildTargets,
     install_paths: InstallPaths,
     static_libs: String,
+    hasher: DefaultHasher,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -249,21 +251,24 @@ impl FingerPrint {
         root_output: &Path,
         build_targets: &BuildTargets,
         install_paths: &InstallPaths,
+        capi_config: &CApiConfig,
     ) -> Self {
+        let mut hasher = DefaultHasher::new();
+
+        capi_config.hash(&mut hasher);
+
         Self {
             id: id.to_owned(),
             root_output: root_output.to_owned(),
             build_targets: build_targets.clone(),
             install_paths: install_paths.clone(),
             static_libs: String::new(),
+            hasher,
         }
     }
 
     fn hash(&self) -> anyhow::Result<Option<String>> {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = self.hasher.clone();
         self.install_paths.hash(&mut hasher);
 
         let mut paths: Vec<&PathBuf> = Vec::new();
@@ -324,7 +329,7 @@ impl FingerPrint {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct CApiConfig {
     pub header: HeaderCApiConfig,
     pub pkg_config: PkgConfigCApiConfig,
@@ -332,7 +337,7 @@ pub struct CApiConfig {
     pub install: InstallCApiConfig,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct HeaderCApiConfig {
     pub name: String,
     pub subdirectory: String,
@@ -340,7 +345,7 @@ pub struct HeaderCApiConfig {
     pub enabled: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct PkgConfigCApiConfig {
     pub name: String,
     pub filename: String,
@@ -351,14 +356,14 @@ pub struct PkgConfigCApiConfig {
     pub strip_include_path_components: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub enum VersionSuffix {
     Major,
     MajorMinor,
     MajorMinorPatch,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct LibraryCApiConfig {
     pub name: String,
     pub version: Version,
@@ -388,19 +393,19 @@ impl LibraryCApiConfig {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Hash)]
 pub struct InstallCApiConfig {
     pub include: Vec<InstallTarget>,
     pub data: Vec<InstallTarget>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub enum InstallTarget {
     Asset(InstallTargetPaths),
     Generated(InstallTargetPaths),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct InstallTargetPaths {
     /// pattern to feed to glob::glob()
     ///
@@ -980,7 +985,13 @@ impl CPackage {
             args.get_flag("meson"),
         )?;
 
-        let finger_print = FingerPrint::new(&id, root_output, &build_targets, &install_paths);
+        let finger_print = FingerPrint::new(
+            &id,
+            root_output,
+            &build_targets,
+            &install_paths,
+            &capi_config,
+        );
 
         Ok(CPackage {
             version,
