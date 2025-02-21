@@ -126,6 +126,8 @@ jobs:
       - name: Test usage from C (Meson)
         if: runner.os == 'Windows' && matrix.toolchain-suffix == '-msvc'
         working-directory: example-project/usage-from-c
+        env:
+          PKG_CONFIG: pkgconf
         run: |
           meson setup build
           meson compile -C build
