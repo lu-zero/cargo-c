@@ -1145,7 +1145,7 @@ pub fn cbuild(
     for m in ws.members_mut().filter(|p| is_relevant_package(p)) {
         let cpkg = CPackage::from_package(m, args, library_types, &rustc_target, &root_output)?;
 
-        pristine |= cpkg.finger_print.load_previous().is_err();
+        pristine |= cpkg.finger_print.load_previous().is_err() || !cpkg.finger_print.is_valid();
 
         members.push(cpkg);
     }
@@ -1188,8 +1188,7 @@ pub fn cbuild(
 
     for cpkg in members.iter_mut() {
         // it is a new build, build the additional files and update update the cache
-        // if the hash value does not match.
-        if new_build || !cpkg.finger_print.is_valid() {
+        if new_build {
             let name = &cpkg.capi_config.library.name;
             let (pkg_config_static_libs, static_libs) = if library_types.only_cdylib() {
                 (String::new(), String::new())
