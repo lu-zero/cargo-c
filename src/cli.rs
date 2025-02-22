@@ -121,6 +121,16 @@ fn base_cli() -> Command {
             "Build all benches",
             "Build all targets",
         )
+        .arg(
+            multi_opt(
+                "library-type",
+                "LIBRARY-TYPE",
+                "Build only a type of library",
+            )
+            .global(true)
+            .ignore_case(true)
+            .value_parser(["cdylib", "staticlib"]),
+        )
         .arg_profile("Build artifacts with the specified profile")
         .arg_features()
         .arg_target_triple("Build for the target triple")
@@ -151,16 +161,6 @@ pub fn subcommand_build(name: &'static str, about: &'static str) -> Command {
     base_cli()
         .name(name)
         .about(about)
-        .arg(
-            multi_opt(
-                "library-type",
-                "LIBRARY-TYPE",
-                "Build only a type of library",
-            )
-            .global(true)
-            .ignore_case(true)
-            .value_parser(["cdylib", "staticlib"]),
-        )
         .arg_release("Build artifacts in release mode, with optimizations")
         .arg_package_spec_no_all(
             "Package to build (see `cargo help pkgid`)",
@@ -180,16 +180,6 @@ pub fn subcommand_install(name: &'static str, about: &'static str) -> Command {
     base_cli()
         .name(name)
         .about(about)
-        .arg(
-            multi_opt(
-                "library-type",
-                "LIBRARY-TYPE",
-                "Build only a type of library",
-            )
-            .global(true)
-            .ignore_case(true)
-            .value_parser(["cdylib", "staticlib"]),
-        )
         .arg(flag("debug", "Build in debug mode instead of release mode"))
         .arg_release(
             "Build artifacts in release mode, with optimizations. This is the default behavior.",
@@ -210,9 +200,13 @@ the --debug flag will use the `dev` profile instead.
 
 pub fn subcommand_test(name: &'static str) -> Command {
     base_cli()
-        .trailing_var_arg(true)
         .name(name)
         .about("Test the crate C-API")
+        .arg(
+            Arg::new("TESTNAME")
+                .action(ArgAction::Set)
+                .help("If specified, only run tests containing this string in their names"),
+        )
         .arg(
             Arg::new("args")
                 .help("Arguments for the test binary")
