@@ -1033,7 +1033,7 @@ impl LibraryTypes {
         // - https://github.com/lu-zero/cargo-c/issues/180
         Self {
             staticlib: true,
-            cdylib: target.os != "none" && target.env != "musl",
+            cdylib: target.os != "none",
         }
     }
 
