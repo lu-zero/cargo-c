@@ -50,9 +50,18 @@ object = { version = "0.36.4", default-features = false, features = ["std", "rea
 default = []
 vendored-openssl = ["cargo/vendored-openssl"]
 
-[profile.release-strip]
+[profile.release-strip-nolto]
 inherits = "release"
 strip = "symbols"
+opt-level = "s"
+codegen-units = 1
+
+[profile.release-strip-lto]
+inherits = "release-strip-nolto"
+lto = true
+
+[profile.release-strip]
+inherits = "release-strip-lto"
 
 # To avoid #414
 [workspace]
