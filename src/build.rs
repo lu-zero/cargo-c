@@ -235,14 +235,14 @@ struct FingerPrint {
     root_output: PathBuf,
     build_targets: BuildTargets,
     install_paths: InstallPaths,
-    static_libs: String,
+    static_libs: Vec<String>,
     hasher: DefaultHasher,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Cache {
     hash: String,
-    static_libs: String,
+    static_libs: Vec<String>,
 }
 
 impl FingerPrint {
@@ -262,7 +262,7 @@ impl FingerPrint {
             root_output: root_output.to_owned(),
             build_targets: build_targets.clone(),
             install_paths: install_paths.clone(),
-            static_libs: String::new(),
+            static_libs: vec![],
             hasher,
         }
     }
@@ -1071,8 +1071,8 @@ impl LibraryTypes {
     }
 }
 
-fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
-    link_line
+fn static_libraries(link_line: &str, rustc_target: &target::Target) -> Vec<String> {
+    let libs = link_line
         .trim()
         .split(' ')
         .filter(|s| {
@@ -1081,7 +1081,6 @@ fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
             }
             !s.is_empty()
         })
-        .unique()
         .map(|lib| {
             if rustc_target.env == "msvc" && lib.ends_with(".lib") {
                 return format!("-l{}", lib.trim_end_matches(".lib"));
@@ -1089,8 +1088,36 @@ fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
             lib.trim().to_string()
         })
         .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
+        .collect::<Vec<_>>();
+
+    let mut final_libs: Vec<String> = vec![];
+
+    let mut iter = libs.iter();
+
+    // See pkg_config::Library::parse_libs_cflags
+    // Reconstitute improperly split lines
+    while let Some(part) = iter.next() {
+        match part.as_str() {
+            "-framework" => {
+                if let Some(lib) = iter.next() {
+                    final_libs.push(format!("-framework {}", lib));
+                }
+            }
+            "-isystem" | "-iquote" | "-idirafter" => {
+                if let Some(inc) = iter.next() {
+                    final_libs.push(format!("{} {}", part, inc));
+                }
+            }
+            "-undefined" | "--undefined" => {
+                if let Some(symbol) = iter.next() {
+                    final_libs.push(format!("-Wl,{},{}", part, symbol));
+                }
+            }
+            _ => final_libs.push(part.to_string()),
+        }
+    }
+
+    final_libs.into_iter().unique().collect()
 }
 
 pub fn cbuild(
@@ -1191,20 +1218,27 @@ pub fn cbuild(
         if new_build {
             let name = &cpkg.capi_config.library.name;
             let (pkg_config_static_libs, static_libs) = if library_types.only_cdylib() {
-                (String::new(), String::new())
+                (vec![String::new()], vec![String::new()])
             } else if let Some(libs) = exec.link_line.lock().unwrap().get(&cpkg.finger_print.id) {
-                (static_libraries(libs, &rustc_target), libs.to_string())
+                (
+                    static_libraries(libs, &rustc_target),
+                    vec![libs.to_string()],
+                )
             } else {
-                (String::new(), String::new())
+                (vec![String::new()], vec![String::new()])
             };
             let capi_config = &cpkg.capi_config;
             let build_targets = &cpkg.build_targets;
 
             let mut pc = PkgConfig::from_workspace(name, &cpkg.install_paths, args, capi_config);
             if library_types.only_staticlib() {
-                pc.add_lib(&pkg_config_static_libs);
+                for lib in &pkg_config_static_libs {
+                    pc.add_lib(lib);
+                }
             }
-            pc.add_lib_private(&pkg_config_static_libs);
+            for lib in pkg_config_static_libs {
+                pc.add_lib_private(&lib);
+            }
 
             build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
@@ -1324,7 +1358,7 @@ pub fn ctest(
 
         // We push the static_libs as CFLAGS as well to avoid mangling the options on msvc
         cflags.push(" ");
-        cflags.push(&pkg.finger_print.static_libs);
+        cflags.push(pkg.finger_print.static_libs.join(" "));
     }
 
     std::env::set_var("INLINE_C_RS_CFLAGS", cflags);
@@ -1408,21 +1442,24 @@ mod tests {
         let target_msvc = target::Target::new(Some("x86_64-pc-windows-msvc"), false).unwrap();
         let target_mingw = target::Target::new(Some("x86_64-pc-windows-gnu"), false).unwrap();
 
-        assert_eq!(static_libraries(libs_osx, &target_osx), "-lSystem -lc -lm");
         assert_eq!(
-            static_libraries(libs_linux, &target_linux),
+            static_libraries(libs_osx, &target_osx).join(" "),
+            "-lSystem -lc -lm"
+        );
+        assert_eq!(
+            static_libraries(libs_linux, &target_linux).join(" "),
             "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
         );
         assert_eq!(
-            static_libraries(libs_hurd, &target_hurd),
+            static_libraries(libs_hurd, &target_hurd).join(" "),
             "-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc"
         );
         assert_eq!(
-            static_libraries(libs_msvc, &target_msvc),
+            static_libraries(libs_msvc, &target_msvc).join(" "),
             "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32 -lmsvcrt"
         );
         assert_eq!(
-            static_libraries(libs_mingw, &target_mingw),
+            static_libraries(libs_mingw, &target_mingw).join(" "),
             "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32"
         );
     }

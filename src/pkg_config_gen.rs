@@ -2,7 +2,12 @@
 
 use crate::build::CApiConfig;
 use crate::install::InstallPaths;
-use std::path::{Component, Path, PathBuf};
+use log::warn;
+use pkg_config;
+use std::{
+    collections::HashSet,
+    path::{Component, Path, PathBuf},
+};
 
 fn canonicalize<P: AsRef<Path>>(path: P) -> String {
     let mut stack = Vec::with_capacity(16);
@@ -58,6 +63,12 @@ fn canonicalize<P: AsRef<Path>>(path: P) -> String {
 }
 
 #[derive(Debug, Clone)]
+struct PkgConfigDedupInformation {
+    requires: Vec<pkg_config::Library>,
+    requires_private: Vec<pkg_config::Library>,
+}
+
+#[derive(Debug, Clone)]
 pub struct PkgConfig {
     prefix: PathBuf,
     exec_prefix: PathBuf,
@@ -77,6 +88,8 @@ pub struct PkgConfig {
     cflags: Vec<String>,
 
     conflicts: Vec<String>,
+
+    dedup: PkgConfigDedupInformation,
 }
 
 impl PkgConfig {
@@ -99,9 +112,51 @@ impl PkgConfig {
             Some(reqs) => reqs.split(',').map(|s| s.trim().to_string()).collect(),
             _ => Vec::new(),
         };
+
+        let requires_libs = {
+            let cfg = {
+                let mut c = pkg_config::Config::new();
+                // This is not sinkholed by cargo-c
+                c.env_metadata(false);
+                c.cargo_metadata(false);
+
+                c
+            };
+
+            // TODO: log which probe fails
+            requires
+                .iter()
+                .flat_map(|req| {
+                    let c = cfg.probe(req);
+                    if c.is_err() {
+                        warn!("WARNING: library not found: {}", c.as_ref().err().unwrap())
+                    }
+                    c
+                })
+                .collect::<Vec<_>>()
+        };
+
         let requires_private = match &capi_config.pkg_config.requires_private {
             Some(reqs) => reqs.split(',').map(|s| s.trim().to_string()).collect(),
             _ => Vec::new(),
+        };
+
+        let requires_private_libs = {
+            let cfg = {
+                let mut c = pkg_config::Config::new();
+                c.statik(true);
+                // This is not sinkholed by cargo-c
+                c.env_metadata(false);
+                c.cargo_metadata(false);
+
+                c
+            };
+
+            // TODO: log which probe fails
+            requires_private
+                .iter()
+                .flat_map(|req| cfg.probe(req))
+                .collect::<Vec<_>>()
         };
 
         let mut libdir = PathBuf::new();
@@ -111,7 +166,7 @@ impl PkgConfig {
         }
 
         let libs = vec![
-            format!("-L{}", libdir.display()),
+            format!("-L{}", canonicalize(libdir.display().to_string())),
             format!("-l{}", capi_config.library.name),
         ];
 
@@ -146,6 +201,11 @@ impl PkgConfig {
             cflags: vec![cflags],
 
             conflicts: Vec::new(),
+
+            dedup: PkgConfigDedupInformation {
+                requires: requires_libs,
+                requires_private: requires_private_libs,
+            },
         }
     }
 
@@ -236,7 +296,77 @@ impl PkgConfig {
         self.render_help(String::with_capacity(1024)).unwrap()
     }
 
+    fn get_libs_cflags(arg: &[pkg_config::Library]) -> (HashSet<String>, HashSet<String>) {
+        let mut libs: HashSet<String> = HashSet::new();
+        let mut cflags: HashSet<String> = HashSet::new();
+
+        for lib in arg.iter() {
+            for lib in lib.include_paths.iter() {
+                libs.insert(format!("-I{}", lib.to_string_lossy()));
+            }
+            for lib in lib.link_files.iter() {
+                libs.insert(lib.to_string_lossy().to_string());
+            }
+            for lib in lib.libs.iter() {
+                libs.insert(format!("-l{}", lib));
+            }
+            for lib in lib.link_paths.iter() {
+                libs.insert(format!("-L{}", lib.to_string_lossy()));
+            }
+            for lib in lib.frameworks.iter() {
+                libs.insert(format!("-framework {}", lib));
+            }
+            for lib in lib.framework_paths.iter() {
+                libs.insert(format!("-F{}", lib.to_string_lossy()));
+            }
+            for lib in lib.defines.iter() {
+                let v = match lib.1 {
+                    Some(v) => format!("-D{}={}", lib.0, v),
+                    None => format!("D{}", lib.0),
+                };
+                libs.insert(v);
+            }
+            for lib in lib.ld_args.iter() {
+                cflags.insert(format!("-Wl,{}", lib.join(",")));
+            }
+        }
+
+        (libs, cflags)
+    }
+
+    fn dedup_flags(known_flags: &HashSet<String>, flags: &[String]) -> String {
+        flags
+            .iter()
+            .filter(|&lib| {
+                !known_flags.contains(lib) || lib.starts_with("-Wl,") || lib.starts_with("/LINK")
+            })
+            .map(|lib| lib.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     fn render_help<W: core::fmt::Write>(&self, mut w: W) -> Result<W, core::fmt::Error> {
+        // Dedup
+        // What libs are already known here?
+        let (dedup_cflags, dedup_libs, dedup_libs_private) = {
+            let (known_libs, known_cflags) = PkgConfig::get_libs_cflags(&self.dedup.requires);
+
+            let cflags = PkgConfig::dedup_flags(&known_cflags, &self.cflags);
+            let libs = PkgConfig::dedup_flags(&known_libs, &self.libs);
+
+            // FIXME: There's no Cflags.private?
+            let (mut known_libs_private, _) =
+                PkgConfig::get_libs_cflags(&self.dedup.requires_private);
+            // Need to be deduplicated against libs too!
+            for i in &self.libs {
+                known_libs_private.insert(i.clone());
+            }
+
+            let libs_private = PkgConfig::dedup_flags(&known_libs_private, &self.libs_private);
+
+            (cflags, libs, libs_private)
+        };
+
         writeln!(w, "prefix={}", canonicalize(&self.prefix))?;
         writeln!(w, "exec_prefix={}", canonicalize(&self.exec_prefix))?;
         writeln!(w, "libdir={}", canonicalize(&self.libdir))?;
@@ -247,11 +377,11 @@ impl PkgConfig {
         writeln!(w, "Name: {}", self.name)?;
         writeln!(w, "Description: {}", self.description.replace('\n', " "))?; // avoid endlines
         writeln!(w, "Version: {}", self.version)?;
-        writeln!(w, "Libs: {}", self.libs.join(" "))?;
-        writeln!(w, "Cflags: {}", self.cflags.join(" "))?;
+        writeln!(w, "Libs: {}", dedup_libs)?;
+        writeln!(w, "Cflags: {}", dedup_cflags)?;
 
         if !self.libs_private.is_empty() {
-            writeln!(w, "Libs.private: {}", self.libs_private.join(" "))?;
+            writeln!(w, "Libs.private: {}", dedup_libs_private)?;
         }
 
         if !self.requires.is_empty() {
