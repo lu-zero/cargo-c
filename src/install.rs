@@ -131,7 +131,7 @@ impl UnixLibNames {
                     "{}.{}.{}.{}",
                     lib, lib_version.major, lib_version.minor, lib_version.patch
                 );
-                let lib_with_main_ver = format!("{}.{}", lib, main_version);
+                let lib_with_main_ver = format!("{lib}.{main_version}");
 
                 Some(Self {
                     canonical: lib,
@@ -141,7 +141,7 @@ impl UnixLibNames {
             }
             LibType::Dylib => {
                 let lib = format!("lib{lib_name}.dylib");
-                let lib_with_main_ver = format!("lib{}.{}.dylib", lib_name, main_version);
+                let lib_with_main_ver = format!("lib{lib_name}.{main_version}.dylib");
 
                 let lib_with_full_ver = format!(
                     "lib{}.{}.{}.{}.dylib",

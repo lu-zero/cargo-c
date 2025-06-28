@@ -260,7 +260,7 @@ impl PkgConfig {
 
         if !self.requires_private.is_empty() {
             let joined = self.requires_private.join(", ");
-            writeln!(w, "Requires.private: {}", joined)?;
+            writeln!(w, "Requires.private: {joined}")?;
         }
 
         Ok(w)
