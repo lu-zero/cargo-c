@@ -111,7 +111,7 @@ impl PkgConfig {
         }
 
         let libs = vec![
-            format!("-L{}", libdir.display()),
+            format!("-L{}", canonicalize(libdir.display().to_string())),
             format!("-l{}", capi_config.library.name),
         ];
 
