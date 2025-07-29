@@ -171,7 +171,8 @@ impl FileNames {
             "macos" | "ios" | "tvos" | "visionos" => {
                 let static_lib = targetdir.join(format!("lib{lib_name}.a"));
                 let shared_lib = targetdir.join(format!("lib{lib_name}.dylib"));
-                (shared_lib, static_lib, None, None, None)
+                let pdb = Some(targetdir.join(format!("lib{lib_name}.dSYM")));
+                (shared_lib, static_lib, None, pdb, None)
             }
             "windows" => {
                 let shared_lib = targetdir.join(format!("{lib_name}.dll"));
@@ -194,9 +195,8 @@ impl FileNames {
                     } else {
                         targetdir.join(format!("{lib_name}.dll.a"))
                     };
-                    let pdb = None;
 
-                    (shared_lib, static_lib, Some(impl_lib), pdb, Some(def))
+                    (shared_lib, static_lib, Some(impl_lib), None, Some(def))
                 }
             }
             _ => return None,
@@ -269,7 +269,7 @@ mod test {
                 static_lib: PathBuf::from("/foo/bar/libferris.a"),
                 shared_lib: PathBuf::from("/foo/bar/libferris.dylib"),
                 impl_lib: None,
-                debug_info: None,
+                debug_info: Some(PathBuf::from("/foo/bar/libferris.dSYM")),
                 def: None,
             };
 

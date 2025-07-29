@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -1277,7 +1277,33 @@ pub fn cbuild(
                     from_build_targets.debug_info.as_ref(),
                     build_targets.debug_info.as_ref(),
                 ) {
-                    copy(from_debug_info, to_debug_info)?;
+                    if from_debug_info.exists() {
+                        create_dir_all(to_debug_info.parent().unwrap())?;
+                        if from_debug_info.is_dir() {
+                            let files =
+                                from_debug_info.read_dir()?.collect::<Result<Vec<_>, _>>()?;
+                            for f in files.iter() {
+                                let src = f.path();
+                                let file_name = src.strip_prefix(from_debug_info)?;
+                                let dst = to_debug_info.join(file_name);
+                                match std::fs::create_dir_all(
+                                    dst.parent().expect("Source path is not complete"),
+                                ) {
+                                    Ok(()) => Ok(()),
+                                    Err(v) => {
+                                        if v.kind() == ErrorKind::AlreadyExists {
+                                            Ok(())
+                                        } else {
+                                            Err(v)
+                                        }
+                                    }
+                                }?;
+                                copy(src, dst)?;
+                            }
+                        } else {
+                            copy(from_debug_info, to_debug_info)?;
+                        }
+                    }
                 }
             }
 
