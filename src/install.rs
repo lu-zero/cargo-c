@@ -285,9 +285,17 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                 ws.gctx()
                     .shell()
                     .status("Installing", "debugging information")?;
-                let destination_path = build_targets
-                    .debug_info_file_name(&install_path_bin, &install_path_lib)
-                    .unwrap();
+
+                let destination_path = if capi_config.library.install_subdir.is_none() {
+                    build_targets
+                        .debug_info_file_name(&install_path_bin, &install_path_lib)
+                        .unwrap()
+                } else {
+                    // We assume they are plugins, install them in the custom libdir path
+                    build_targets
+                        .debug_info_file_name(&install_path_lib, &install_path_lib)
+                        .unwrap()
+                };
 
                 create_dir_all(destination_path.parent().unwrap())?;
                 copy(ws, debug_info, destination_path)?;
