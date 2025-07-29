@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
 use cargo::core::Workspace;
@@ -298,7 +299,29 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                 };
 
                 create_dir_all(destination_path.parent().unwrap())?;
-                copy(ws, debug_info, destination_path)?;
+                if debug_info.is_dir() {
+                    let files = debug_info.read_dir()?.collect::<Result<Vec<_>, _>>()?;
+                    for f in files.iter() {
+                        let src = f.path();
+                        let file_name = src.strip_prefix(debug_info)?;
+                        let dst = destination_path.join(file_name);
+                        match std::fs::create_dir_all(
+                            dst.parent().expect("Source path is not complete"),
+                        ) {
+                            Ok(()) => Ok(()),
+                            Err(v) => {
+                                if v.kind() == ErrorKind::AlreadyExists {
+                                    Ok(())
+                                } else {
+                                    Err(v)
+                                }
+                            }
+                        }?;
+                        copy(ws, src, dst)?;
+                    }
+                } else {
+                    copy(ws, debug_info, destination_path)?;
+                }
             } else {
                 ws.gctx()
                     .shell()
