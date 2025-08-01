@@ -103,6 +103,9 @@ generation = true
 # Can be use to disable header generation completely.
 # This can be used when generating dynamic modules instead of an actual library.
 enabled = true
+# Whether to emit library version constants (e.g. `FOO_MAJOR`, `FOO_MINOR` and
+# `FOO_PATCH`) at the top of the header file. Enabled by default.
+emit_version_constants = true
 ```
 
 ### `pkg-config` File Generation
