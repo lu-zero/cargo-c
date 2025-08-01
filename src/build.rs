@@ -28,7 +28,7 @@ use crate::target;
 fn build_include_file(
     ws: &Workspace,
     name: &str,
-    version: &Version,
+    version: Option<&Version>,
     root_output: &Path,
     root_path: &Path,
 ) -> anyhow::Result<()> {
@@ -42,15 +42,17 @@ fn build_include_file(
 
     // TODO: map the errors
     let mut config = cbindgen::Config::from_root_or_default(crate_path);
-    let warning = config.autogen_warning.unwrap_or_default();
-    let version_info = format!(
-        "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
-        name.to_uppercase().replace('-', "_"),
-        version.major,
-        version.minor,
-        version.patch
-    );
-    config.autogen_warning = Some(warning + &version_info);
+    if let Some(version) = version {
+        let warning = config.autogen_warning.unwrap_or_default();
+        let version_info = format!(
+            "\n#define {0}_MAJOR {1}\n#define {0}_MINOR {2}\n#define {0}_PATCH {3}\n",
+            name.to_uppercase().replace('-', "_"),
+            version.major,
+            version.minor,
+            version.patch
+        );
+        config.autogen_warning = Some(warning + &version_info);
+    }
     cbindgen::Builder::new()
         .with_crate(crate_path)
         .with_config(config)
@@ -342,6 +344,7 @@ pub struct HeaderCApiConfig {
     pub subdirectory: String,
     pub generation: bool,
     pub enabled: bool,
+    pub emit_version_constants: bool,
 }
 
 #[derive(Debug, Hash)]
@@ -539,6 +542,11 @@ fn load_manifest_capi_config(
                 .and_then(|h| h.get("enabled"))
                 .map(|v| v.clone().try_into())
                 .unwrap_or(Ok(true))?,
+            emit_version_constants: header
+                .as_ref()
+                .and_then(|h| h.get("emit_version_constants"))
+                .map(|v| v.clone().try_into())
+                .unwrap_or(Ok(true))?,
         }
     } else {
         HeaderCApiConfig {
@@ -546,6 +554,7 @@ fn load_manifest_capi_config(
             subdirectory: String::from(name),
             generation: true,
             enabled: true,
+            emit_version_constants: true,
         }
     };
 
@@ -1214,11 +1223,12 @@ pub fn cbuild(
 
             if capi_config.header.enabled {
                 let header_name = &capi_config.header.name;
+                let emit_version_constants = capi_config.header.emit_version_constants;
                 if capi_config.header.generation {
                     build_include_file(
                         ws,
                         header_name,
-                        &cpkg.version,
+                        emit_version_constants.then_some(&cpkg.version),
                         &root_output,
                         &cpkg.root_path,
                     )?;

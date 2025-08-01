@@ -282,6 +282,7 @@ mod test {
                     subdirectory: "".into(),
                     generation: true,
                     enabled: true,
+                    emit_version_constants: true,
                 },
                 pkg_config: crate::build::PkgConfigCApiConfig {
                     name: "foo".into(),
