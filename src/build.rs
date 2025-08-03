@@ -17,7 +17,6 @@ use anyhow::Context as _;
 use cargo_util::paths::{copy, create_dir_all, open, read, read_bytes, write};
 use implib::def::ModuleDef;
 use implib::{Flavor, ImportLibrary, MachineType};
-use itertools::Itertools;
 use semver::Version;
 
 use crate::build_targets::BuildTargets;
@@ -1081,7 +1080,6 @@ fn static_libraries(link_line: &str, rustc_target: &target::Target) -> String {
             }
             !s.is_empty()
         })
-        .unique()
         .map(|lib| {
             if rustc_target.env == "msvc" && lib.ends_with(".lib") {
                 return format!("-l{}", lib.trim_end_matches(".lib"));
@@ -1419,11 +1417,11 @@ mod tests {
         );
         assert_eq!(
             static_libraries(libs_msvc, &target_msvc),
-            "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32 -lmsvcrt"
+            "-lkernel32 -ladvapi32 -lkernel32 -lntdll -luserenv -lws2_32 -lkernel32 -lws2_32 -lkernel32 -lmsvcrt"
         );
         assert_eq!(
             static_libraries(libs_mingw, &target_mingw),
-            "-lkernel32 -ladvapi32 -lntdll -luserenv -lws2_32"
+            "-lkernel32 -ladvapi32 -lkernel32 -lntdll -luserenv -lws2_32 -lkernel32 -lws2_32 -lkernel32"
         );
     }
 }
