@@ -9,7 +9,7 @@ use cargo::core::compiler::{unit_graph::UnitDep, unit_graph::UnitGraph, Executor
 use cargo::core::profiles::Profiles;
 use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
-use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, CompileMode, ProfileChecking};
+use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, ProfileChecking, UserIntent};
 use cargo::util::interning::InternedString;
 use cargo::{CliResult, GlobalContext};
 
@@ -761,11 +761,11 @@ fn compile_options(
     gctx: &GlobalContext,
     args: &ArgMatches,
     profile: InternedString,
-    compile_mode: CompileMode,
+    compile_intent: UserIntent,
 ) -> anyhow::Result<CompileOptions> {
     use cargo::core::compiler::CompileKind;
     let mut compile_opts =
-        args.compile_options(gctx, compile_mode, Some(ws), ProfileChecking::Custom)?;
+        args.compile_options(gctx, compile_intent, Some(ws), ProfileChecking::Custom)?;
 
     compile_opts.build_config.requested_profile = profile;
 
@@ -847,7 +847,7 @@ impl Executor for Exec {
     }
 }
 
-use cargo::core::compiler::{unit_graph, UnitInterner};
+use cargo::core::compiler::{unit_graph, CompileMode, UnitInterner};
 use cargo::ops::create_bcx;
 
 fn set_deps_args(
@@ -1113,7 +1113,7 @@ pub fn cbuild(
 
     let profiles = Profiles::new(ws, profile)?;
 
-    let mut compile_opts = compile_options(ws, config, args, profile, CompileMode::Build)?;
+    let mut compile_opts = compile_options(ws, config, args, profile, UserIntent::Build)?;
 
     // TODO: there must be a simpler way to get the right path.
     let root_output = ws
@@ -1283,7 +1283,7 @@ pub fn ctest(
 ) -> CliResult {
     compile_opts.build_config.requested_profile =
         args.get_profile_name("test", ProfileChecking::Custom)?;
-    compile_opts.build_config.mode = CompileMode::Test;
+    compile_opts.build_config.intent = UserIntent::Test;
 
     compile_opts.filter = ops::CompileFilter::new(
         LibRule::Default,   // compile the library, so the unit tests can be run filtered
