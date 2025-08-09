@@ -1295,13 +1295,7 @@ pub fn ctest(
         args.get_profile_name("test", ProfileChecking::Custom)?;
     compile_opts.build_config.intent = UserIntent::Test;
 
-    compile_opts.filter = ops::CompileFilter::new(
-        LibRule::Default,   // compile the library, so the unit tests can be run filtered
-        FilterRule::none(), // we do not have binaries
-        FilterRule::All,    // compile the tests, so the integration tests can be run filtered
-        FilterRule::none(), // specify --examples to unit test binaries filtered
-        FilterRule::none(), // specify --benches to unit test benchmarks filtered
-    );
+    compile_opts.filter = ops::CompileFilter::all_test_targets();
 
     compile_opts.target_rustc_args = None;
 
