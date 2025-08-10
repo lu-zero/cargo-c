@@ -36,7 +36,7 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let (packages, _) = cbuild(&mut ws, &config, subcommand_args, "release")?;
+    let (packages, _) = cbuild(&mut ws, &config, subcommand_args, "release", false)?;
 
     cinstall(&ws, &packages)?;
 
