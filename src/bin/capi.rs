@@ -28,11 +28,11 @@ fn main() -> CliResult {
 
     let args = app.clone().get_matches();
 
-    let (cmd, subcommand_args, default_profile) = match args.subcommand() {
+    let (cmd, subcommand_args, default_profile, build_tests) = match args.subcommand() {
         Some(("capi", args)) => match args.subcommand() {
-            Some(("build", args)) => ("build", args, "dev"),
-            Some(("test", args)) => ("test", args, "dev"),
-            Some(("install", args)) => ("install", args, "release"),
+            Some(("build", args)) => ("build", args, "dev", false),
+            Some(("test", args)) => ("test", args, "dev", true),
+            Some(("install", args)) => ("install", args, "release", false),
             Some((cmd, args)) => {
                 return run_cargo_fallback(cmd, args);
             }
@@ -60,7 +60,13 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let (packages, compile_opts) = cbuild(&mut ws, &config, subcommand_args, default_profile)?;
+    let (packages, compile_opts) = cbuild(
+        &mut ws,
+        &config,
+        subcommand_args,
+        default_profile,
+        build_tests,
+    )?;
 
     if cmd == "install" {
         cinstall(&ws, &packages)?;

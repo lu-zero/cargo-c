@@ -35,7 +35,7 @@ fn main() -> CliResult {
 
     let mut ws = subcommand_args.workspace(&config)?;
 
-    let _ = cbuild(&mut ws, &config, subcommand_args, "dev")?;
+    let _ = cbuild(&mut ws, &config, subcommand_args, "dev", false)?;
 
     Ok(())
 }

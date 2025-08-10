@@ -113,7 +113,11 @@ fn patch_target(
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
 
-    let mut kinds = Vec::with_capacity(2);
+    let mut kinds = Vec::with_capacity(3);
+
+    if library_types.rlib {
+        kinds.push(CrateType::Rlib);
+    }
 
     if library_types.staticlib {
         kinds.push(CrateType::Staticlib);
@@ -1027,6 +1031,7 @@ fn deprecation_warnings(ws: &Workspace, args: &ArgMatches) -> anyhow::Result<()>
 pub struct LibraryTypes {
     pub staticlib: bool,
     pub cdylib: bool,
+    pub rlib: bool,
 }
 
 impl LibraryTypes {
@@ -1042,17 +1047,21 @@ impl LibraryTypes {
         Self {
             staticlib: true,
             cdylib: target.os != "none",
+            rlib: false,
         }
     }
 
-    fn from_args(target: &target::Target, args: &ArgMatches) -> Self {
-        match args.get_many::<String>("library-type") {
-            Some(library_types) => Self::from_library_types(target, library_types),
-            None => Self::from_target(target),
+    fn from_args(target: &target::Target, args: &ArgMatches, want_rlib: bool) -> Self {
+        Self {
+            rlib: want_rlib,
+            ..match args.get_many::<String>("library-type") {
+                Some(library_types) => Self::from_library_types(target, library_types),
+                None => Self::from_target(target),
+            }
         }
     }
 
-    pub(crate) fn from_library_types<S: AsRef<str>>(
+    fn from_library_types<S: AsRef<str>>(
         target: &target::Target,
         library_types: impl Iterator<Item = S>,
     ) -> Self {
@@ -1067,7 +1076,11 @@ impl LibraryTypes {
         // forcing a cdylib for musl is allowed here (see [`LibraryTypes::from_target`])
         cdylib &= target.os != "none";
 
-        Self { staticlib, cdylib }
+        Self {
+            staticlib,
+            cdylib,
+            rlib: false,
+        }
     }
 
     const fn only_staticlib(self) -> bool {
@@ -1105,6 +1118,7 @@ pub fn cbuild(
     config: &GlobalContext,
     args: &ArgMatches,
     default_profile: &str,
+    tests: bool,
 ) -> anyhow::Result<(Vec<CPackage>, CompileOptions)> {
     deprecation_warnings(ws, args)?;
 
@@ -1116,7 +1130,7 @@ pub fn cbuild(
 
     let rustc_target = target::Target::new(Some(&target), is_target_overridden)?;
 
-    let library_types = LibraryTypes::from_args(&rustc_target, args);
+    let library_types = LibraryTypes::from_args(&rustc_target, args, tests);
 
     let profile = args.get_profile_name(default_profile, ProfileChecking::Custom)?;
 
