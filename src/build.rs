@@ -308,7 +308,7 @@ impl FingerPrint {
         let mut f = open(self.path())?;
         let mut cache_str = String::new();
         f.read_to_string(&mut cache_str)?;
-        let cache = toml::de::from_str(&cache_str)?;
+        let cache = toml::from_str(&cache_str)?;
 
         Ok(cache)
     }
@@ -326,7 +326,7 @@ impl FingerPrint {
                 hash,
                 static_libs: self.static_libs.to_owned(),
             };
-            let buf = toml::ser::to_string(&cache)?;
+            let buf = toml::to_string(&cache)?;
             write(self.path(), buf)?;
         }
 
@@ -486,7 +486,7 @@ fn load_manifest_capi_config(
         .crate_name();
     let root_path = pkg.root().to_path_buf();
     let manifest_str = read(&root_path.join("Cargo.toml"))?;
-    let toml = manifest_str.parse::<toml::Value>()?;
+    let toml = manifest_str.parse::<toml::Table>()?;
 
     let capi = toml
         .get("package")
