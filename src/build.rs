@@ -939,7 +939,7 @@ fn compile_with_exec(
         .iter()
         .filter_map(|l| {
             let id = l.unit.pkg.package_id();
-            if let Some(ref m) = l.script_meta {
+            l.script_metas.iter().flatten().find_map(|m| {
                 if let Some(env) = r.extra_env.get(m) {
                     env.iter().find_map(|e| {
                         if e.0 == "OUT_DIR" {
@@ -951,9 +951,7 @@ fn compile_with_exec(
                 } else {
                     None
                 }
-            } else {
-                None
-            }
+            })
         })
         .collect();
 
