@@ -141,7 +141,7 @@ jobs:
         toolchain: stable
 
     - name: Download zip files
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
 
     - name: Create Cargo.lock
       run: |
