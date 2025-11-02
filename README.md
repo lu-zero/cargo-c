@@ -157,6 +157,7 @@ import_library = false
 
 [package.metadata.capi.library.target.'cfg(target_os = "linux")']
 # Add target-specific rustflags, the are folded with the main rustflags above
+# Note that multiple --version-script support is heavily linker dependent.
 rustflags = "-Clink-arg=-Wl,--version-script=assets/version.map"
 ```
 
