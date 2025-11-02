@@ -674,7 +674,7 @@ fn load_manifest_capi_config(
                         .ok()
                         .is_some_and(|p| p.matches(name, &rustc_target.cfg))
                     {
-                        v.as_str()
+                        v.get("rustflags").and_then(|v| v.as_str())
                     } else {
                         None
                     }
