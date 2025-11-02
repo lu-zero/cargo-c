@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -14,6 +15,7 @@ use cargo::util::interning::InternedString;
 use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
+use cargo_platform::Platform;
 use cargo_util::paths::{copy, create_dir_all, open, read, read_bytes, write};
 use implib::def::ModuleDef;
 use implib::{Flavor, ImportLibrary, MachineType};
@@ -648,17 +650,38 @@ fn load_manifest_capi_config(
             });
         }
 
+        fn make_args(args: &str) -> impl Iterator<Item = String> + use<'_> {
+            args.split(' ')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        }
+
         import_library = library
             .get("import_library")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
+
         if let Some(args) = library.get("rustflags").and_then(|v| v.as_str()) {
+            rustflags.extend(make_args(args));
+        }
+
+        if let Some(args) = library.get("target").and_then(|v| v.as_table()) {
             let args = args
-                .split(' ')
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(str::to_string);
-            rustflags.extend(args);
+                .iter()
+                .filter_map(|(p, v)| {
+                    if Platform::from_str(p)
+                        .ok()
+                        .is_some_and(|p| p.matches(name, &rustc_target.cfg))
+                    {
+                        v.as_str()
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(make_args);
+
+            rustflags.extend(args)
         }
     }
 
