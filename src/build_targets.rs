@@ -237,6 +237,8 @@ mod test {
                 arch: String::from(""),
                 os: os.to_string(),
                 env: String::from(""),
+                cfg: Vec::new(),
+                target: None,
             };
             let file_names =
                 FileNames::from_target(&target, "ferris", Path::new("/foo/bar"), false);
@@ -261,6 +263,8 @@ mod test {
                 arch: String::from(""),
                 os: os.to_string(),
                 env: String::from(""),
+                cfg: Vec::new(),
+                target: None,
             };
             let file_names =
                 FileNames::from_target(&target, "ferris", Path::new("/foo/bar"), false);
@@ -284,6 +288,8 @@ mod test {
             arch: String::from(""),
             os: String::from("windows"),
             env: String::from("msvc"),
+            cfg: Vec::new(),
+            target: None,
         };
         let file_names = FileNames::from_target(&target, "ferris", Path::new("/foo/bar"), false);
 
@@ -305,6 +311,8 @@ mod test {
             arch: String::from(""),
             os: String::from("windows"),
             env: String::from("gnu"),
+            cfg: Vec::new(),
+            target: None,
         };
         let file_names = FileNames::from_target(&target, "ferris", Path::new("/foo/bar"), false);
 

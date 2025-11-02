@@ -1,9 +1,11 @@
 use std::env::consts;
 use std::path::{Path, PathBuf};
-
-use anyhow::*;
+use std::str::FromStr;
 
 use crate::build::CApiConfig;
+use anyhow::*;
+use cargo::core::compiler::CompileTarget;
+use cargo_platform::Cfg;
 
 /// Split a target string to its components
 ///
@@ -16,15 +18,18 @@ pub struct Target {
     // pub vendor: String,
     pub os: String,
     pub env: String,
+    pub target: Option<CompileTarget>,
+    pub cfg: Vec<Cfg>,
 }
 
 impl Target {
-    pub fn new<T: AsRef<std::ffi::OsStr>>(
+    pub fn new<T: AsRef<std::ffi::OsStr> + AsRef<str>>(
         target: Option<T>,
         is_target_overridden: bool,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Self> {
         let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
         let mut cmd = std::process::Command::new(rustc);
+        let target = target.as_ref();
 
         cmd.arg("--print").arg("cfg");
         if let Some(target) = target {
@@ -46,16 +51,35 @@ impl Target {
 
             let s = std::str::from_utf8(&out.stdout).unwrap();
 
+            let lines = s.lines();
+
+            let cfg = lines
+                .map(|line| Ok(Cfg::from_str(line)?))
+                .collect::<Result<Vec<_>>>()
+                .with_context(|| {
+                    format!(
+                        "failed to parse the cfg from `rustc --print=cfg`, got:\n{}",
+                        s
+                    )
+                })?;
+
             Ok(Target {
                 arch: match_re(arch_re, s),
                 // vendor: match_re(vendor_re, s),
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
                 is_target_overridden,
+                target: target.map(|t| CompileTarget::new(t.as_ref())).transpose()?,
+                cfg,
             })
         } else {
             Err(anyhow!("Cannot run {:?}", cmd))
         }
+    }
+
+    /// Produce the target name, if known
+    pub fn name(&self) -> Option<&str> {
+        self.target.as_ref().map(|t| t.short_name())
     }
 
     /// Build a list of linker arguments

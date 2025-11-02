@@ -154,6 +154,10 @@ rustflags = "-Cpanic=abort"
 # Used to disable the generation of additional import library file in platforms
 # that have the concept such as Windows
 import_library = false
+
+[package.metadata.capi.library.target.'cfg(target_os = "linux")']
+# Add target-specific rustflags, the are folded with the main rustflags above
+rustflags = "-Clink-arg=-Wl,--version-script=assets/version.map"
 ```
 
 ### Custom data install
