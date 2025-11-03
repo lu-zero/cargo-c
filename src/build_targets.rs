@@ -131,7 +131,9 @@ impl BuildTargets {
     pub fn shared_output_file_name(&self) -> Option<OsString> {
         match self.lib_type() {
             LibType::Windows => {
-                if self.shared_lib.is_some()
+                if self.target.os == "cygwin" {
+                    Some(format!("cyg{}.dll", self.name).into())
+                } else if self.shared_lib.is_some()
                     && self.use_meson_naming_convention
                     && self.target.env == "gnu"
                 {
@@ -174,7 +176,7 @@ impl FileNames {
                 let pdb = Some(targetdir.join(format!("lib{lib_name}.dSYM")));
                 (shared_lib, static_lib, None, pdb, None)
             }
-            "windows" => {
+            "windows" | "cygwin" => {
                 let shared_lib = targetdir.join(format!("{lib_name}.dll"));
                 let def = targetdir.join(format!("{lib_name}.def"));
 
@@ -190,7 +192,7 @@ impl FileNames {
                     (shared_lib, static_lib, Some(impl_lib), pdb, Some(def))
                 } else {
                     let static_lib = targetdir.join(format!("lib{lib_name}.a"));
-                    let impl_lib = if use_meson_naming_convention {
+                    let impl_lib = if use_meson_naming_convention || target.os == "cygwin" {
                         targetdir.join(format!("lib{lib_name}.dll.a"))
                     } else {
                         targetdir.join(format!("{lib_name}.dll.a"))
@@ -320,6 +322,29 @@ mod test {
             static_lib: PathBuf::from("/foo/bar/libferris.a"),
             shared_lib: PathBuf::from("/foo/bar/ferris.dll"),
             impl_lib: Some(PathBuf::from("/foo/bar/ferris.dll.a")),
+            debug_info: None,
+            def: Some(PathBuf::from("/foo/bar/ferris.def")),
+        };
+
+        assert_eq!(file_names.unwrap(), expected);
+    }
+
+    #[test]
+    fn cygwin() {
+        let target = Target {
+            is_target_overridden: false,
+            arch: String::from(""),
+            os: String::from("cygwin"),
+            env: String::from(""),
+            cfg: Vec::new(),
+            target: None,
+        };
+        let file_names = FileNames::from_target(&target, "ferris", Path::new("/foo/bar"), false);
+
+        let expected = FileNames {
+            static_lib: PathBuf::from("/foo/bar/libferris.a"),
+            shared_lib: PathBuf::from("/foo/bar/ferris.dll"),
+            impl_lib: Some(PathBuf::from("/foo/bar/libferris.dll.a")),
             debug_info: None,
             def: Some(PathBuf::from("/foo/bar/ferris.def")),
         };

@@ -182,7 +182,7 @@ fn build_implib_file(
     target: &target::Target,
     targetdir: &Path,
 ) -> anyhow::Result<()> {
-    if target.os == "windows" {
+    if target.os == "windows" || target.os == "cygwin" {
         ws.gctx().shell().status("Building", "implib")?;
 
         let def_path = targetdir.join(format!("{name}.def"));
