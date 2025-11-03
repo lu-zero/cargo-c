@@ -132,3 +132,45 @@ jobs:
           meson setup build
           meson compile -C build
           meson test -C build
+
+  example-project-cygwin:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Clone Git repository
+        uses: actions/checkout@v5
+
+      - name: Install rust
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MSYS
+          install: rust pkgconf gcc openssl-devel libopenssl make
+
+      - name: Install cargo-c applet
+        run: cargo install --path .
+
+      - name: Build C API for example project
+        working-directory: example-project
+        run: cargo cbuild --verbose --release
+
+      - name: Install into /usr/local
+        working-directory: example-project
+        run: cargo cinstall --verbose --release --prefix=/usr/local
+
+      - name: Test pkgconf
+        run: |
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+          pkgconf --version
+          test "$(pkgconf --cflags example_project)" = "-I/usr/local/include/example-project-0.1"
+          test "$(pkgconf --libs example_project)" = "-L/usr/local/lib -lexample-project"
+
+      - name: Test usage from C (using Makefile)
+        working-directory: example-project/usage-from-c
+        run: |
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+          make
