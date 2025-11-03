@@ -90,5 +90,29 @@ jobs:
         run: |
           cargo test --verbose
 
+  cygwin-test:
+    needs: rustfmt-clippy
+    runs-on: windows-latest
 
+    defaults:
+      run:
+        shell: msys2 {0}
 
+    steps:
+      - name: Clone Git repository
+        uses: actions/checkout@v5
+
+      - name: Install rust and dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MSYS
+          install: rust openssl-devel libopenssl pkgconf
+
+      - name: Build
+        run: |
+          cargo build --verbose
+
+      - name: Run tests
+        run: |
+          cargo test --verbose
