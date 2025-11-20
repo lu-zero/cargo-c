@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Clone Git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -139,7 +139,7 @@ jobs:
 
     steps:
       - name: Clone Git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install rust
         uses: msys2/setup-msys2@v2
