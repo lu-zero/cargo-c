@@ -45,7 +45,7 @@ jobs:
              "cargo-ctest.exe"
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cargo-c-windows-${{ matrix.conf }}-binaries
         path: cargo-c-windows-${{ matrix.conf }}.zip
@@ -90,7 +90,7 @@ jobs:
                   cargo-ctest
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cargo-c-linux-binaries-${{ matrix.target }}
         path: cargo-c-${{ matrix.target }}.tar.gz
@@ -121,7 +121,7 @@ jobs:
             cargo-ctest
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cargo-c-macos-binaries
         path: cargo-c-macos.zip
