@@ -95,6 +95,73 @@ jobs:
         name: cargo-c-linux-binaries-${{ matrix.target }}
         path: cargo-c-${{ matrix.target }}.tar.gz
 
+  android-binaries:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        targets: aarch64-linux-android
+
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r29
+        add-to-path: true
+
+    - name: Configure linker and environment
+      run: |
+        NDK_BIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+        
+        cd $NDK_BIN
+        ln -sf aarch64-linux-android21-clang aarch64-linux-android-clang
+        ln -sf aarch64-linux-android21-clang++ aarch64-linux-android-clang++
+        
+        cd $GITHUB_WORKSPACE
+        mkdir -p .cargo
+        cat > .cargo/config.toml << EOF
+        [target.aarch64-linux-android]
+        linker = "${NDK_BIN}/aarch64-linux-android21-clang"
+        ar = "${NDK_BIN}/llvm-ar"
+        EOF
+        
+        echo "CC_aarch64_linux_android=${NDK_BIN}/aarch64-linux-android21-clang" >> $GITHUB_ENV
+        echo "CXX_aarch64_linux_android=${NDK_BIN}/aarch64-linux-android21-clang++" >> $GITHUB_ENV
+        echo "AR_aarch64_linux_android=${NDK_BIN}/llvm-ar" >> $GITHUB_ENV
+        echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=${NDK_BIN}/aarch64-linux-android21-clang" >> $GITHUB_ENV
+        echo "${NDK_BIN}" >> $GITHUB_PATH
+
+    - name: Build cargo-c
+      env:
+        CC_aarch64_linux_android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
+        CXX_aarch64_linux_android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
+        AR_aarch64_linux_android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+      run: |
+        cargo build --target aarch64-linux-android \
+          --features=vendored-openssl \
+          --profile release-strip
+
+    - name: Create tar
+      run: |
+        cd target/aarch64-linux-android/release-strip
+        tar -czvf $GITHUB_WORKSPACE/cargo-c-aarch64-linux-android.tar.gz \
+                  cargo-capi \
+                  cargo-cbuild \
+                  cargo-cinstall \
+                  cargo-ctest
+
+    - name: Upload binaries
+      uses: actions/upload-artifact@v5
+      with:
+        name: cargo-c-android-binaries-aarch64
+        path: cargo-c-aarch64-linux-android.tar.gz
+
   macos-binaries:
 
     runs-on: macos-latest
@@ -128,7 +195,7 @@ jobs:
 
   deploy:
 
-    needs: [windows-binaries, linux-binaries, macos-binaries]
+    needs: [windows-binaries, linux-binaries, android-binaries, macos-binaries]
 
     runs-on: ubuntu-latest
 
@@ -153,6 +220,7 @@ jobs:
         files: |
           Cargo.lock
           cargo-c-linux-binaries*/*.tar.gz
+          cargo-c-android-binaries*/*.tar.gz
           cargo-c-macos-binaries/cargo-c-macos.zip
           cargo-c-windows-msvc-binaries/cargo-c-windows-msvc.zip
           cargo-c-windows-gnu-binaries/cargo-c-windows-gnu.zip
