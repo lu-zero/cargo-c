@@ -160,8 +160,12 @@ impl Target {
         self.os.eq_ignore_ascii_case("windows")
     }
 
+    fn is_flatpak(&self) -> bool {
+        PathBuf::from("/.flatpak-info").exists()
+    }
+
     pub fn default_libdir(&self) -> PathBuf {
-        if self.is_target_overridden || self.is_freebsd() {
+        if self.is_target_overridden || self.is_freebsd() || self.is_flatpak() {
             return "lib".into();
         }
 
