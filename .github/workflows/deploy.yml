@@ -157,7 +157,7 @@ jobs:
                   cargo-ctest
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cargo-c-android-binaries-aarch64
         path: cargo-c-aarch64-linux-android.tar.gz
