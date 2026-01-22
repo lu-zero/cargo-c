@@ -161,11 +161,20 @@ impl Target {
     }
 
     pub fn default_libdir(&self) -> PathBuf {
-        if self.is_target_overridden || self.is_freebsd() {
+        if self.is_freebsd() {
             return "lib".into();
         }
 
         if PathBuf::from("/etc/debian_version").exists() {
+            // cross support - if the explicit target matches what Debian sets when cross building,
+            // proceed with the Multi-Arch compatible lib dir. if it doesn't match (different
+            // target, or env var not set) proceed with the generic "lib"
+            if self.is_target_overridden {
+                let debian_target = std::env::var("DEB_HOST_RUST_TYPE").ok();
+                if debian_target.as_deref() != self.name() {
+                    return "lib".into();
+                }
+            }
             let pc = std::process::Command::new("dpkg-architecture")
                 .arg("-qDEB_HOST_MULTIARCH")
                 .output();
@@ -175,6 +184,10 @@ impl Target {
                     return format!("lib/{}", archpath.trim()).into();
                 }
             }
+        }
+
+        if self.is_target_overridden {
+            return "lib".into();
         }
 
         if consts::ARCH.eq_ignore_ascii_case(&self.arch)
