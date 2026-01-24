@@ -1,13 +1,14 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
-use cargo::util::command_prelude::CommandExt;
 use cargo::util::command_prelude::{flag, multi_opt, opt};
+use cargo::util::command_prelude::{get_ws_member_candidates, CommandExt};
 use cargo::util::{style, CliError, CliResult};
 
 use cargo_util::{ProcessBuilder, ProcessError};
 
 use clap::{Arg, ArgAction, ArgMatches, Command, CommandFactory, Parser};
+use clap_complete::ArgValueCandidates;
 
 use crate::target::Target;
 
@@ -136,8 +137,7 @@ fn base_cli() -> Command {
         .arg_target_triple("Build for the target triple")
         .arg_target_dir()
         .arg_manifest_path()
-        .arg_message_format()
-        .arg_build_plan();
+        .arg_message_format();
 
     if let Ok(t) = default_target {
         app.mut_arg("prefix", |a| {
@@ -166,6 +166,7 @@ pub fn subcommand_build(name: &'static str, about: &'static str) -> Command {
             "Package to build (see `cargo help pkgid`)",
             "Build all packages in the workspace",
             "Exclude packages from the build",
+            ArgValueCandidates::new(get_ws_member_candidates),
         )
         .after_help(
             "
@@ -188,6 +189,7 @@ pub fn subcommand_install(name: &'static str, about: &'static str) -> Command {
             "Package to install (see `cargo help pkgid`)",
             "Install all packages in the workspace",
             "Exclude packages from being installed",
+            ArgValueCandidates::new(get_ws_member_candidates),
         )
         .after_help(
             "
@@ -218,6 +220,7 @@ pub fn subcommand_test(name: &'static str) -> Command {
             "Package to run tests for",
             "Test all packages in the workspace",
             "Exclude packages from the test",
+            ArgValueCandidates::new(get_ws_member_candidates),
         )
         .arg(flag("no-run", "Compile, but don't run tests"))
         .arg(flag("no-fail-fast", "Run all tests regardless of failure"))

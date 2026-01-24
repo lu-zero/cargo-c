@@ -12,6 +12,7 @@ use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspac
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, ProfileChecking, UserIntent};
 use cargo::util::interning::InternedString;
+use cargo::util::BuildLogger;
 use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
@@ -912,7 +913,8 @@ fn compile_with_exec(
 ) -> CargoResult<HashMap<PackageId, PathBuf>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
-    let mut bcx = create_bcx(ws, options, &interner)?;
+    let logger = BuildLogger::maybe_new(ws)?;
+    let mut bcx = create_bcx(ws, options, &interner, logger.as_ref())?;
     let unit_graph = &bcx.unit_graph;
     let extra_compiler_args = &mut bcx.extra_compiler_args;
 
