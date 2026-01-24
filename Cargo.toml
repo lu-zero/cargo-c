@@ -47,6 +47,7 @@ implib = "0.4.0"
 object = { version = "0.38.0", default-features = false, features = ["std", "read_core", "pe"] }
 cargo-platform = "0.3.1"
 clap_complete = "4.5.65"
+camino = "1.2.2"
 
 [features]
 default = []

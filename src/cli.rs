@@ -1,12 +1,14 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
-use cargo::util::command_prelude::{flag, multi_opt, opt};
+use camino::Utf8PathBuf;
+use cargo::util::command_prelude::{flag, heading, multi_opt, opt};
 use cargo::util::command_prelude::{get_ws_member_candidates, CommandExt};
 use cargo::util::{style, CliError, CliResult};
 
 use cargo_util::{ProcessBuilder, ProcessError};
 
+use clap::builder::{StringValueParser, TypedValueParser};
 use clap::{Arg, ArgAction, ArgMatches, Command, CommandFactory, Parser};
 use clap_complete::ArgValueCandidates;
 
@@ -57,6 +59,37 @@ struct Common {
     #[clap(long = "meson-paths", default_value = "false")]
     meson: bool,
 }
+
+trait CommandExtC: CommandExt {
+    fn arg_manifest_path_alias_path(self, with_alias: bool) -> Self {
+        let o = opt("manifest-path", "Path to Cargo.toml")
+            .value_name("PATH")
+            .help_heading(heading::MANIFEST_OPTIONS)
+            .value_parser(StringValueParser::new().map(|p| {
+                let mut p = Utf8PathBuf::from(p);
+                if p.is_dir() {
+                    p.push("Cargo.toml");
+                }
+                p.into_string()
+            }))
+            .add(clap_complete::engine::ArgValueCompleter::new(
+                clap_complete::engine::PathCompleter::any().filter(|path| {
+                    path.join("Cargo.toml").exists()
+                        || path.file_name() == Some(OsStr::new("Cargo.toml"))
+                        || cargo::util::toml::is_embedded(path)
+                }),
+            ));
+
+        let o = if with_alias {
+            o.visible_alias("path")
+        } else {
+            o
+        };
+        self._arg(o)
+    }
+}
+
+impl CommandExtC for Command {}
 
 pub fn main_cli() -> Command {
     let styles = {
@@ -136,7 +169,6 @@ fn base_cli() -> Command {
         .arg_features()
         .arg_target_triple("Build for the target triple")
         .arg_target_dir()
-        .arg_manifest_path()
         .arg_message_format();
 
     if let Ok(t) = default_target {
@@ -168,6 +200,7 @@ pub fn subcommand_build(name: &'static str, about: &'static str) -> Command {
             "Exclude packages from the build",
             ArgValueCandidates::new(get_ws_member_candidates),
         )
+        .arg_manifest_path_alias_path(false)
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
@@ -191,6 +224,7 @@ pub fn subcommand_install(name: &'static str, about: &'static str) -> Command {
             "Exclude packages from being installed",
             ArgValueCandidates::new(get_ws_member_candidates),
         )
+        .arg_manifest_path_alias_path(true)
         .after_help(
             "
 Compilation can be configured via the use of profiles which are configured in
@@ -222,6 +256,7 @@ pub fn subcommand_test(name: &'static str) -> Command {
             "Exclude packages from the test",
             ArgValueCandidates::new(get_ws_member_candidates),
         )
+        .arg_manifest_path_alias_path(false)
         .arg(flag("no-run", "Compile, but don't run tests"))
         .arg(flag("no-fail-fast", "Run all tests regardless of failure"))
 }
