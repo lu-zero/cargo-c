@@ -69,7 +69,9 @@ impl Target {
                 os: match_re(os_re, s),
                 env: match_re(env_re, s),
                 is_target_overridden,
-                target: target.map(|t| CompileTarget::new(t.as_ref())).transpose()?,
+                target: target
+                    .map(|t| CompileTarget::new(t.as_ref(), false))
+                    .transpose()?,
                 cfg,
             })
         } else {

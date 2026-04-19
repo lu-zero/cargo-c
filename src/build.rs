@@ -913,7 +913,7 @@ fn compile_with_exec(
 ) -> CargoResult<HashMap<PackageId, PathBuf>> {
     ws.emit_warnings()?;
     let interner = UnitInterner::new();
-    let logger = BuildLogger::maybe_new(ws)?;
+    let logger = BuildLogger::maybe_new(ws, &options.build_config)?;
     let mut bcx = create_bcx(ws, options, &interner, logger.as_ref())?;
     let unit_graph = &bcx.unit_graph;
     let extra_compiler_args = &mut bcx.extra_compiler_args;
