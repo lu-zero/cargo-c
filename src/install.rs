@@ -201,13 +201,9 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
 
         let destdir = &paths.destdir;
 
-        let mut install_path_lib = paths.libdir.clone();
-        if let Some(subdir) = &capi_config.library.install_subdir {
-            install_path_lib.push(subdir);
-        }
-
         let install_path_bin = append_to_destdir(destdir.as_deref(), &paths.bindir);
-        let install_path_lib = append_to_destdir(destdir.as_deref(), &install_path_lib);
+        let install_path_lib =
+            append_to_destdir(destdir.as_deref(), &paths.lib_install_dir(capi_config));
         let install_path_pc = append_to_destdir(destdir.as_deref(), &paths.pkgconfigdir);
         let install_path_include = append_to_destdir(destdir.as_deref(), &paths.includedir);
         let install_path_data = append_to_destdir(destdir.as_deref(), &paths.datadir);
@@ -357,6 +353,15 @@ fn get_path_or(args: &ArgMatches, id: &str, f: impl FnOnce() -> PathBuf) -> Path
 }
 
 impl InstallPaths {
+    pub fn lib_install_dir(&self, capi_config: &CApiConfig) -> PathBuf {
+        let mut lib_install_dir = self.libdir.clone();
+        if let Some(subdir) = &capi_config.library.install_subdir {
+            lib_install_dir.push(subdir);
+        }
+
+        lib_install_dir
+    }
+
     pub fn new(
         _name: &str,
         rustc_target: &Target,
