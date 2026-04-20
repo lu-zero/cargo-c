@@ -923,10 +923,11 @@ fn compile_with_exec(
         let capi_config = load_manifest_capi_config(pkg, rustc_target)?;
         let name = &capi_config.library.name;
         let install_paths = InstallPaths::new(name, rustc_target, args, &capi_config);
+        let install_path_lib = install_paths.lib_install_dir(&capi_config);
         let pkg_rustflags = &capi_config.library.rustflags;
 
         let mut leaf_args: Vec<String> = rustc_target
-            .shared_object_link_args(&capi_config, &install_paths.libdir, root_output)
+            .shared_object_link_args(&capi_config, &install_path_lib, root_output)
             .into_iter()
             .flat_map(|l| ["-C".to_string(), format!("link-arg={l}")])
             .collect();
