@@ -33,6 +33,9 @@ impl Target {
 
         cmd.arg("--print").arg("cfg");
         if let Some(target) = target {
+            if Self::is_custom_target(target.as_ref()) {
+                cmd.arg("-Zunstable-options");
+            }
             cmd.arg("--target").arg(target);
         }
 
@@ -75,6 +78,21 @@ impl Target {
         } else {
             Err(anyhow!("Cannot run {:?}", cmd))
         }
+    }
+
+    /// Detect whether a target refers to a custom JSON target
+    fn is_custom_target(target: &str) -> bool {
+        if target.ends_with(".json") {
+            return true;
+        }
+
+        std::env::var_os("RUST_TARGET_PATH").is_some_and(|paths| {
+            std::env::split_paths(&paths).any(|p| {
+                let mut candidate = p.join(target);
+                candidate.set_extension("json");
+                candidate.exists()
+            })
+        })
     }
 
     /// Produce the target name, if known
@@ -224,5 +242,37 @@ impl Target {
             return "develop/headers".into();
         }
         "include".into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn custom_target_does_not_fail() {
+        let dir = tempdir().unwrap();
+
+        let target_json = dir.path().join("custom.json");
+        fs::write(
+            &target_json,
+            r#"
+            {
+                "llvm-target": "x86_64-unknown-linux-gnu",
+                "arch": "x86_64",
+                "os": "linux",
+                "env": "gnu",
+                "vendor": "unknown",
+                "linker-flavor": "gcc"
+            }
+            "#,
+        )
+        .unwrap();
+
+        let result = Target::new(Some(target_json.to_str().unwrap()), true);
+
+        assert!(result.is_ok());
     }
 }
