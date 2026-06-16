@@ -42,7 +42,7 @@ serde_json = "1.0.62"
 anyhow = "1.0"
 cc = "1.0"
 glob = "0.3"
-itertools = "0.14"
+itertools = "0.15"
 implib = "0.6.0"
 object = { version = "0.39.1", default-features = false, features = ["std", "read_core", "pe"] }
 cargo-platform = "0.3.1"
