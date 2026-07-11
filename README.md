@@ -108,6 +108,48 @@ enabled = true
 emit_version_constants = true
 ```
 
+### Using cheadergen
+
+Instead of `cbindgen`, you can use [`cheadergen`](https://cheadergen.com/) to generate C headers.
+cheadergen uses the `rustdoc-json` output from the Rust compiler to generate more accurate bindings,
+including doc comments from your Rust code.
+
+To use cheadergen with cargo-c:
+
+1. Install cheadergen and its required nightly toolchain:
+   ```sh
+   cargo install cheadergen_cli
+   rustup install nightly -c rust-docs-json
+   ```
+
+2. Disable cargo-c's automatic header generation (which uses cbindgen):
+   ```toml
+   [package.metadata.capi.header]
+   generation = false
+   ```
+
+3. Add a build script that runs cheadergen before cargo-c:
+   ```rust
+   // build.rs
+   fn main() {
+       // Generate header with cheadergen
+       std::process::Command::new("cheadergen")
+           .arg("generate")
+           .arg("--output")
+           .arg("include/my_crate.h")
+           .status()
+           .expect("cheadergen failed");
+   }
+   ```
+
+4. Configure cargo-c to install the pre-generated header:
+   ```toml
+   [package.metadata.capi.install.include]
+   asset = [{ from = "include/my_crate.h", to = "" }]
+   ```
+
+For more details on cheadergen, see the [official documentation](https://cheadergen.com/getting-started/install).
+
 ### `pkg-config` File Generation
 
 ```toml
