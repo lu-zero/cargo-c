@@ -1,6 +1,6 @@
 [package]
 name = "cargo-c"
-version = "0.10.23+cargo-0.97.1"
+version = "0.10.24+cargo-0.98.0"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 description = "Helper program to build and install c-like libraries"
 license = "MIT"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/lu-zero/cargo-c"
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 keywords = ["cargo", "cdylib"]
-rust-version = "1.94"
+rust-version = "1.95"
 
 [[bin]]
 name = "cargo-capi"
@@ -28,7 +28,7 @@ name = "cargo-ctest"
 path = "src/bin/ctest.rs"
 
 [dependencies]
-cargo = "0.97.1"
+cargo = "0.98.0"
 cargo-util = "0.2"
 semver = "1.0.3"
 log = "0.4"
@@ -42,7 +42,7 @@ serde_json = "1.0.62"
 anyhow = "1.0"
 cc = "1.0"
 glob = "0.3"
-itertools = "0.14"
+itertools = "0.15"
 implib = "0.6.0"
 object = { version = "0.39.1", default-features = false, features = ["std", "read_core", "pe"] }
 cargo-platform = "0.3.1"
