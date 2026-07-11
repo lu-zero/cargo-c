@@ -67,7 +67,7 @@ impl BuildTargets {
         capi_config: &CApiConfig,
         use_meson_naming_convention: bool,
     ) -> anyhow::Result<BuildTargets> {
-        let pc = targetdir.join(format!("{}.pc", &capi_config.pkg_config.filename));
+        let pc = targetdir.join(format!("{}.pc", capi_config.pkg_config.filename));
         let include = if capi_config.header.enabled && capi_config.header.generation {
             Some(targetdir.join(&capi_config.header.name).with_extension("h"))
         } else {
