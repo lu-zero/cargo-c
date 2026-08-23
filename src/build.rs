@@ -911,7 +911,10 @@ fn compile_with_exec(
     root_output: &Path,
     args: &ArgMatches,
 ) -> CargoResult<HashMap<PackageId, PathBuf>> {
-    ws.emit_warnings()?;
+    cargo::diagnostics::passes::emit_parse_diagnostics(
+        ws,
+        cargo::diagnostics::rules::PARSE_PASS_RULES,
+    )?;
     let interner = UnitInterner::new();
     let logger = BuildLogger::maybe_new(ws, &options.build_config)?;
     let mut bcx = create_bcx(ws, options, &interner, logger.as_ref())?;
