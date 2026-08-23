@@ -1,6 +1,9 @@
 name: Rust
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 jobs:
 
@@ -26,7 +29,7 @@ jobs:
           args: --all -- -D warnings
 
   coverage:
-    needs: arch-test
+    needs: rustfmt-clippy
     name: Code coverage
     runs-on: ubuntu-latest
     steps:
