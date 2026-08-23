@@ -1,6 +1,9 @@
 name: Build example project
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 env:
   CARGO_TERM_COLOR: always
