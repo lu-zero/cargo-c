@@ -179,10 +179,21 @@ strip_include_path_components = 1
 # Used as the library name and defaults to the crate name. This might get
 # prefixed with `lib` depending on the target platform.
 name = "new_name"
+# dlopen plugin *module* (PAM, Apache, …): install
+# `$libdir/$install_subdir/$name.so` with no `lib` prefix and no SONAME
+# versioning. Requires a non-empty `install_subdir`. Incompatible with
+# `versioning = true`. Skips the `.a` and `.pc` (those are for `-lfoo`).
+# Headers and Windows import libraries default off.
+# rustc still emits `lib$name.so` in the build dir; only the installed name
+# and soname drop the prefix.
+# GStreamer plugins should *not* set this: they use `install_subdir` only
+# and keep the `lib` prefix. See "Plugin directory vs plugin module" below.
+plugin = false
 # Used as library version and defaults to the crate version. How this is used
 # depends on the target platform.
 version = "1.2.3"
 # Used to install the library to a subdirectory of `libdir`.
+# Required when `plugin = true`.
 install_subdir = "gstreamer-1.0"
 # Used to disable versioning links when installing the dynamic library
 versioning = false
@@ -202,6 +213,63 @@ import_library = false
 # Note that multiple --version-script support is heavily linker dependent.
 rustflags = "-Clink-arg=-Wl,--version-script=assets/version.map"
 ```
+
+### Plugin directory vs plugin module
+
+`install_subdir` and `plugin` are two different layers. Mixing them up is how
+unprefixed, versioned libraries end up in the default libdir.
+
+**Plugin directory** (`install_subdir` only) is a C library that happens to be
+loaded from a subdirectory of `libdir`. GStreamer is the reference:
+
+```toml
+[lib]
+name = "gstcdg"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+capi = []
+
+[package.metadata.capi.header]
+enabled = false
+
+[package.metadata.capi.library]
+install_subdir = "gstreamer-1.0"
+versioning = false
+import_library = false
+```
+
+`cargo cinstall --prefix=/usr` installs `libgstcdg.so` into
+`/usr/lib/gstreamer-1.0`. The `lib` prefix stays; `.a` / `.pc` are still
+produced for static linking. On Windows, `install_subdir` already copies the
+rustc DLL name into that subdirectory instead of `bindir`.
+
+**Plugin module** (`plugin = true`) is a dlopen module, not something linked
+with `-lfoo`. PAM, Apache modules, and similar loaders look up a basename that
+is the public name:
+
+```toml
+[lib]
+name = "pam_cgroup"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+capi = []
+
+[package.metadata.capi.library]
+plugin = true
+install_subdir = "security"
+name = "pam_cgroup"
+```
+
+That installs `$libdir/security/pam_cgroup.so` (no `lib` prefix, no
+`pam_cgroup.so.0.1.0`). The linker soname / install_name matches the installed
+file. `.a`, `.pc`, and Windows import libraries are not installed; headers
+default to off.
+
+`plugin = true` without `install_subdir`, or together with `versioning = true`,
+is an error. NSS-style `libnss_files.so.2` is a versioned, prefixed library
+that happens to be dlopened: leave `plugin` unset.
 
 ### Custom data install
 ```toml

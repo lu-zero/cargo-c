@@ -301,6 +301,7 @@ mod test {
                     version_suffix_components: None,
                     import_library: true,
                     rustflags: Vec::default(),
+                    plugin: false,
                 },
                 install: Default::default(),
             },

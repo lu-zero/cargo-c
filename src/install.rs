@@ -121,13 +121,13 @@ pub(crate) struct UnixLibNames {
 
 impl UnixLibNames {
     pub(crate) fn new(lib_type: LibType, library: &LibraryCApiConfig) -> Option<Self> {
-        let lib_name = &library.name;
         let lib_version = &library.version;
         let main_version = library.sover();
+        let base = library.unix_basename();
 
         match lib_type {
             LibType::So => {
-                let lib = format!("lib{lib_name}.so");
+                let lib = format!("{base}.so");
                 let lib_with_full_ver = format!(
                     "{}.{}.{}.{}",
                     lib, lib_version.major, lib_version.minor, lib_version.patch
@@ -141,12 +141,12 @@ impl UnixLibNames {
                 })
             }
             LibType::Dylib => {
-                let lib = format!("lib{lib_name}.dylib");
-                let lib_with_main_ver = format!("lib{lib_name}.{main_version}.dylib");
+                let lib = format!("{base}.dylib");
+                let lib_with_main_ver = format!("{base}.{main_version}.dylib");
 
                 let lib_with_full_ver = format!(
-                    "lib{}.{}.{}.{}.dylib",
-                    lib_name, lib_version.major, lib_version.minor, lib_version.patch
+                    "{}.{}.{}.{}.dylib",
+                    base, lib_version.major, lib_version.minor, lib_version.patch
                 );
                 Some(Self {
                     canonical: lib,
@@ -193,6 +193,44 @@ impl UnixLibNames {
     }
 }
 
+#[cfg(test)]
+mod unix_lib_names_tests {
+    use super::*;
+    use crate::build::LibraryCApiConfig;
+    use semver::Version;
+
+    fn lib(plugin: bool) -> LibraryCApiConfig {
+        LibraryCApiConfig {
+            name: "pam_cgroup".into(),
+            version: Version::parse("0.1.0").unwrap(),
+            install_subdir: plugin.then(|| "security".into()),
+            versioning: !plugin,
+            version_suffix_components: None,
+            import_library: true,
+            rustflags: vec![],
+            plugin,
+        }
+    }
+
+    #[test]
+    fn so_keeps_lib_prefix_by_default() {
+        let n = UnixLibNames::new(LibType::So, &lib(false)).unwrap();
+        assert_eq!(n.canonical, "libpam_cgroup.so");
+    }
+
+    #[test]
+    fn plugin_so_has_no_lib_prefix() {
+        let n = UnixLibNames::new(LibType::So, &lib(true)).unwrap();
+        assert_eq!(n.canonical, "pam_cgroup.so");
+    }
+
+    #[test]
+    fn plugin_dylib_has_no_lib_prefix() {
+        let n = UnixLibNames::new(LibType::Dylib, &lib(true)).unwrap();
+        assert_eq!(n.canonical, "pam_cgroup.dylib");
+    }
+}
+
 pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
     for pkg in packages {
         let paths = &pkg.install_paths;
@@ -209,15 +247,17 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         let install_path_data = append_to_destdir(destdir.as_deref(), &paths.datadir);
 
         create_dir_all(&install_path_lib)?;
-        create_dir_all(&install_path_pc)?;
+        if !capi_config.library.plugin {
+            create_dir_all(&install_path_pc)?;
 
-        ws.gctx().shell().status("Installing", "pkg-config file")?;
+            ws.gctx().shell().status("Installing", "pkg-config file")?;
 
-        copy(
-            ws,
-            &build_targets.pc,
-            install_path_pc.join(build_targets.pc.file_name().unwrap()),
-        )?;
+            copy(
+                ws,
+                &build_targets.pc,
+                install_path_pc.join(build_targets.pc.file_name().unwrap()),
+            )?;
+        }
 
         if capi_config.header.enabled {
             ws.gctx().shell().status("Installing", "header file")?;
@@ -238,10 +278,12 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
         }
 
         if let Some(ref static_lib) = build_targets.static_lib {
-            ws.gctx().shell().status("Installing", "static library")?;
-            let file_name = build_targets.static_output_file_name().unwrap();
+            if !capi_config.library.plugin {
+                ws.gctx().shell().status("Installing", "static library")?;
+                let file_name = build_targets.static_output_file_name().unwrap();
 
-            copy(ws, static_lib, install_path_lib.join(file_name))?;
+                copy(ws, static_lib, install_path_lib.join(file_name))?;
+            }
         }
 
         if let Some(ref shared_lib) = build_targets.shared_lib {
