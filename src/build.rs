@@ -170,7 +170,14 @@ fn write_def_file<W: std::io::Write>(dll_file: object::File, mut def_file: W) ->
     writeln!(def_file, "EXPORTS")?;
 
     for export in dll_file.exports()? {
-        def_file.write_all(export.name())?;
+        let export = export?;
+        let name = match export.name() {
+            object::read::NameOrOrdinal::Name(n) => n,
+            object::read::NameOrOrdinal::Ordinal(o) => {
+                anyhow::bail!("ordinal-only export {o} cannot be listed in a .def file")
+            }
+        };
+        def_file.write_all(name)?;
         def_file.write_all(b"\n")?;
     }
 
