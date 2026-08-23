@@ -383,9 +383,23 @@ pub struct LibraryCApiConfig {
     pub version_suffix_components: Option<VersionSuffix>,
     pub import_library: bool,
     pub rustflags: Vec<String>,
+    /// dlopen plugin module: unprefixed name, no SONAME versioning,
+    /// `install_subdir` required. Refuses unprefixed/versioned installs into
+    /// the default libdir. Distinct from a C library that merely uses
+    /// `install_subdir` as a plugin directory (e.g. GStreamer).
+    pub plugin: bool,
 }
 
 impl LibraryCApiConfig {
+    /// `libfoo` or `foo`, for soname / install basename without extension.
+    pub fn unix_basename(&self) -> String {
+        if self.plugin {
+            self.name.clone()
+        } else {
+            format!("lib{}", self.name)
+        }
+    }
+
     pub fn sover(&self) -> String {
         let major = self.version.major;
         let minor = self.version.minor;
@@ -402,6 +416,32 @@ impl LibraryCApiConfig {
             Some(VersionSuffix::MajorMinorPatch) => format!("{major}.{minor}.{patch}"),
         }
     }
+}
+
+/// Plugin modules are dlopened, not linked with `-lfoo`. The installed
+/// basename is unprefixed, so they must not land in the default libdir and
+/// must not grow SONAME versioning.
+pub(crate) fn validate_plugin_mode(
+    plugin: bool,
+    install_subdir: Option<&str>,
+    versioning_explicitly_true: bool,
+) -> anyhow::Result<()> {
+    if !plugin {
+        return Ok(());
+    }
+    if !install_subdir.is_some_and(|s| !s.is_empty()) {
+        anyhow::bail!(
+            "`plugin = true` requires a non-empty `install_subdir` \
+             (unprefixed libraries must not be installed into the default libdir)"
+        );
+    }
+    if versioning_explicitly_true {
+        anyhow::bail!(
+            "`plugin = true` cannot be combined with `versioning = true` \
+             (versioned unprefixed names are a footgun)"
+        );
+    }
+    Ok(())
 }
 
 #[derive(Debug, Default, Hash)]
@@ -532,7 +572,9 @@ fn load_manifest_capi_config(
         })
         .unwrap_or_else(|| Ok(String::from(name)))?;
 
-    let header = if let Some(capi) = capi {
+    let header_enabled_explicit = header.as_ref().and_then(|h| h.get("enabled")).is_some();
+
+    let mut header = if let Some(capi) = capi {
         HeaderCApiConfig {
             name: header
                 .as_ref()
@@ -625,6 +667,7 @@ fn load_manifest_capi_config(
     let mut version_suffix_components = None;
     let mut import_library = true;
     let mut rustflags = Vec::new();
+    let mut plugin = false;
 
     if let Some(library) = library {
         if let Some(override_name) = library.get("name").and_then(|v| v.as_str()) {
@@ -665,6 +708,11 @@ fn load_manifest_capi_config(
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
 
+        plugin = library
+            .get("plugin")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         if let Some(args) = library.get("rustflags").and_then(|v| v.as_str()) {
             rustflags.extend(make_args(args));
         }
@@ -692,6 +740,23 @@ fn load_manifest_capi_config(
         versioning = false;
     }
 
+    let versioning_explicitly_true = library
+        .and_then(|l| l.get("versioning"))
+        .and_then(|v| v.as_bool())
+        == Some(true);
+    validate_plugin_mode(
+        plugin,
+        install_subdir.as_deref(),
+        versioning_explicitly_true,
+    )?;
+    if plugin {
+        versioning = false;
+        import_library = false;
+        if !header_enabled_explicit {
+            header.enabled = false;
+        }
+    }
+
     let library = LibraryCApiConfig {
         name: lib_name,
         version,
@@ -700,6 +765,7 @@ fn load_manifest_capi_config(
         version_suffix_components,
         import_library,
         rustflags,
+        plugin,
     };
 
     let default_assets_include = InstallTargetPaths {
@@ -1462,7 +1528,38 @@ mod tests {
             version_suffix_components: None,
             import_library: true,
             rustflags: vec![],
+            plugin: false,
         }
+    }
+
+    #[test]
+    fn unix_basename_adds_lib_prefix_by_default() {
+        let library = make_test_library_config("0.1.0");
+        assert_eq!(library.unix_basename(), "libexample");
+    }
+
+    #[test]
+    fn unix_basename_drops_lib_prefix_for_plugin() {
+        let mut library = make_test_library_config("0.1.0");
+        library.plugin = true;
+        library.name = "pam_cgroup".into();
+        assert_eq!(library.unix_basename(), "pam_cgroup");
+    }
+
+    #[test]
+    fn plugin_mode_requires_install_subdir() {
+        let err = validate_plugin_mode(true, None, false).unwrap_err();
+        assert!(err.to_string().contains("install_subdir"));
+        let err = validate_plugin_mode(true, Some(""), false).unwrap_err();
+        assert!(err.to_string().contains("install_subdir"));
+        validate_plugin_mode(true, Some("security"), false).unwrap();
+        validate_plugin_mode(false, None, true).unwrap();
+    }
+
+    #[test]
+    fn plugin_mode_rejects_versioning() {
+        let err = validate_plugin_mode(true, Some("security"), true).unwrap_err();
+        assert!(err.to_string().contains("versioning"));
     }
 
     #[test]

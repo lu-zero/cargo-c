@@ -94,6 +94,7 @@ impl Target {
         let mut lines = Vec::new();
 
         let lib_name = &capi_config.library.name;
+        let unix_name = capi_config.library.unix_basename();
         let version = &capi_config.library.version;
 
         let major = version.major;
@@ -106,7 +107,7 @@ impl Target {
         let sover = capi_config.library.sover();
 
         if os == "android" {
-            lines.push(format!("-Wl,-soname,lib{lib_name}.so"));
+            lines.push(format!("-Wl,-soname,{unix_name}.so"));
         } else if os == "linux"
             || os == "freebsd"
             || os == "dragonfly"
@@ -117,18 +118,18 @@ impl Target {
             || os == "hurd"
         {
             lines.push(if capi_config.library.versioning {
-                format!("-Wl,-soname,lib{lib_name}.so.{sover}")
+                format!("-Wl,-soname,{unix_name}.so.{sover}")
             } else {
-                format!("-Wl,-soname,lib{lib_name}.so")
+                format!("-Wl,-soname,{unix_name}.so")
             });
         } else if os == "macos" || os == "ios" || os == "tvos" || os == "visionos" {
             let line = if capi_config.library.versioning {
-                format!("-Wl,-install_name,{1}/lib{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
-                        lib_name, libdir.display(), major, minor, patch, sover)
+                format!("-Wl,-install_name,{1}/{0}.{5}.dylib,-current_version,{2}.{3}.{4},-compatibility_version,{5}",
+                        unix_name, libdir.display(), major, minor, patch, sover)
             } else {
                 format!(
-                    "-Wl,-install_name,{1}/lib{0}.dylib",
-                    lib_name,
+                    "-Wl,-install_name,{1}/{0}.dylib",
+                    unix_name,
                     libdir.display()
                 )
             };
