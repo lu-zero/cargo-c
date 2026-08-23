@@ -11,7 +11,9 @@ use cargo::core::profiles::Profiles;
 use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspace};
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, ProfileChecking, UserIntent};
+use cargo::util::context::WarningHandling;
 use cargo::util::interning::InternedString;
+use cargo::util::log_message::LogMessage;
 use cargo::util::BuildLogger;
 use cargo::{CliResult, GlobalContext};
 
@@ -903,6 +905,33 @@ fn set_deps_args(
     }
 }
 
+fn build_logger(ws: &Workspace<'_>, options: &CompileOptions) -> CargoResult<Option<BuildLogger>> {
+    let logger = BuildLogger::maybe_new(ws, &options.build_config)?;
+
+    if let Some(ref logger) = logger {
+        let rustc = ws.gctx().load_global_rustc(Some(ws))?;
+        let num_cpus = std::thread::available_parallelism()
+            .ok()
+            .map(|x| x.get() as u64);
+        logger.log(LogMessage::BuildStarted {
+            command: std::env::args_os()
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect(),
+            cwd: ws.gctx().cwd().to_path_buf(),
+            host: rustc.host.to_string(),
+            jobs: options.build_config.jobs,
+            num_cpus,
+            profile: options.build_config.requested_profile.to_string(),
+            rustc_version: rustc.version.to_string(),
+            rustc_version_verbose: rustc.verbose_version.clone(),
+            target_dir: ws.target_dir().as_path_unlocked().to_path_buf(),
+            workspace_root: ws.root().to_path_buf(),
+        });
+    }
+
+    Ok(logger)
+}
+
 fn compile_with_exec(
     ws: &Workspace<'_>,
     options: &CompileOptions,
@@ -911,12 +940,13 @@ fn compile_with_exec(
     root_output: &Path,
     args: &ArgMatches,
 ) -> CargoResult<HashMap<PackageId, PathBuf>> {
-    cargo::diagnostics::passes::emit_parse_diagnostics(
+    let parse_pass_output = cargo::diagnostics::passes::emit_parse_diagnostics(
         ws,
         cargo::diagnostics::rules::PARSE_PASS_RULES,
     )?;
     let interner = UnitInterner::new();
-    let logger = BuildLogger::maybe_new(ws, &options.build_config)?;
+    let logger = build_logger(ws, options)?;
+
     let mut bcx = create_bcx(ws, options, &interner, logger.as_ref())?;
     let unit_graph = &bcx.unit_graph;
     let extra_compiler_args = &mut bcx.extra_compiler_args;
@@ -959,9 +989,20 @@ fn compile_with_exec(
         unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.gctx())?;
         return Ok(HashMap::new());
     }
+    cargo::core::gc::auto_gc(bcx.gctx);
     let cx = cargo::core::compiler::BuildRunner::new(&bcx)?;
 
-    let r = cx.compile(exec)?;
+    let r = if options.build_config.dry_run {
+        cx.dry_run()?
+    } else {
+        cx.compile(exec)?
+    };
+
+    if ws.gctx().warning_handling()? == WarningHandling::Deny
+        && (r.lint_warning_count + parse_pass_output.lint_warning_count) > 0
+    {
+        anyhow::bail!("warnings are denied by `build.warnings` configuration")
+    }
 
     let out_dirs = r
         .cdylibs
