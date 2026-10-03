@@ -6,15 +6,15 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use cargo::core::compiler::{unit_graph::UnitDep, unit_graph::UnitGraph, Executor, Unit};
-use cargo::core::profiles::Profiles;
-use cargo::core::{FeatureValue, Package, PackageId, Target, TargetKind, Workspace};
+use cargo::compiler::{unit_graph::UnitDep, unit_graph::UnitGraph, Executor, Unit};
+use cargo::context::WarningHandling;
 use cargo::ops::{self, CompileFilter, CompileOptions, FilterRule, LibRule};
 use cargo::util::command_prelude::{ArgMatches, ArgMatchesExt, ProfileChecking, UserIntent};
-use cargo::util::context::WarningHandling;
 use cargo::util::interning::InternedString;
 use cargo::util::log_message::LogMessage;
 use cargo::util::BuildLogger;
+use cargo::workspace::profiles::Profiles;
+use cargo::workspace::{FeatureValue, Package, PackageId, Target, TargetKind, Workspace};
 use cargo::{CliResult, GlobalContext};
 
 use anyhow::Context as _;
@@ -113,7 +113,7 @@ fn patch_target(
     library_types: LibraryTypes,
     capi_config: &CApiConfig,
 ) -> anyhow::Result<()> {
-    use cargo::core::compiler::CrateType;
+    use cargo::compiler::CrateType;
 
     let manifest = pkg.manifest_mut();
     let targets = manifest.targets_mut();
@@ -875,7 +875,7 @@ fn compile_options(
     profile: InternedString,
     compile_intent: UserIntent,
 ) -> anyhow::Result<CompileOptions> {
-    use cargo::core::compiler::CompileKind;
+    use cargo::compiler::CompileKind;
     let mut compile_opts =
         args.compile_options(gctx, compile_intent, Some(ws), ProfileChecking::Custom)?;
 
@@ -959,13 +959,15 @@ impl Executor for Exec {
     }
 }
 
-use cargo::core::compiler::{unit_graph, CompileMode, UnitInterner};
+use cargo::compiler::{unit_graph, CompileMode, UnitInterner};
 use cargo::ops::create_bcx;
+// `bcx.extra_compiler_args` is an FxHashMap, not a std HashMap.
+use cargo::util::data_structures::HashMap as CargoHashMap;
 
 fn set_deps_args(
     dep: &UnitDep,
     graph: &UnitGraph,
-    extra_compiler_args: &mut HashMap<Unit, Vec<String>>,
+    extra_compiler_args: &mut CargoHashMap<Unit, Vec<String>>,
     global_args: &[String],
 ) {
     if !dep.unit_for.is_for_host() {
@@ -1062,8 +1064,8 @@ fn compile_with_exec(
         unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.gctx())?;
         return Ok(HashMap::new());
     }
-    cargo::core::gc::auto_gc(bcx.gctx);
-    let cx = cargo::core::compiler::BuildRunner::new(&bcx)?;
+    cargo::workspace::gc::auto_gc(bcx.gctx);
+    let cx = cargo::compiler::BuildRunner::new(&bcx)?;
 
     let r = if options.build_config.dry_run {
         cx.dry_run()?

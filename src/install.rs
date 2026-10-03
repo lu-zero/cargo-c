@@ -2,7 +2,7 @@ use clap::ArgMatches;
 use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
-use cargo::core::Workspace;
+use cargo::workspace::Workspace;
 use cargo_util::paths::{self, create_dir_all};
 
 use crate::build::*;

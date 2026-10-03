@@ -76,7 +76,7 @@ trait CommandExtC: CommandExt {
                 clap_complete::engine::PathCompleter::any().filter(|path| {
                     path.join("Cargo.toml").exists()
                         || path.file_name() == Some(OsStr::new("Cargo.toml"))
-                        || cargo::util::toml::is_embedded(path)
+                        || cargo::workspace::parser::is_embedded(path)
                 }),
             ));
 
