@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::build::CApiConfig;
 use anyhow::*;
-use cargo::core::compiler::CompileTarget;
+use cargo::compiler::CompileTarget;
 use cargo_platform::Cfg;
 
 /// Split a target string to its components
