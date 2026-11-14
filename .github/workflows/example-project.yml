@@ -63,7 +63,15 @@ jobs:
       - name: Install into /usr/local
         if: runner.os != 'Windows'
         working-directory: example-project
-        run: sudo -E env PATH=$PATH cargo cinstall --verbose --release --prefix=/usr/local
+        # sudo-rs (Ubuntu 25.10+) ignores `sudo -E`. Pass rustup's environment
+        # through `env` so the values survive the reset.
+        run: |
+          sudo env \
+            HOME="$HOME" \
+            PATH="$PATH" \
+            CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" \
+            RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}" \
+            cargo cinstall --verbose --release --prefix=/usr/local
 
       - name: Install into MSYS2 root
         if: runner.os == 'Windows'
