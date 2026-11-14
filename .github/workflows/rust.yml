@@ -97,6 +97,12 @@ jobs:
     needs: rustfmt-clippy
     runs-on: windows-latest
 
+    env:
+      # rustc already passes --enable-auto-image-base early, and proc-macro
+      # DLLs still land on the default base 0x400000. Cygwin fork then
+      # aborts when rustc execs the linker. Pass the flag last so it wins.
+      RUSTFLAGS: -C link-arg=-Wl,--enable-auto-image-base
+
     defaults:
       run:
         shell: msys2 {0}
