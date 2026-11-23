@@ -3,13 +3,13 @@ use cargo::CliResult;
 use cargo::GlobalContext;
 
 use cargo_c::build::cbuild;
-use cargo_c::cli::{main_cli, run_cargo_fallback, subcommand_install};
+use cargo_c::cli::{
+    apply_prefer_dynamic_override, main_cli, run_cargo_fallback, subcommand_install,
+};
 use cargo_c::config::global_context_configure;
 use cargo_c::install::cinstall;
 
 fn main() -> CliResult {
-    let mut config = GlobalContext::default()?;
-
     let subcommand = subcommand_install("cinstall", "Install the crate C-API");
     let mut app = main_cli().subcommand(subcommand);
 
@@ -31,6 +31,9 @@ fn main() -> CliResult {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+
+    apply_prefer_dynamic_override(subcommand_args);
+    let mut config = GlobalContext::default()?;
 
     global_context_configure(&mut config, subcommand_args)?;
 
