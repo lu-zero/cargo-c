@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
@@ -232,6 +233,9 @@ mod unix_lib_names_tests {
 }
 
 pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
+    // The stdlib is toolchain-wide: install each artifact once per destination.
+    let mut stdlib_installs: HashSet<(PathBuf, PathBuf)> = HashSet::new();
+
     for pkg in packages {
         let paths = &pkg.install_paths;
         let capi_config = &pkg.capi_config;
@@ -319,6 +323,24 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
             }
         }
 
+        if let Some(stdlib) = &pkg.dynamic_stdlib {
+            // The import library belongs in `$PREFIX/lib`, not in the
+            // `install_subdir`-adjusted directory used for plugin libraries.
+            stdlib_installs.insert((
+                stdlib.clone(),
+                append_to_destdir(destdir.as_deref(), &paths.libdir)
+                    .join(stdlib.file_name().unwrap()),
+            ));
+        }
+
+        if let Some(dll) = &pkg.dynamic_stdlib_dll {
+            stdlib_installs.insert((dll.clone(), install_path_bin.join(dll.file_name().unwrap())));
+        }
+
+        if let Some(pdb) = &pkg.dynamic_stdlib_pdb {
+            stdlib_installs.insert((pdb.clone(), install_path_bin.join(pdb.file_name().unwrap())));
+        }
+
         if let Some(ref debug_info) = build_targets.debug_info {
             if debug_info.exists() {
                 ws.gctx()
@@ -365,6 +387,16 @@ pub fn cinstall(ws: &Workspace, packages: &[CPackage]) -> anyhow::Result<()> {
                     .shell()
                     .verbose(|shell| shell.status("Absent", "debugging information"))?;
             }
+        }
+    }
+
+    if !stdlib_installs.is_empty() {
+        ws.gctx()
+            .shell()
+            .status("Installing", "Rust standard library")?;
+        for (from, to) in stdlib_installs {
+            create_dir_all(to.parent().unwrap())?;
+            copy(ws, from, to)?;
         }
     }
 

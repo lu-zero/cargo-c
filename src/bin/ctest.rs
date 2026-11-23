@@ -1,12 +1,10 @@
 use cargo::util::command_prelude::*;
 
 use cargo_c::build::*;
-use cargo_c::cli::{main_cli, run_cargo_fallback, subcommand_test};
+use cargo_c::cli::{apply_prefer_dynamic_override, main_cli, run_cargo_fallback, subcommand_test};
 use cargo_c::config::*;
 
 fn main() -> CliResult {
-    let mut config = GlobalContext::default()?;
-
     let subcommand = subcommand_test("ctest");
 
     let mut app = main_cli().subcommand(subcommand);
@@ -29,6 +27,9 @@ fn main() -> CliResult {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+
+    apply_prefer_dynamic_override(subcommand_args);
+    let mut config = GlobalContext::default()?;
 
     global_context_configure(&mut config, subcommand_args)?;
 

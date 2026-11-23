@@ -10,8 +10,6 @@ use cargo::{CliResult, GlobalContext};
 use clap::*;
 
 fn main() -> CliResult {
-    let mut config = GlobalContext::default()?;
-
     let cli_build = subcommand_build("build", "Build the crate C-API");
     let cli_install = subcommand_install("install", "Install the crate C-API");
     let cli_test = subcommand_test("test");
@@ -55,6 +53,9 @@ fn main() -> CliResult {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+
+    apply_prefer_dynamic_override(subcommand_args);
+    let mut config = GlobalContext::default()?;
 
     global_context_configure(&mut config, subcommand_args)?;
 

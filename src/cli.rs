@@ -55,6 +55,18 @@ struct Common {
     #[clap(long = "crt-static")]
     /// Build the library embedding the C runtime
     crt_static: bool,
+    /// Prefer linking against the dynamic Rust standard library
+    ///
+    /// Without this option cargo-c detects `prefer-dynamic` from the effective
+    /// rustflags (RUSTFLAGS, cargo config and `[package.metadata.capi.library]`).
+    /// When given, the value overrides that detection and is passed to rustc.
+    #[clap(
+        long = "prefer-dynamic",
+        num_args = 0..=1,
+        default_missing_value = "true",
+        value_parser = clap::builder::BoolishValueParser::new()
+    )]
+    prefer_dynamic: Option<bool>,
     /// Use the Linux/Meson library naming convention on Windows
     #[clap(long = "meson-paths", default_value = "false")]
     meson: bool,
@@ -259,6 +271,34 @@ pub fn subcommand_test(name: &'static str) -> Command {
         .arg_manifest_path_alias_path(false)
         .arg(flag("no-run", "Compile, but don't run tests"))
         .arg(flag("no-fail-fast", "Run all tests regardless of failure"))
+}
+
+/// Apply the `--prefer-dynamic` override to the rustflags environment.
+///
+/// Cargo appends `RUSTFLAGS` *after* the extra compiler args that cargo-c
+/// injects, so an extra `-C` argument cannot override a value coming from
+/// RUSTFLAGS or cargo config. Call this before `GlobalContext::default()`,
+/// which snapshots the environment.
+pub fn apply_prefer_dynamic_override(args: &ArgMatches) {
+    let Some(overridden) = args.get_one::<bool>("prefer_dynamic").copied() else {
+        return;
+    };
+
+    let value = if overridden { "yes" } else { "no" };
+    if let Ok(mut encoded) = std::env::var("CARGO_ENCODED_RUSTFLAGS") {
+        if !encoded.is_empty() {
+            encoded.push('\x1f');
+        }
+        encoded.push_str(&format!("-C\x1fprefer-dynamic={value}"));
+        std::env::set_var("CARGO_ENCODED_RUSTFLAGS", encoded);
+    } else {
+        let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+        if !flags.is_empty() {
+            flags.push(' ');
+        }
+        flags.push_str(&format!("-C prefer-dynamic={value}"));
+        std::env::set_var("RUSTFLAGS", flags);
+    }
 }
 
 pub fn run_cargo_fallback(subcommand: &str, subcommand_args: &ArgMatches) -> CliResult {

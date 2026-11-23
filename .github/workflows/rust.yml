@@ -93,6 +93,81 @@ jobs:
         run: |
           cargo test --verbose
 
+  prefer-dynamic:
+    name: Dynamic standard library deployment (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: rustfmt-clippy
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            stdlib-glob: 'libstd-*.so'
+            shared-glob: 'libapi_a.so*'
+            pc-flag: '-l:libstd-'
+            dump: 'readelf -d'
+          - os: ubuntu-24.04-arm
+            stdlib-glob: 'libstd-*.so'
+            shared-glob: 'libapi_a.so*'
+            pc-flag: '-l:libstd-'
+            dump: 'readelf -d'
+          - os: macos-latest
+            stdlib-glob: 'libstd-*.dylib'
+            shared-glob: 'libapi_a*.dylib'
+            pc-flag: '-lstd-'
+            dump: 'otool -L'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-c applet
+        run: cargo install --path .
+
+      - name: Deploy the stdlib selected via RUSTFLAGS
+        working-directory: example-workspace
+        env:
+          RUSTFLAGS: -C prefer-dynamic
+        run: |
+          set -euxo pipefail
+          DEST="$PWD/dest"
+          cargo cinstall --release -p api-a --features capi \
+            --prefix=/usr --destdir="$DEST"
+          test -n "$(find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit)"
+          SHARED=$(find "$DEST" -name '${{ matrix.shared-glob }}' -print -quit)
+          ${{ matrix.dump }} "$SHARED" | grep -q 'libstd-'
+          PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
+          grep -q -- '${{ matrix.pc-flag }}' "$PC"
+
+      - name: A CLI override disables the RUSTFLAGS setting
+        working-directory: example-workspace
+        env:
+          RUSTFLAGS: -C prefer-dynamic
+        run: |
+          set -euxo pipefail
+          DEST="$PWD/dest-no"
+          cargo cinstall --release -p api-a --features capi \
+            --prefix=/usr --destdir="$DEST" --prefer-dynamic=no
+          if find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit | grep -q .; then
+            echo "the stdlib must not be deployed when prefer-dynamic is disabled" >&2
+            exit 1
+          fi
+          PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
+          if grep -q -- '${{ matrix.pc-flag }}' "$PC"; then
+            echo "the .pc file must not reference the stdlib" >&2
+            exit 1
+          fi
+
+      - name: The CLI flag enables deployment without RUSTFLAGS
+        working-directory: example-workspace
+        run: |
+          set -euxo pipefail
+          DEST="$PWD/dest-cli"
+          cargo cinstall --release -p api-a --features capi \
+            --prefix=/usr --destdir="$DEST" --prefer-dynamic
+          test -n "$(find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit)"
+
   cygwin-test:
     needs: rustfmt-clippy
     runs-on: windows-latest

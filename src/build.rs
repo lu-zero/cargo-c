@@ -1007,6 +1007,166 @@ fn build_logger(ws: &Workspace<'_>, options: &CompileOptions) -> CargoResult<Opt
     Ok(logger)
 }
 
+/// Value of the last occurrence of a `-C` option in a list of rustc flags.
+/// `None` means the flag was present without an explicit `=value`.
+///
+/// rustc honours the last occurrence of a codegen option. Both `-C foo` and
+/// `-Cfoo` spellings are accepted, as well as `--codegen=foo`.
+fn last_codegen_value<'a>(flags: &'a [String], name: &str) -> Option<Option<&'a str>> {
+    let prefix = format!("{name}=");
+    let mut found = None;
+    let mut i = 0;
+
+    while i < flags.len() {
+        let flag = flags[i].as_str();
+        let option = if flag == "-C" || flag == "--codegen" {
+            i += 1;
+            flags.get(i).map(|flag| flag.as_str())
+        } else if let Some(value) = flag.strip_prefix("-C") {
+            Some(value)
+        } else {
+            flag.strip_prefix("--codegen=")
+        };
+
+        if let Some(option) = option {
+            let value = if option == name {
+                Some(None)
+            } else {
+                option.strip_prefix(prefix.as_str()).map(Some)
+            };
+            if let Some(value) = value {
+                found = Some(value);
+            }
+        }
+
+        i += 1;
+    }
+
+    found
+}
+
+fn prefer_dynamic_from_flags(flags: &[String]) -> Option<bool> {
+    last_codegen_value(flags, "prefer-dynamic")
+        .map(|value| !matches!(value, Some("n" | "no" | "off" | "false" | "0")))
+}
+
+fn panic_abort_from_flags(flags: &[String]) -> bool {
+    last_codegen_value(flags, "panic") == Some(Some("abort"))
+}
+
+/// Apple's linker refuses to link a shared-cache-eligible dylib (our
+/// `/usr/lib` install_name) against a non-eligible one (rustc's `@rpath`
+/// libstd). Opt out when std is linked dynamically.
+fn needs_dyld_shared_cache_opt_out(os: &str, prefer_dynamic: bool) -> bool {
+    prefer_dynamic && matches!(os, "macos" | "ios" | "tvos" | "visionos")
+}
+
+#[derive(Debug, Default, Clone)]
+struct StdlibArtifacts {
+    /// Installed in libdir and referenced from the .pc file: the shared
+    /// library on ELF/Mach-O, or the import library on Windows.
+    library: Option<PathBuf>,
+    /// The windows `std-<hash>.dll`, installed in bindir.
+    dll: Option<PathBuf>,
+    /// The windows-msvc `std-<hash>.pdb`, installed in bindir.
+    pdb: Option<PathBuf>,
+}
+
+/// Locate the Rust standard library dylib shipped with the toolchain.
+fn dynamic_stdlib_in(libdir: &Path) -> StdlibArtifacts {
+    let mut found = StdlibArtifacts::default();
+    let entries: Vec<PathBuf> = match std::fs::read_dir(libdir) {
+        Ok(dir) => dir
+            .filter_map(|entry| entry.ok())
+            .map(|e| e.path())
+            .collect(),
+        Err(_) => return found,
+    };
+
+    for path in &entries {
+        let name = path.file_name().unwrap().to_string_lossy();
+        if name.starts_with("libstd-") && (name.ends_with(".so") || name.ends_with(".dylib")) {
+            found.library = Some(path.clone());
+            return found;
+        }
+    }
+
+    // windows-gnu ships `libstd-<hash>.dll.a` plus `std-<hash>.dll`.
+    if let Some(implib) = entries.iter().find(|path| {
+        let name = path.file_name().unwrap().to_string_lossy();
+        name.starts_with("libstd-") && name.ends_with(".dll.a")
+    }) {
+        let name = implib.file_name().unwrap().to_string_lossy();
+        let hash = name
+            .strip_prefix("libstd-")
+            .and_then(|name| name.strip_suffix(".dll.a"));
+        if let Some(hash) = hash {
+            let dll_name = format!("std-{hash}.dll");
+            found.dll = entries
+                .iter()
+                .find(|path| path.file_name().unwrap().to_string_lossy() == dll_name)
+                .cloned();
+        }
+        found.library = Some(implib.clone());
+    } else if let Some(implib) = entries.iter().find(|path| {
+        let name = path.file_name().unwrap().to_string_lossy();
+        name.starts_with("std-") && name.ends_with(".dll.lib")
+    }) {
+        // windows-msvc ships `std-<hash>.dll.lib`, `std-<hash>.dll` and
+        // `std-<hash>.pdb`.
+        let name = implib.file_name().unwrap().to_string_lossy();
+        let hash = name
+            .strip_prefix("std-")
+            .and_then(|name| name.strip_suffix(".dll.lib"));
+        if let Some(hash) = hash {
+            let dll_name = format!("std-{hash}.dll");
+            found.dll = entries
+                .iter()
+                .find(|path| path.file_name().unwrap().to_string_lossy() == dll_name)
+                .cloned();
+            let pdb_name = format!("std-{hash}.pdb");
+            found.pdb = entries
+                .iter()
+                .find(|path| path.file_name().unwrap().to_string_lossy() == pdb_name)
+                .cloned();
+        }
+        found.library = Some(implib.clone());
+    }
+
+    found
+}
+
+/// The linker flag naming the stdlib installed in `${libdir}`.
+fn dynamic_stdlib_link_flag(path: &Path) -> String {
+    let file_name = path.file_name().unwrap().to_string_lossy();
+    if file_name.ends_with(".so") {
+        // GNU ld accepts an exact filename only via `-l:`.
+        format!("-l:{file_name}")
+    } else if file_name.ends_with(".dll.lib") {
+        // link.exe appends `.lib`, so the name must keep the `.dll` part.
+        format!("-l{}", path.file_stem().unwrap().to_string_lossy())
+    } else {
+        // ld64 and GNU ld both accept the library stem. For a windows-gnu
+        // import library `libstd-<hash>.dll.a` the stem is `std-<hash>`.
+        let stem = path.file_stem().unwrap().to_string_lossy();
+        let stem = stem.strip_prefix("lib").unwrap_or(&stem);
+        let stem = stem.strip_suffix(".dll").unwrap_or(stem);
+        format!("-l{stem}")
+    }
+}
+
+#[derive(Debug, Default)]
+struct DynamicStdlib {
+    /// `prefer-dynamic` is in effect for the built shared library.
+    enabled: bool,
+    /// The value found in the effective rustflags, before any CLI override.
+    detected: Option<bool>,
+    /// `-C panic=abort` is in effect: incompatible with a dynamic stdlib.
+    panic_abort: bool,
+    /// The std dylib artifacts found in the toolchain sysroot.
+    source: StdlibArtifacts,
+}
+
 fn compile_with_exec(
     ws: &Workspace<'_>,
     options: &CompileOptions,
@@ -1014,7 +1174,7 @@ fn compile_with_exec(
     rustc_target: &target::Target,
     root_output: &Path,
     args: &ArgMatches,
-) -> CargoResult<HashMap<PackageId, PathBuf>> {
+) -> CargoResult<(HashMap<PackageId, PathBuf>, DynamicStdlib)> {
     let parse_pass_output = cargo::diagnostics::passes::emit_parse_diagnostics(
         ws,
         cargo::diagnostics::rules::PARSE_PASS_RULES,
@@ -1025,6 +1185,8 @@ fn compile_with_exec(
     let mut bcx = create_bcx(ws, options, &interner, logger.as_ref())?;
     let unit_graph = &bcx.unit_graph;
     let extra_compiler_args = &mut bcx.extra_compiler_args;
+    let cli_prefer_dynamic = args.get_one::<bool>("prefer_dynamic").copied();
+    let mut dynamic = DynamicStdlib::default();
 
     for unit in bcx.roots.iter() {
         let pkg = &unit.pkg;
@@ -1033,6 +1195,25 @@ fn compile_with_exec(
         let install_paths = InstallPaths::new(name, rustc_target, args, &capi_config);
         let install_path_lib = install_paths.lib_install_dir(&capi_config);
         let pkg_rustflags = &capi_config.library.rustflags;
+
+        let target_info = bcx.target_data.get_info(unit.kind);
+        let mut effective_flags = target_info
+            .map(|info| info.rustflags.iter().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        // cargo-c's own rustflags are injected after cargo's flags and win.
+        effective_flags.extend(pkg_rustflags.iter().cloned());
+        let detected = prefer_dynamic_from_flags(&effective_flags);
+        if dynamic.detected.is_none() {
+            dynamic.detected = detected;
+            dynamic.enabled = cli_prefer_dynamic.or(detected).unwrap_or(false);
+        }
+        dynamic.panic_abort |= panic_abort_from_flags(&effective_flags);
+
+        if dynamic.enabled && dynamic.source.library.is_none() && dynamic.source.dll.is_none() {
+            if let Some(info) = target_info {
+                dynamic.source = dynamic_stdlib_in(&info.sysroot_target_libdir);
+            }
+        }
 
         let mut leaf_args: Vec<String> = rustc_target
             .shared_object_link_args(&capi_config, &install_path_lib, root_output)
@@ -1048,9 +1229,14 @@ fn compile_with_exec(
         leaf_args.push("--print".into());
         leaf_args.push("native-static-libs".into());
 
-        if args.flag("crt-static") {
+        if args.flag("crt_static") {
             leaf_args.push("-C".into());
             leaf_args.push("target-feature=+crt-static".into());
+        }
+
+        if needs_dyld_shared_cache_opt_out(&rustc_target.os, dynamic.enabled) {
+            leaf_args.push("-C".into());
+            leaf_args.push("link-arg=-Wl,-not_for_dyld_shared_cache".into());
         }
 
         extra_compiler_args.insert(unit.clone(), leaf_args.to_owned());
@@ -1062,7 +1248,7 @@ fn compile_with_exec(
 
     if options.build_config.unit_graph {
         unit_graph::emit_serialized_unit_graph(&bcx.roots, &bcx.unit_graph, ws.gctx())?;
-        return Ok(HashMap::new());
+        return Ok((HashMap::new(), dynamic));
     }
     cargo::workspace::gc::auto_gc(bcx.gctx);
     let cx = cargo::compiler::BuildRunner::new(&bcx)?;
@@ -1100,7 +1286,7 @@ fn compile_with_exec(
         })
         .collect();
 
-    Ok(out_dirs)
+    Ok((out_dirs, dynamic))
 }
 
 #[derive(Debug)]
@@ -1110,6 +1296,12 @@ pub struct CPackage {
     pub capi_config: CApiConfig,
     pub build_targets: BuildTargets,
     pub install_paths: InstallPaths,
+    /// The toolchain std dylib or import library to deploy in libdir.
+    pub dynamic_stdlib: Option<PathBuf>,
+    /// The windows std DLL to deploy in bindir.
+    pub dynamic_stdlib_dll: Option<PathBuf>,
+    /// The windows-msvc std PDB to deploy in bindir.
+    pub dynamic_stdlib_pdb: Option<PathBuf>,
     finger_print: FingerPrint,
 }
 
@@ -1154,6 +1346,9 @@ impl CPackage {
             capi_config,
             build_targets,
             install_paths,
+            dynamic_stdlib: None,
+            dynamic_stdlib_dll: None,
+            dynamic_stdlib_pdb: None,
             finger_print,
         })
     }
@@ -1318,7 +1513,7 @@ pub fn cbuild(
     compile_opts.build_config.force_rebuild |= pristine;
 
     let exec = Arc::new(Exec::default());
-    let out_dirs = compile_with_exec(
+    let (out_dirs, dynamic) = compile_with_exec(
         ws,
         &compile_opts,
         &(exec.clone() as Arc<dyn Executor>),
@@ -1327,8 +1522,49 @@ pub fn cbuild(
         args,
     )?;
 
+    let cli_override = args.get_one::<bool>("prefer_dynamic").copied();
+    if dynamic.enabled && library_types.only_staticlib() {
+        ws.gctx()
+            .shell()
+            .warn("`prefer-dynamic` has no effect on a staticlib: the Rust standard library is always linked statically")?;
+    }
+    if dynamic.enabled && args.flag("crt_static") {
+        ws.gctx()
+            .shell()
+            .warn("`prefer-dynamic` cannot be combined with `--crt-static`: a static C runtime cannot supply a dynamic standard library")?;
+    }
+    if dynamic.enabled && dynamic.panic_abort {
+        ws.gctx().shell().warn(
+            "`prefer-dynamic` cannot be combined with `-C panic=abort`: \
+             the dynamic standard library is built with unwinding",
+        )?;
+    }
+    if let (Some(overridden), Some(detected)) = (cli_override, dynamic.detected) {
+        if overridden != detected {
+            ws.gctx().shell().warn(format!(
+                "--prefer-dynamic={overridden} overrides the value `{detected}` from the effective rustflags"
+            ))?;
+        }
+    }
+    if dynamic.enabled && dynamic.source.library.is_none() {
+        ws.gctx().shell().warn(
+            "cannot find a dynamic Rust standard library in the sysroot: \
+             the built library may fail to load at runtime",
+        )?;
+    }
+
+    let deploy_stdlib = dynamic.enabled && library_types.cdylib;
+    let dynamic_stdlib = deploy_stdlib
+        .then(|| dynamic.source.library.clone())
+        .flatten();
+    let dynamic_stdlib_dll = deploy_stdlib.then(|| dynamic.source.dll.clone()).flatten();
+    let dynamic_stdlib_pdb = deploy_stdlib.then(|| dynamic.source.pdb.clone()).flatten();
+
     for cpkg in members.iter_mut() {
         let out_dir = out_dirs.get(&cpkg.finger_print.id).map(|p| p.as_path());
+        cpkg.dynamic_stdlib.clone_from(&dynamic_stdlib);
+        cpkg.dynamic_stdlib_dll.clone_from(&dynamic_stdlib_dll);
+        cpkg.dynamic_stdlib_pdb.clone_from(&dynamic_stdlib_pdb);
 
         cpkg.build_targets
             .extra
@@ -1369,6 +1605,12 @@ pub fn cbuild(
                 pc.add_lib(&pkg_config_static_libs);
             }
             pc.add_lib_private(&pkg_config_static_libs);
+            if let Some(stdlib) = &cpkg.dynamic_stdlib {
+                // The stdlib is installed in $PREFIX/lib, which may not be
+                // covered by ${libdir} when install_subdir is in effect.
+                pc.add_plain_libdir();
+                pc.add_lib(dynamic_stdlib_link_flag(stdlib));
+            }
 
             build_pc_files(ws, &capi_config.pkg_config.filename, &root_output, &pc)?;
 
@@ -1647,5 +1889,160 @@ mod tests {
             static_libraries(libs_mingw, &target_mingw),
             "-lkernel32 -ladvapi32 -lkernel32 -lntdll -luserenv -lws2_32 -lkernel32 -lws2_32 -lkernel32"
         );
+    }
+
+    #[test]
+    fn prefer_dynamic_flag_forms() {
+        let flags = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+
+        assert_eq!(prefer_dynamic_from_flags(&[]), None);
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["-C", "opt-level=2"])),
+            None
+        );
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["-C", "prefer-dynamic"])),
+            Some(true)
+        );
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["-Cprefer-dynamic=yes"])),
+            Some(true)
+        );
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["-C", "prefer-dynamic=no"])),
+            Some(false)
+        );
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["--codegen", "prefer-dynamic=off"])),
+            Some(false)
+        );
+        // rustc honours the last occurrence.
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&[
+                "-C",
+                "prefer-dynamic=yes",
+                "-C",
+                "prefer-dynamic=no"
+            ])),
+            Some(false)
+        );
+        assert_eq!(
+            prefer_dynamic_from_flags(&flags(&["-Cprefer-dynamic=no", "-Cprefer-dynamic=on"])),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn panic_abort_from_flags_detects_last_value() {
+        let flags = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+
+        assert!(!panic_abort_from_flags(&[]));
+        assert!(panic_abort_from_flags(&flags(&["-Cpanic=abort"])));
+        assert!(panic_abort_from_flags(&flags(&[
+            "-C",
+            "panic=unwind",
+            "-Cpanic=abort"
+        ])));
+        assert!(!panic_abort_from_flags(&flags(&[
+            "-Cpanic=abort",
+            "-Cpanic=unwind"
+        ])));
+    }
+
+    #[test]
+    fn dyld_shared_cache_opt_out() {
+        assert!(needs_dyld_shared_cache_opt_out("macos", true));
+        assert!(needs_dyld_shared_cache_opt_out("ios", true));
+        assert!(!needs_dyld_shared_cache_opt_out("macos", false));
+        assert!(!needs_dyld_shared_cache_opt_out("linux", true));
+    }
+
+    #[test]
+    fn dynamic_stdlib_link_flags() {
+        assert_eq!(
+            dynamic_stdlib_link_flag(Path::new("/sysroot/lib/libstd-2fc6c8dbabe022e9.so")),
+            "-l:libstd-2fc6c8dbabe022e9.so"
+        );
+        assert_eq!(
+            dynamic_stdlib_link_flag(Path::new("/sysroot/lib/libstd-2fc6c8dbabe022e9.dylib")),
+            "-lstd-2fc6c8dbabe022e9"
+        );
+        assert_eq!(
+            dynamic_stdlib_link_flag(Path::new("/sysroot/lib/libstd-68a98b1e3aff2557.dll.a")),
+            "-lstd-68a98b1e3aff2557"
+        );
+        assert_eq!(
+            dynamic_stdlib_link_flag(Path::new("/sysroot/lib/std-389636fd4dca543a.dll.lib")),
+            "-lstd-389636fd4dca543a.dll"
+        );
+    }
+
+    #[test]
+    fn find_dynamic_stdlib_dylib() {
+        let dir = std::env::temp_dir().join(format!("cargo-c-stdlib-test-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let stdlib = dir.join("libstd-deadbeef.so");
+        for (name, contents) in [
+            ("libstd-deadbeef.so", b""),
+            ("libstd-deadbeef.rlib", b""),
+            ("libstd_detect-deadbeef.so", b""),
+        ] {
+            std::fs::write(dir.join(name), contents).unwrap();
+        }
+
+        let found = dynamic_stdlib_in(&dir);
+        assert_eq!(found.library, Some(stdlib));
+        assert_eq!(found.dll, None);
+        assert_eq!(found.pdb, None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn find_dynamic_stdlib_windows_gnu() {
+        let dir =
+            std::env::temp_dir().join(format!("cargo-c-stdlib-test-win-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        for name in [
+            "libstd-68a98b1e3aff2557.dll.a",
+            "std-68a98b1e3aff2557.dll",
+            "libstd-68a98b1e3aff2557.rlib",
+            "std-deadbeef.dll",
+        ] {
+            std::fs::write(dir.join(name), b"").unwrap();
+        }
+
+        let found = dynamic_stdlib_in(&dir);
+        assert_eq!(
+            found.library,
+            Some(dir.join("libstd-68a98b1e3aff2557.dll.a"))
+        );
+        assert_eq!(found.dll, Some(dir.join("std-68a98b1e3aff2557.dll")));
+        assert_eq!(found.pdb, None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn find_dynamic_stdlib_windows_msvc() {
+        let dir =
+            std::env::temp_dir().join(format!("cargo-c-stdlib-test-msvc-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        for name in [
+            "std-389636fd4dca543a.dll.lib",
+            "std-389636fd4dca543a.dll",
+            "std-389636fd4dca543a.pdb",
+            "std-389636fd4dca543a.rlib",
+            "std-deadbeef.dll",
+        ] {
+            std::fs::write(dir.join(name), b"").unwrap();
+        }
+
+        let found = dynamic_stdlib_in(&dir);
+        assert_eq!(
+            found.library,
+            Some(dir.join("std-389636fd4dca543a.dll.lib"))
+        );
+        assert_eq!(found.dll, Some(dir.join("std-389636fd4dca543a.dll")));
+        assert_eq!(found.pdb, Some(dir.join("std-389636fd4dca543a.pdb")));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

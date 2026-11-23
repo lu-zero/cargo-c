@@ -205,6 +205,20 @@ impl PkgConfig {
         self
     }
 
+    /// Add `${libdir}` itself as a library search path.
+    ///
+    /// The default search path includes `install_subdir` for this package's
+    /// own library, but toolchain-wide artifacts such as a dynamically
+    /// linked Rust stdlib are installed directly in `$PREFIX/lib`.
+    pub fn add_plain_libdir(&mut self) -> &mut Self {
+        let libdir = format!("-L{}", canonicalize("${libdir}"));
+        if !self.libs.contains(&libdir) {
+            // Keep search paths ahead of the libraries they apply to.
+            self.libs.insert(1, libdir);
+        }
+        self
+    }
+
     pub fn set_libs_private<S: AsRef<str>>(&mut self, lib: S) -> &mut Self {
         let lib = lib.as_ref().to_owned();
         self.libs_private.clear();
@@ -324,6 +338,54 @@ mod test {
         );
 
         assert_eq!(expected, pkg.render());
+    }
+
+    #[test]
+    fn stdlib_search_path_with_install_subdir() {
+        let mut pkg = PkgConfig::new(
+            "foo",
+            &CApiConfig {
+                header: crate::build::HeaderCApiConfig {
+                    name: "foo".into(),
+                    subdirectory: "".into(),
+                    generation: true,
+                    enabled: true,
+                    emit_version_constants: true,
+                },
+                pkg_config: crate::build::PkgConfigCApiConfig {
+                    name: "foo".into(),
+                    filename: "foo".into(),
+                    description: "".into(),
+                    version: "0.1".into(),
+                    requires: None,
+                    requires_private: None,
+                    strip_include_path_components: 0,
+                },
+                library: crate::build::LibraryCApiConfig {
+                    name: "foo".into(),
+                    version: Version::parse("0.1.0").unwrap(),
+                    install_subdir: Some("plugindir".into()),
+                    versioning: true,
+                    version_suffix_components: None,
+                    import_library: true,
+                    rustflags: Vec::default(),
+                    plugin: false,
+                },
+                install: Default::default(),
+            },
+        );
+
+        pkg.add_plain_libdir()
+            .add_lib("-l:libstd-deadbeef.so")
+            .add_plain_libdir();
+
+        let rendered = pkg.render();
+        assert!(
+            rendered
+                .contains("Libs: -L${libdir}/plugindir -L${libdir} -lfoo -l:libstd-deadbeef.so\n"),
+            "unexpected .pc contents:\n{rendered}"
+        );
+        assert_eq!(rendered.matches("-L${libdir} ").count(), 1);
     }
 
     mod test_canonicalize {
