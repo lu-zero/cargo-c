@@ -94,33 +94,75 @@ jobs:
           cargo test --verbose
 
   prefer-dynamic:
-    name: Dynamic standard library deployment (${{ matrix.os }})
+    name: Dynamic standard library deployment (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     needs: rustfmt-clippy
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - name: x86_64 Linux
+            os: ubuntu-latest
+            prefix: /usr
+            toolchain: stable
             stdlib-glob: 'libstd-*.so'
             shared-glob: 'libapi_a.so*'
             pc-flag: '-l:libstd-'
             dump: 'readelf -d'
-          - os: ubuntu-24.04-arm
+            dll-glob: ''
+            pdb-glob: ''
+          - name: arm64 Linux
+            os: ubuntu-24.04-arm
+            prefix: /usr
+            toolchain: stable
             stdlib-glob: 'libstd-*.so'
             shared-glob: 'libapi_a.so*'
             pc-flag: '-l:libstd-'
             dump: 'readelf -d'
-          - os: macos-latest
+            dll-glob: ''
+            pdb-glob: ''
+          - name: macOS
+            os: macos-latest
+            prefix: /usr
+            toolchain: stable
             stdlib-glob: 'libstd-*.dylib'
             shared-glob: 'libapi_a*.dylib'
             pc-flag: '-lstd-'
             dump: 'otool -L'
+            dll-glob: ''
+            pdb-glob: ''
+          - name: Windows MSVC
+            os: windows-latest
+            # Git Bash rewrites a leading-slash /usr for the native applet;
+            # a relative prefix keeps the destdir path assertions valid.
+            prefix: usr
+            toolchain: stable
+            stdlib-glob: 'std-*.dll.lib'
+            shared-glob: 'api_a.dll'
+            pc-flag: '-lstd-'
+            dump: ''
+            dll-glob: 'std-*.dll'
+            pdb-glob: 'std-*.pdb'
+          - name: Windows GNU
+            os: windows-latest
+            prefix: usr
+            toolchain: stable-gnu
+            stdlib-glob: 'libstd-*.dll.a'
+            shared-glob: 'api_a.dll'
+            pc-flag: '-lstd-'
+            dump: ''
+            dll-glob: 'std-*.dll'
+            pdb-glob: ''
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install stable
+      - name: Install ${{ matrix.toolchain }} toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Install cargo-c applet
         run: cargo install --path .
@@ -133,10 +175,20 @@ jobs:
           set -euxo pipefail
           DEST="$PWD/dest"
           cargo cinstall --release -p api-a --features capi \
-            --prefix=/usr --destdir="$DEST"
-          test -n "$(find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit)"
-          SHARED=$(find "$DEST" -name '${{ matrix.shared-glob }}' -print -quit)
-          ${{ matrix.dump }} "$SHARED" | grep -q 'libstd-'
+            --prefix='${{ matrix.prefix }}' --libdir=lib --destdir="$DEST"
+          # The import library / dylib belongs in $PREFIX/lib.
+          test -n "$(find "$DEST/usr/lib" -maxdepth 1 -name '${{ matrix.stdlib-glob }}' -print -quit)"
+          # Windows ships the std DLL (and its PDB) in bindir.
+          if [ -n '${{ matrix.dll-glob }}' ]; then
+            test -n "$(find "$DEST/usr/bin" -maxdepth 1 -name '${{ matrix.dll-glob }}' -print -quit)"
+          fi
+          if [ -n '${{ matrix.pdb-glob }}' ]; then
+            test -n "$(find "$DEST/usr/bin" -maxdepth 1 -name '${{ matrix.pdb-glob }}' -print -quit)"
+          fi
+          if [ -n '${{ matrix.dump }}' ]; then
+            SHARED=$(find "$DEST" -name '${{ matrix.shared-glob }}' -print -quit)
+            ${{ matrix.dump }} "$SHARED" | grep -q 'libstd-'
+          fi
           PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
           grep -q -- '${{ matrix.pc-flag }}' "$PC"
 
@@ -148,9 +200,14 @@ jobs:
           set -euxo pipefail
           DEST="$PWD/dest-no"
           cargo cinstall --release -p api-a --features capi \
-            --prefix=/usr --destdir="$DEST" --prefer-dynamic=no
+            --prefix='${{ matrix.prefix }}' --libdir=lib --destdir="$DEST" --prefer-dynamic=no
           if find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit | grep -q .; then
             echo "the stdlib must not be deployed when prefer-dynamic is disabled" >&2
+            exit 1
+          fi
+          if [ -n '${{ matrix.dll-glob }}' ] && \
+             find "$DEST" -name '${{ matrix.dll-glob }}' -print -quit | grep -q .; then
+            echo "the std DLL must not be deployed when prefer-dynamic is disabled" >&2
             exit 1
           fi
           PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
@@ -165,8 +222,45 @@ jobs:
           set -euxo pipefail
           DEST="$PWD/dest-cli"
           cargo cinstall --release -p api-a --features capi \
-            --prefix=/usr --destdir="$DEST" --prefer-dynamic
-          test -n "$(find "$DEST" -name '${{ matrix.stdlib-glob }}' -print -quit)"
+            --prefix='${{ matrix.prefix }}' --libdir=lib --destdir="$DEST" --prefer-dynamic
+          test -n "$(find "$DEST/usr/lib" -maxdepth 1 -name '${{ matrix.stdlib-glob }}' -print -quit)"
+          if [ -n '${{ matrix.dll-glob }}' ]; then
+            test -n "$(find "$DEST/usr/bin" -maxdepth 1 -name '${{ matrix.dll-glob }}' -print -quit)"
+          fi
+          PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
+          grep -q -- '${{ matrix.pc-flag }}' "$PC"
+
+      - name: install_subdir does not redirect the stdlib
+        working-directory: example-workspace
+        run: |
+          set -euxo pipefail
+          rm -rf subdir-workspace
+          mkdir subdir-workspace
+          cp Cargo.toml Cargo.lock subdir-workspace/
+          cp -r api-a api-b subdir-workspace/
+          cat >> subdir-workspace/api-a/Cargo.toml <<'EOF'
+
+          [package.metadata.capi.library]
+          install_subdir = "plugindir"
+          EOF
+          cd subdir-workspace
+          DEST="$PWD/dest-subdir"
+          cargo cinstall --release -p api-a --features capi \
+            --prefix='${{ matrix.prefix }}' --libdir=lib --destdir="$DEST" --prefer-dynamic
+          # The library still honours install_subdir...
+          test -n "$(find "$DEST/usr/lib/plugindir" -maxdepth 1 -name '${{ matrix.shared-glob }}' -print -quit)"
+          # ...but the toolchain-wide stdlib must stay in $PREFIX/lib.
+          test -n "$(find "$DEST/usr/lib" -maxdepth 1 -name '${{ matrix.stdlib-glob }}' -print -quit)"
+          if find "$DEST/usr/lib/plugindir" -name '${{ matrix.stdlib-glob }}' -print -quit | grep -q .; then
+            echo "the stdlib must not be installed into install_subdir" >&2
+            exit 1
+          fi
+          # The .pc must let consumers find the stdlib in $PREFIX/lib while
+          # still pointing at install_subdir for the package's own library.
+          PC=$(find "$DEST" -name 'api_a.pc' -print -quit)
+          grep -Fq -- '-L${libdir}/plugindir ' "$PC"
+          grep -Fq -- '-L${libdir} ' "$PC"
+          grep -q -- '${{ matrix.pc-flag }}' "$PC"
 
   cygwin-test:
     needs: rustfmt-clippy
